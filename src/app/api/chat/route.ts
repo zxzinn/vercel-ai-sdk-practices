@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const convertedMessages = convertToModelMessages(messages);
 
     // Determine available search tools based on searchProviders
-    const availableTools: Record<string, unknown> = {};
+    const availableTools: Record<string, any> = {};
 
     if (webSearch) {
       const providers =
