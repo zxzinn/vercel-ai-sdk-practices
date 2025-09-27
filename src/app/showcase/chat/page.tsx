@@ -60,7 +60,11 @@ export default function ChatShowcase() {
                       {message.parts.map((part, index) => {
                         switch (part.type) {
                           case "text":
-                            return <span key={`${message.id}-${index}`}>{part.text}</span>;
+                            return (
+                              <span key={`${message.id}-${index}`}>
+                                {part.text}
+                              </span>
+                            );
                           default:
                             return null;
                         }
