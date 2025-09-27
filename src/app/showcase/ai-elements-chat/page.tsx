@@ -112,10 +112,11 @@ export default function AIElementsChatShowcase() {
               <ConversationContent>
                 {messages.map((message) => (
                   <div key={message.id}>
-                    {/* Sources */}
+                    {/* Sources - render as soon as any source is available */}
                     {message.role === "assistant" &&
-                      message.parts.filter((part) => part.type === "source-url")
-                        .length > 0 && (
+                      message.parts.some(
+                        (part) => part.type === "source-url",
+                      ) && (
                         <Sources>
                           <SourcesTrigger
                             count={
@@ -185,7 +186,77 @@ export default function AIElementsChatShowcase() {
                               <ReasoningContent>{part.text}</ReasoningContent>
                             </Reasoning>
                           );
+                        case "source-url":
+                          // Sources are rendered above, skip them here
+                          return null;
+                        case "step-start":
+                          // Step boundary - render a separator
+                          return i > 0 ? (
+                            <div
+                              key={`${message.id}-${i}`}
+                              className="text-gray-500"
+                            >
+                              <hr className="my-2 border-gray-300" />
+                            </div>
+                          ) : null;
+                        case "tool-tavilySearch":
+                          // Handle Tavily search tool
+                          return (
+                            <div
+                              key={`${message.id}-${i}`}
+                              className="my-2 p-3 bg-gray-50 rounded"
+                            >
+                              <div className="font-medium text-sm text-gray-600">
+                                🔍 Web Search
+                              </div>
+                              {part.state === "input-streaming" && (
+                                <div className="text-sm text-gray-500">
+                                  Preparing search...
+                                </div>
+                              )}
+                              {part.state === "input-available" && (
+                                <div className="text-sm text-gray-500">
+                                  Searching for: "
+                                  {part.input &&
+                                  typeof part.input === "object" &&
+                                  true &&
+                                  "query" in part.input
+                                    ? String(
+                                        (part.input as { query: unknown })
+                                          .query,
+                                      )
+                                    : "Unknown"}
+                                  "
+                                </div>
+                              )}
+                              {part.state === "output-available" && (
+                                <div className="text-sm mt-1">
+                                  <strong>Query:</strong>{" "}
+                                  {part.input &&
+                                  typeof part.input === "object" &&
+                                  true &&
+                                  "query" in part.input
+                                    ? String(
+                                        (part.input as { query: unknown })
+                                          .query,
+                                      )
+                                    : "Unknown"}
+                                  <br />
+                                  <strong>Result:</strong>{" "}
+                                  {String(part.output || "").substring(0, 200)}
+                                  ...
+                                </div>
+                              )}
+                              {part.state === "output-error" && (
+                                <div className="text-sm text-red-600">
+                                  Error: {part.errorText}
+                                </div>
+                              )}
+                            </div>
+                          );
                         default:
+                          // Debug: log unknown part types
+                          console.log("Unknown part type:", part.type, part);
                           return null;
                       }
                     })}
@@ -239,18 +310,33 @@ export default function AIElementsChatShowcase() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("google")}
+                        checked={searchProviders.includes("tavily")}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSearchProviders([...searchProviders, "google"]);
+                            setSearchProviders([...searchProviders, "tavily"]);
                           } else {
                             setSearchProviders(
-                              searchProviders.filter((p) => p !== "google"),
+                              searchProviders.filter((p) => p !== "tavily"),
                             );
                           }
                         }}
                       >
-                        Google Search
+                        Tavily Search
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={searchProviders.includes("exa")}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSearchProviders([...searchProviders, "exa"]);
+                          } else {
+                            setSearchProviders(
+                              searchProviders.filter((p) => p !== "exa"),
+                            );
+                          }
+                        }}
+                        disabled
+                      >
+                        Exa Search (Coming Soon)
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={searchProviders.includes("bing")}
@@ -265,7 +351,7 @@ export default function AIElementsChatShowcase() {
                         }}
                         disabled
                       >
-                        Bing Search (Not Implemented)
+                        Bing Search (Coming Soon)
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={searchProviders.includes("perplexity")}
@@ -283,37 +369,7 @@ export default function AIElementsChatShowcase() {
                         }}
                         disabled
                       >
-                        Perplexity (Not Implemented)
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("exa")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "exa"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "exa"),
-                            );
-                          }
-                        }}
-                        disabled
-                      >
-                        Exa Search (Not Implemented)
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("tavily")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "tavily"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "tavily"),
-                            );
-                          }
-                        }}
-                        disabled
-                      >
-                        Tavily (Not Implemented)
+                        Perplexity (Coming Soon)
                       </DropdownMenuCheckboxItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
