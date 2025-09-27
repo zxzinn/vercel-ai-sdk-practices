@@ -4,6 +4,7 @@
 - No meaningless comments or descriptions
 - No unnecessary abstractions
 - Keep code direct and clear
+- **LLM Tool Resilience**: Tools designed for LLM use should return error messages rather than fail completely, allowing the LLM to handle and recover from errors gracefully
 
 ## Summary
 
