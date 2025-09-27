@@ -1,5 +1,10 @@
-import { google } from "@ai-sdk/google";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  stepCountIs,
+  streamText,
+  type UIMessage,
+} from "ai";
+import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -35,24 +40,20 @@ export async function POST(req: Request) {
     const convertedMessages = convertToModelMessages(messages);
 
     // Determine available search tools based on searchProviders
-    const availableTools: Record<string, any> = {};
+    const availableTools: Record<string, typeof tavilySearch> = {};
 
     if (webSearch) {
-      // For backwards compatibility, if webSearch is true but no providers specified, use Google
       const providers =
-        searchProviders.length > 0 ? searchProviders : ["google"];
+        searchProviders.length > 0 ? searchProviders : ["tavily"];
 
       providers.forEach((provider) => {
         switch (provider) {
-          case "google":
-            availableTools.google_search = google.tools.googleSearch({});
+          case "tavily":
+            availableTools.tavilySearch = tavilySearch;
             break;
           // Future search providers can be added here
-          // case 'bing':
-          //   availableTools.bing_search = bing.tools.search({});
-          //   break;
-          // case 'perplexity':
-          //   availableTools.perplexity_search = perplexity.tools.search({});
+          // case 'exa':
+          //   availableTools.exa_search = exaSearch;
           //   break;
           default:
             console.warn(`Unknown search provider: ${provider}`);
@@ -68,6 +69,8 @@ export async function POST(req: Request) {
         ? "You are a helpful assistant with access to web search capabilities. When users ask questions that would benefit from current information, use the available search tools to find up-to-date information and cite your sources."
         : "You are a helpful assistant that can answer questions and help with tasks.",
       tools: hasSearchTools ? availableTools : undefined,
+      // Critical: Enables multi-step execution so LLM can respond to tool errors and continue the conversation
+      stopWhen: stepCountIs(5),
     });
 
     // Return the stream response with sources and reasoning support
