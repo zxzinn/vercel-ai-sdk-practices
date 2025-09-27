@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { convertToModelMessages, streamText } from "ai";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -12,11 +12,7 @@ export async function POST(req: Request) {
       webSearch = false,
       searchProviders = [],
     }: {
-      messages: Array<{
-        role: string;
-        content: string;
-        [key: string]: unknown;
-      }>;
+      messages: UIMessage[];
       model: string;
       webSearch?: boolean;
       searchProviders?: string[];
@@ -39,7 +35,7 @@ export async function POST(req: Request) {
     const convertedMessages = convertToModelMessages(messages);
 
     // Determine available search tools based on searchProviders
-    const availableTools: Record<string, unknown> = {};
+    const availableTools: Record<string, any> = {};
 
     if (webSearch) {
       // For backwards compatibility, if webSearch is true but no providers specified, use Google
