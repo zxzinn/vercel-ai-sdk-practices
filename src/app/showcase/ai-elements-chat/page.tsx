@@ -64,7 +64,6 @@ export default function AIElementsChatShowcase() {
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
 
   const { messages, sendMessage, status, regenerate } = useChat({
-    api: "/api/chat",
     onFinish: (message) => {
       // Debug: log the complete message to see if sources are included
       console.log("Message finished:", message);
