@@ -243,7 +243,8 @@ export default function AIElementsChatShowcase() {
                                     : "Unknown"}
                                   <br />
                                   <strong>Result:</strong>{" "}
-                                  {part.output?.substring(0, 200)}...
+                                  {String(part.output || "").substring(0, 200)}
+                                  ...
                                 </div>
                               )}
                               {part.state === "output-error" && (
