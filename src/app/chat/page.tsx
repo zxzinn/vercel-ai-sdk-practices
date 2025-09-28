@@ -99,12 +99,12 @@ export default function AIElementsChatShowcase() {
       processedFiles = await Promise.all(
         message.files.map(async (file) => {
           // Check if the URL is a blob URL that needs conversion
-          if (file.url && file.url.startsWith('blob:')) {
+          if (file.url && file.url.startsWith("blob:")) {
             try {
               // Fetch the blob data
               const response = await fetch(file.url);
               const blob = await response.blob();
-              
+
               // Convert blob to base64 data URL
               return new Promise<typeof file>((resolve) => {
                 const reader = new FileReader();
@@ -117,12 +117,12 @@ export default function AIElementsChatShowcase() {
                 reader.readAsDataURL(blob);
               });
             } catch (error) {
-              console.error('Error converting blob URL to base64:', error);
+              console.error("Error converting blob URL to base64:", error);
               return file; // Return original file if conversion fails
             }
           }
           return file; // Return file as-is if it's already a data URL
-        })
+        }),
       );
     }
 
@@ -295,9 +295,7 @@ export default function AIElementsChatShowcase() {
                 <PromptInputAttachments>
                   {(attachment) => <PromptInputAttachment data={attachment} />}
                 </PromptInputAttachments>
-                <PromptInputTextarea
-                  placeholder="Type your message..."
-                />
+                <PromptInputTextarea placeholder="Type your message..." />
               </PromptInputBody>
               <PromptInputToolbar>
                 <PromptInputTools>
