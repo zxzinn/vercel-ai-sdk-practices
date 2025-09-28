@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+
+# Language settings
+language: "en-US"
+
+# Knowledge base configuration for Linear integration
+knowledge_base:
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  linear:
+    team_keys: ["SPA"]
+
+# Review settings
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+  
+  # Path filters for Next.js Vercel AI SDK project
+  path_filters:
+    # Include these paths
+    - "src/**"
+    - "tests/**"
+    - "docs/**"
+    # Exclude these paths
+    - "!node_modules/**"
+    - "!.next/**"
+    - "!dist/**"
+    - "!build/**"
+    - "!*.min.js"
+    - "!coverage/**"
+  
+  # Path-specific instructions for Vercel AI SDK project
+  path_instructions:
+    - path: "src/app/api/chat/**/*.ts"
+      instructions: |
+        - Ensure streaming responses are properly handled with NextResponse
+        - Validate API request bodies using zod schemas
+        - Check for proper error handling in AI SDK operations
+        - Verify environment variables are properly validated
+        - Ensure rate limiting and authentication checks where needed
+        - Use proper TypeScript types for AI SDK providers and messages
+    
+    - path: "src/app/**/*.tsx"
+      instructions: |
+        - Components should use React 19 patterns and hooks appropriately
+        - Implement proper loading states for AI streaming responses
+        - Use Vercel AI SDK React hooks (useChat, useCompletion) correctly
+        - Follow Next.js 15 App Router conventions
+        - Handle streaming UI updates gracefully with proper error boundaries
+        - Use TypeScript strictly for props and state
+    
+    - path: "src/components/**/*.tsx"
+      instructions: |
+        - Ensure components are properly typed with TypeScript
+        - Follow atomic design principles for component organization
+        - Use Radix UI components consistently with proper accessibility
+        - Implement proper prop interfaces and default values
+        - Handle async operations with proper loading and error states
+    
+    - path: "src/lib/**/*.ts"
+      instructions: |
+        - Utility functions should be pure and well-typed
+        - Environment validation should use zod schemas
+        - AI provider configurations should be properly typed
+        - Export functions with clear naming conventions
+        - Include proper JSDoc comments for complex utilities
+    
+    - path: "**/*.test.{ts,tsx}"
+      instructions: |
+        - Use Vitest testing patterns and best practices
+        - Mock AI SDK calls appropriately for testing
+        - Test both success and error scenarios
+        - Use proper TypeScript types in test cases
+        - Follow AAA pattern (Arrange, Act, Assert)
+  
+  # Quality gates
+  suggested_reviewers: true
+  auto_assign_reviewers: true
+  suggested_labels: true
+  auto_apply_labels: true
+
+# Chat settings
+chat:
+  auto_reply: true
+
+# Linter configurations
+oxc:
+  enabled: true
