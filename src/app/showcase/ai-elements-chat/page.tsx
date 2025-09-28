@@ -43,6 +43,13 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from "@/components/ai-elements/sources";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -51,6 +58,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { anthropicModels, googleModels, openaiModels } from "@/lib/providers";
+
+// Type for Tavily search tool parts
+type TavilySearchToolPart = {
+  type: "tool-tavilySearch";
+  state:
+    | "input-streaming"
+    | "input-available"
+    | "output-available"
+    | "output-error";
+  input?: { query: string };
+  output?: unknown;
+  errorText?: string;
+};
 
 const models = [
   ...openaiModels.slice(0, 3),
@@ -189,16 +209,34 @@ export default function AIElementsChatShowcase() {
                         case "source-url":
                           // Sources are rendered above, skip them here
                           return null;
-                        case "tool-tavilySearch":
-                          // Show search progress feedback
+                        case "tool-tavilySearch": {
+                          // Show search progress with Tool component
+                          const toolPart =
+                            part as unknown as TavilySearchToolPart;
                           return (
-                            <div
+                            <Tool
                               key={`${message.id}-${i}`}
-                              className="text-sm text-muted-foreground italic"
+                              defaultOpen={toolPart.state === "output-error"}
                             >
-                              🔍 Searching the web...
-                            </div>
+                              <ToolHeader
+                                title="Web Search"
+                                type={toolPart.type}
+                                state={toolPart.state}
+                              />
+                              <ToolContent>
+                                {toolPart.input ? (
+                                  <ToolInput input={toolPart.input} />
+                                ) : null}
+                                {toolPart.output || toolPart.errorText ? (
+                                  <ToolOutput
+                                    output={toolPart.output}
+                                    errorText={toolPart.errorText}
+                                  />
+                                ) : null}
+                              </ToolContent>
+                            </Tool>
                           );
+                        }
                         case "step-start":
                           // Step boundary - render a separator
                           return i > 0 ? (
