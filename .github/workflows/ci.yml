@@ -23,11 +23,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Biome lint
-        run: npm run lint
-
-      - name: Run Biome format check
-        run: npx biome format --check .
+      - name: Run Biome CI checks
+        run: npx biome ci .
 
       - name: Run tests
         run: npm test
