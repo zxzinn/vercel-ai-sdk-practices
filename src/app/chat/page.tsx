@@ -265,7 +265,9 @@ export default function AIElementsChatShowcase() {
                                 <Action
                                   onClick={() =>
                                     navigator.clipboard.writeText(
-                                      textParts[0].text,
+                                      textParts
+                                        .map((part) => part.text)
+                                        .join("\n"),
                                     )
                                   }
                                   tooltip="Copy"
