@@ -83,13 +83,27 @@ export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>(models[0].id);
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
 
-  const { messages, sendMessage, status, regenerate } = useChat();
+  const { messages, sendMessage, status, regenerate, error } = useChat();
+
+  const toggleSearchProvider = (provider: string, checked: boolean) => {
+    if (checked) {
+      setSearchProviders([...searchProviders, provider]);
+    } else {
+      setSearchProviders(searchProviders.filter((p) => p !== provider));
+    }
+  };
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text);
     const hasAttachments = Boolean(message.files?.length);
 
     if (!(hasText || hasAttachments)) {
+      return;
+    }
+
+    // Validate model selection
+    if (!models.some((m) => m.id === model)) {
+      console.error("Invalid model selected:", model);
       return;
     }
 
@@ -129,30 +143,23 @@ export default function AIElementsChatShowcase() {
                   <div key={message.id}>
                     {/* Sources - render as soon as any source is available */}
                     {message.role === "assistant" &&
-                      message.parts.some(
-                        (part) => part.type === "source-url",
-                      ) && (
-                        <Sources>
-                          <SourcesTrigger
-                            count={
-                              message.parts.filter(
-                                (part) => part.type === "source-url",
-                              ).length
-                            }
-                          />
-                          {message.parts
-                            .filter((part) => part.type === "source-url")
-                            .map((part, i) => (
-                              <SourcesContent key={`${message.id}-${i}`}>
-                                <Source
-                                  key={`${message.id}-${i}`}
-                                  href={part.url}
-                                  title={part.url}
-                                />
-                              </SourcesContent>
-                            ))}
-                        </Sources>
-                      )}
+                      (() => {
+                        const sourceParts = message.parts.filter(
+                          (part) => part.type === "source-url",
+                        );
+                        return (
+                          sourceParts.length > 0 && (
+                            <Sources>
+                              <SourcesTrigger count={sourceParts.length} />
+                              {sourceParts.map((part, i) => (
+                                <SourcesContent key={`${message.id}-${i}`}>
+                                  <Source href={part.url} title={part.url} />
+                                </SourcesContent>
+                              ))}
+                            </Sources>
+                          )
+                        );
+                      })()}
 
                     {/* Message Parts */}
                     {message.parts.map((part, i) => {
@@ -178,7 +185,14 @@ export default function AIElementsChatShowcase() {
                                     </Action>
                                     <Action
                                       onClick={() =>
-                                        navigator.clipboard.writeText(part.text)
+                                        navigator.clipboard
+                                          .writeText(part.text)
+                                          .catch((err) => {
+                                            console.error(
+                                              "Failed to copy text:",
+                                              err,
+                                            );
+                                          })
                                       }
                                       tooltip="Copy"
                                     >
@@ -255,6 +269,12 @@ export default function AIElementsChatShowcase() {
               <ConversationScrollButton />
             </Conversation>
 
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-4 text-destructive mb-4">
+                <p>An error occurred: {error.message}</p>
+              </div>
+            )}
+
             <PromptInput
               onSubmit={handleSubmit}
               className="mt-4"
@@ -299,62 +319,35 @@ export default function AIElementsChatShowcase() {
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuCheckboxItem
                         checked={searchProviders.includes("tavily")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "tavily"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "tavily"),
-                            );
-                          }
-                        }}
+                        onCheckedChange={(checked) =>
+                          toggleSearchProvider("tavily", checked)
+                        }
                       >
                         Tavily Search
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={searchProviders.includes("exa")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "exa"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "exa"),
-                            );
-                          }
-                        }}
+                        onCheckedChange={(checked) =>
+                          toggleSearchProvider("exa", checked)
+                        }
                         disabled
                       >
                         Exa Search (Coming Soon)
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={searchProviders.includes("bing")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "bing"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "bing"),
-                            );
-                          }
-                        }}
+                        onCheckedChange={(checked) =>
+                          toggleSearchProvider("bing", checked)
+                        }
                         disabled
                       >
                         Bing Search (Coming Soon)
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={searchProviders.includes("perplexity")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([
-                              ...searchProviders,
-                              "perplexity",
-                            ]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "perplexity"),
-                            );
-                          }
-                        }}
+                        onCheckedChange={(checked) =>
+                          toggleSearchProvider("perplexity", checked)
+                        }
                         disabled
                       >
                         Perplexity (Coming Soon)
@@ -383,7 +376,7 @@ export default function AIElementsChatShowcase() {
                   </PromptInputModelSelect>
                 </PromptInputTools>
                 <PromptInputSubmit
-                  disabled={!input && status !== "ready"}
+                  disabled={!input?.trim() || status !== "ready"}
                   status={status}
                 />
               </PromptInputToolbar>
