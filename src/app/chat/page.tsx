@@ -83,6 +83,7 @@ const providers = loadAllProviders();
 export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
+  const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(true);
 
   // Get current model's provider and name for display
   const currentModel = providers
@@ -106,6 +107,7 @@ export default function AIElementsChatShowcase() {
         model: model,
         webSearch: searchProviders.length > 0,
         searchProviders: searchProviders,
+        reasoning: reasoningEnabled,
       },
     });
   };
@@ -165,6 +167,7 @@ export default function AIElementsChatShowcase() {
           model: model,
           webSearch: searchProviders.length > 0,
           searchProviders: searchProviders,
+          reasoning: reasoningEnabled,
         },
       },
     );
@@ -417,6 +420,17 @@ export default function AIElementsChatShowcase() {
                       <PromptInputActionAddAttachments />
                     </PromptInputActionMenuContent>
                   </PromptInputActionMenu>
+                  {/* Reasoning Toggle */}
+                  <Button
+                    variant={reasoningEnabled ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                  >
+                    🧠
+                    <span>{reasoningEnabled ? "Reasoning" : "Reasoning"}</span>
+                  </Button>
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
