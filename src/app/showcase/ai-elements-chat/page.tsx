@@ -199,64 +199,7 @@ export default function AIElementsChatShowcase() {
                               <hr className="my-2 border-gray-300" />
                             </div>
                           ) : null;
-                        case "tool-tavilySearch":
-                          // Handle Tavily search tool
-                          return (
-                            <div
-                              key={`${message.id}-${i}`}
-                              className="my-2 p-3 bg-gray-50 rounded"
-                            >
-                              <div className="font-medium text-sm text-gray-600">
-                                🔍 Web Search
-                              </div>
-                              {part.state === "input-streaming" && (
-                                <div className="text-sm text-gray-500">
-                                  Preparing search...
-                                </div>
-                              )}
-                              {part.state === "input-available" && (
-                                <div className="text-sm text-gray-500">
-                                  Searching for: "
-                                  {part.input &&
-                                  typeof part.input === "object" &&
-                                  true &&
-                                  "query" in part.input
-                                    ? String(
-                                        (part.input as { query: unknown })
-                                          .query,
-                                      )
-                                    : "Unknown"}
-                                  "
-                                </div>
-                              )}
-                              {part.state === "output-available" && (
-                                <div className="text-sm mt-1">
-                                  <strong>Query:</strong>{" "}
-                                  {part.input &&
-                                  typeof part.input === "object" &&
-                                  true &&
-                                  "query" in part.input
-                                    ? String(
-                                        (part.input as { query: unknown })
-                                          .query,
-                                      )
-                                    : "Unknown"}
-                                  <br />
-                                  <strong>Result:</strong>{" "}
-                                  {String(part.output || "").substring(0, 200)}
-                                  ...
-                                </div>
-                              )}
-                              {part.state === "output-error" && (
-                                <div className="text-sm text-red-600">
-                                  Error: {part.errorText}
-                                </div>
-                              )}
-                            </div>
-                          );
                         default:
-                          // Debug: log unknown part types
-                          console.log("Unknown part type:", part.type, part);
                           return null;
                       }
                     })}
