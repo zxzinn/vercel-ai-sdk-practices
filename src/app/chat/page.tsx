@@ -79,13 +79,12 @@ const models = [
 ];
 
 export default function AIElementsChatShowcase() {
-  const [input, setInput] = useState("");
   const [model, setModel] = useState<string>(models[0].id);
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
 
   const { messages, sendMessage, status, regenerate } = useChat();
 
-  const handleSubmit = (message: PromptInputMessage) => {
+  const handleSubmit = async (message: PromptInputMessage) => {
     const hasText = Boolean(message.text);
     const hasAttachments = Boolean(message.files?.length);
 
@@ -93,10 +92,44 @@ export default function AIElementsChatShowcase() {
       return;
     }
 
+    let processedFiles = message.files;
+
+    // Convert blob URLs to base64 data URLs for AI model compatibility
+    if (message.files && message.files.length > 0) {
+      processedFiles = await Promise.all(
+        message.files.map(async (file) => {
+          // Check if the URL is a blob URL that needs conversion
+          if (file.url && file.url.startsWith('blob:')) {
+            try {
+              // Fetch the blob data
+              const response = await fetch(file.url);
+              const blob = await response.blob();
+              
+              // Convert blob to base64 data URL
+              return new Promise<typeof file>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  resolve({
+                    ...file,
+                    url: reader.result as string, // This will be a base64 data URL
+                  });
+                };
+                reader.readAsDataURL(blob);
+              });
+            } catch (error) {
+              console.error('Error converting blob URL to base64:', error);
+              return file; // Return original file if conversion fails
+            }
+          }
+          return file; // Return file as-is if it's already a data URL
+        })
+      );
+    }
+
     sendMessage(
       {
         text: message.text ?? "",
-        files: message.files,
+        files: processedFiles,
       },
       {
         body: {
@@ -106,7 +139,6 @@ export default function AIElementsChatShowcase() {
         },
       },
     );
-    setInput("");
   };
 
   return (
@@ -264,8 +296,6 @@ export default function AIElementsChatShowcase() {
                   {(attachment) => <PromptInputAttachment data={attachment} />}
                 </PromptInputAttachments>
                 <PromptInputTextarea
-                  onChange={(e) => setInput(e.target.value)}
-                  value={input}
                   placeholder="Type your message..."
                 />
               </PromptInputBody>
@@ -381,7 +411,7 @@ export default function AIElementsChatShowcase() {
                   </PromptInputModelSelect>
                 </PromptInputTools>
                 <PromptInputSubmit
-                  disabled={!input && status !== "ready"}
+                  disabled={status !== "ready"}
                   status={status}
                 />
               </PromptInputToolbar>

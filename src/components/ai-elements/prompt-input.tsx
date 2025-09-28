@@ -408,6 +408,15 @@ export const PromptInput = ({
     }));
 
     onSubmit({ text: event.currentTarget.message.value, files }, event);
+    
+    // Clear attachments after submitting
+    clear();
+    
+    // Also clear the text input
+    const messageInput = event.currentTarget.message;
+    if (messageInput) {
+      messageInput.value = "";
+    }
   };
 
   const ctx = useMemo<AttachmentsContext>(
