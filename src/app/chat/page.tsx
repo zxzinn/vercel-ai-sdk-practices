@@ -210,7 +210,7 @@ export default function AIElementsChatShowcase() {
                         </Sources>
                       )}
 
-                    {/* Message Parts - Group text and files together */}
+                    {/* Message Parts - Maintain original order */}
                     {(() => {
                       const textParts = message.parts.filter(
                         (part) => part.type === "text",
@@ -218,84 +218,102 @@ export default function AIElementsChatShowcase() {
                       const fileParts = message.parts.filter(
                         (part) => part.type === "file",
                       );
-                      const otherParts = message.parts.filter(
-                        (part) => part.type !== "text" && part.type !== "file",
-                      );
+                      let hasRenderedUserContent = false;
 
                       return (
                         <Fragment>
-                          {/* Render text and files together if they exist */}
-                          {(textParts.length > 0 || fileParts.length > 0) && (
-                            <Message from={message.role}>
-                              <MessageContent>
-                                <div className="flex flex-col gap-3">
-                                  {/* Render file attachments first */}
-                                  {fileParts.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                      {fileParts.map((part, i) => (
-                                        <div key={`file-${message.id}-${i}`}>
-                                          {part.mediaType?.startsWith(
-                                            "image/",
-                                          ) ? (
-                                            <img
-                                              src={part.url}
-                                              alt={
-                                                part.filename || "attachment"
-                                              }
-                                              className="max-w-48 max-h-48 rounded-lg border object-cover"
-                                            />
-                                          ) : (
-                                            <div className="flex items-center gap-2 p-2 border rounded-lg bg-muted">
-                                              <PaperclipIcon className="size-4 text-muted-foreground" />
-                                              <span className="text-sm font-medium">
-                                                {part.filename || "attachment"}
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* Render text content */}
-                                  {textParts.map((part, i) => (
-                                    <Response key={`text-${message.id}-${i}`}>
-                                      {part.text}
-                                    </Response>
-                                  ))}
-                                </div>
-                              </MessageContent>
-                            </Message>
-                          )}
-
-                          {/* Actions for assistant messages */}
-                          {message.role === "assistant" &&
-                            textParts.length > 0 && (
-                              <Actions className="mt-2">
-                                <Action
-                                  onClick={() => regenerate()}
-                                  tooltip="Retry"
-                                >
-                                  <RefreshCcwIcon className="size-3" />
-                                </Action>
-                                <Action
-                                  onClick={() =>
-                                    navigator.clipboard.writeText(
-                                      textParts
-                                        .map((part) => part.text)
-                                        .join("\n"),
-                                    )
-                                  }
-                                  tooltip="Copy"
-                                >
-                                  <CopyIcon className="size-3" />
-                                </Action>
-                              </Actions>
-                            )}
-
-                          {/* Render other parts separately */}
-                          {otherParts.map((part, i) => {
+                          {message.parts.map((part, i) => {
                             switch (part.type) {
+                              case "text":
+                              case "file":
+                                // Group text and files together, but only render once
+                                if (
+                                  !hasRenderedUserContent &&
+                                  (textParts.length > 0 || fileParts.length > 0)
+                                ) {
+                                  hasRenderedUserContent = true;
+                                  return (
+                                    <Fragment key={`content-${message.id}`}>
+                                      <Message from={message.role}>
+                                        <MessageContent>
+                                          <div className="flex flex-col gap-3">
+                                            {/* Render file attachments first */}
+                                            {fileParts.length > 0 && (
+                                              <div className="flex flex-wrap gap-2">
+                                                {fileParts.map(
+                                                  (filePart, fileIndex) => (
+                                                    <div
+                                                      key={`file-${message.id}-${fileIndex}`}
+                                                    >
+                                                      {filePart.mediaType?.startsWith(
+                                                        "image/",
+                                                      ) ? (
+                                                        <img
+                                                          src={filePart.url}
+                                                          alt={
+                                                            filePart.filename ||
+                                                            "attachment"
+                                                          }
+                                                          className="max-w-48 max-h-48 rounded-lg border object-cover"
+                                                        />
+                                                      ) : (
+                                                        <div className="flex items-center gap-2 p-2 border rounded-lg bg-muted">
+                                                          <PaperclipIcon className="size-4 text-muted-foreground" />
+                                                          <span className="text-sm font-medium">
+                                                            {filePart.filename ||
+                                                              "attachment"}
+                                                          </span>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  ),
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {/* Render text content */}
+                                            {textParts.map(
+                                              (textPart, textIndex) => (
+                                                <Response
+                                                  key={`text-${message.id}-${textIndex}`}
+                                                >
+                                                  {textPart.text}
+                                                </Response>
+                                              ),
+                                            )}
+                                          </div>
+                                        </MessageContent>
+                                      </Message>
+
+                                      {/* Actions for assistant messages */}
+                                      {message.role === "assistant" &&
+                                        textParts.length > 0 && (
+                                          <Actions className="mt-2">
+                                            <Action
+                                              onClick={() => regenerate()}
+                                              tooltip="Retry"
+                                            >
+                                              <RefreshCcwIcon className="size-3" />
+                                            </Action>
+                                            <Action
+                                              onClick={() =>
+                                                navigator.clipboard.writeText(
+                                                  textParts
+                                                    .map((part) => part.text)
+                                                    .join("\n"),
+                                                )
+                                              }
+                                              tooltip="Copy"
+                                            >
+                                              <CopyIcon className="size-3" />
+                                            </Action>
+                                          </Actions>
+                                        )}
+                                    </Fragment>
+                                  );
+                                }
+                                return null;
+
                               case "reasoning":
                                 return (
                                   <Reasoning
@@ -313,9 +331,11 @@ export default function AIElementsChatShowcase() {
                                     </ReasoningContent>
                                   </Reasoning>
                                 );
+
                               case "source-url":
                                 // Sources are rendered above, skip them here
                                 return null;
+
                               case "tool-tavilySearch": {
                                 // Show search progress with Tool component
                                 const toolPart =
@@ -346,9 +366,10 @@ export default function AIElementsChatShowcase() {
                                   </Tool>
                                 );
                               }
+
                               case "step-start":
                                 // Step boundary - render a separator
-                                return message.parts.indexOf(part) > 0 ? (
+                                return i > 0 ? (
                                   <div
                                     key={`${message.id}-${i}`}
                                     className="text-gray-500"
@@ -356,6 +377,7 @@ export default function AIElementsChatShowcase() {
                                     <hr className="my-2 border-gray-300" />
                                   </div>
                                 ) : null;
+
                               default:
                                 return null;
                             }
