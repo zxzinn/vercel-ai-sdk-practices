@@ -1,21 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import type { ChatStatus, FileUIPart } from "ai";
 import {
   ImageIcon,
@@ -30,7 +14,7 @@ import { nanoid } from "nanoid";
 import {
   type ChangeEventHandler,
   Children,
-  ClipboardEventHandler,
+  type ClipboardEventHandler,
   type ComponentProps,
   createContext,
   type FormEvent,
@@ -47,6 +31,22 @@ import {
   useRef,
   useState,
 } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
@@ -64,7 +64,7 @@ export const usePromptInputAttachments = () => {
 
   if (!context) {
     throw new Error(
-      "usePromptInputAttachments must be used within a PromptInput"
+      "usePromptInputAttachments must be used within a PromptInput",
     );
   }
 
@@ -150,7 +150,7 @@ export function PromptInputAttachments({
       aria-live="polite"
       className={cn(
         "overflow-hidden transition-[height] duration-200 ease-out",
-        className
+        className,
       )}
       style={{ height: attachments.files.length ? height : 0 }}
       {...props}
@@ -213,8 +213,8 @@ export type PromptInputProps = Omit<
   }) => void;
   onSubmit: (
     message: PromptInputMessage,
-    event: FormEvent<HTMLFormElement>
-  ) => void;
+    event: FormEvent<HTMLFormElement>,
+  ) => void | Promise<void>;
 };
 
 export const PromptInput = ({
@@ -257,7 +257,7 @@ export const PromptInput = ({
       }
       return true;
     },
-    [accept]
+    [accept],
   );
 
   const add = useCallback(
@@ -307,7 +307,7 @@ export const PromptInput = ({
         return prev.concat(next);
       });
     },
-    [matchesAccept, maxFiles, maxFileSize, onError]
+    [matchesAccept, maxFiles, maxFileSize, onError],
   );
 
   const remove = useCallback((id: string) => {
@@ -400,14 +400,30 @@ export const PromptInput = ({
     }
   };
 
-  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+  const handleSubmit: FormEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
 
     const files: FileUIPart[] = items.map(({ ...item }) => ({
       ...item,
     }));
 
-    onSubmit({ text: event.currentTarget.message.value, files }, event);
+    // Capture form and current value before awaiting
+    const formEl = event.currentTarget;
+    const textValue = formEl.message?.value ?? "";
+
+    // Wait for submit to complete before clearing
+    await Promise.resolve(onSubmit({ text: textValue, files }, event));
+
+    // Clear attachments after submit completes
+    clear();
+
+    // Clear the text input
+    const messageInput = formEl.elements.namedItem(
+      "message",
+    ) as HTMLTextAreaElement | null;
+    if (messageInput) {
+      messageInput.value = "";
+    }
   };
 
   const ctx = useMemo<AttachmentsContext>(
@@ -419,7 +435,7 @@ export const PromptInput = ({
       openFileDialog,
       fileInputRef: inputRef,
     }),
-    [items, add, remove, clear, openFileDialog]
+    [items, add, remove, clear, openFileDialog],
   );
 
   return (
@@ -436,7 +452,7 @@ export const PromptInput = ({
       <form
         className={cn(
           "w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm",
-          className
+          className,
         )}
         onSubmit={handleSubmit}
         {...props}
@@ -487,13 +503,13 @@ export const PromptInputTextarea = ({
 
   const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = (event) => {
     const items = event.clipboardData?.items;
-    
+
     if (!items) {
       return;
     }
 
     const files: File[] = [];
-    
+
     for (const item of items) {
       if (item.kind === "file") {
         const file = item.getAsFile();
@@ -516,7 +532,7 @@ export const PromptInputTextarea = ({
         "field-sizing-content bg-transparent dark:bg-transparent",
         "max-h-48 min-h-16",
         "focus-visible:ring-0",
-        className
+        className,
       )}
       name="message"
       onChange={(e) => {
@@ -552,7 +568,7 @@ export const PromptInputTools = ({
     className={cn(
       "flex items-center gap-1",
       "[&_button:first-child]:rounded-bl-xl",
-      className
+      className,
     )}
     {...props}
   />
@@ -575,7 +591,7 @@ export const PromptInputButton = ({
         "shrink-0 gap-1.5 rounded-lg",
         variant === "ghost" && "text-muted-foreground",
         newSize === "default" && "px-3",
-        className
+        className,
       )}
       size={newSize}
       type="button"
@@ -681,7 +697,7 @@ export const PromptInputModelSelectTrigger = ({
     className={cn(
       "border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors",
       'hover:bg-accent hover:text-foreground [&[aria-expanded="true"]]:bg-accent [&[aria-expanded="true"]]:text-foreground',
-      className
+      className,
     )}
     {...props}
   />
