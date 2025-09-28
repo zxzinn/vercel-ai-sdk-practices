@@ -90,6 +90,9 @@ export default function AIElementsChatShowcase() {
   const { messages, sendMessage, status, regenerate } = useChat();
 
   const handleSubmit = async (message: PromptInputMessage) => {
+    // Guard against submits while not ready
+    if (status !== "ready") return;
+
     const hasText = Boolean(message.text);
     const hasAttachments = Boolean(message.files?.length);
 
@@ -282,8 +285,8 @@ export default function AIElementsChatShowcase() {
                                     className="w-full"
                                     isStreaming={
                                       status === "streaming" &&
-                                      i === message.parts.length - 1 &&
-                                      message.id === messages.at(-1)?.id
+                                      message.id === messages.at(-1)?.id &&
+                                      part === message.parts.at(-1)
                                     }
                                   >
                                     <ReasoningTrigger />
@@ -327,7 +330,7 @@ export default function AIElementsChatShowcase() {
                               }
                               case "step-start":
                                 // Step boundary - render a separator
-                                return i > 0 ? (
+                                return message.parts.indexOf(part) > 0 ? (
                                   <div
                                     key={`${message.id}-${i}`}
                                     className="text-gray-500"
