@@ -372,7 +372,6 @@ export default function AIElementsChatShowcase() {
                   </PromptInputModelSelect>
                 </PromptInputTools>
                 <PromptInputSubmit
-                  disabled={!input?.trim() || status !== "ready"}
                   status={status}
                 />
               </PromptInputToolbar>
