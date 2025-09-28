@@ -83,12 +83,7 @@ export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>(models[0].id);
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
 
-  const { messages, sendMessage, status, regenerate } = useChat({
-    onFinish: (message) => {
-      // Debug: log the complete message to see if sources are included
-      console.log("Message finished:", message);
-    },
-  });
+  const { messages, sendMessage, status, regenerate } = useChat();
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text);

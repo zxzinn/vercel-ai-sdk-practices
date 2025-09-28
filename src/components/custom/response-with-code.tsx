@@ -35,7 +35,6 @@ export const ResponseWithCode = memo(
       {...props}
     />
   ),
-  (prevProps, nextProps) => prevProps.children === nextProps.children,
 );
 
 ResponseWithCode.displayName = "ResponseWithCode";
