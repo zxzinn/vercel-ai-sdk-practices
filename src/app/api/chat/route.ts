@@ -15,11 +15,13 @@ export async function POST(req: Request) {
       model,
       webSearch = false,
       searchProviders = [],
+      reasoning = true,
     }: {
       messages: UIMessage[];
       model: string;
       webSearch?: boolean;
       searchProviders?: string[];
+      reasoning?: boolean;
     } = await req.json();
 
     if (!model) {
@@ -70,24 +72,26 @@ export async function POST(req: Request) {
       tools: hasSearchTools ? availableTools : undefined,
       // Critical: Enables multi-step execution so LLM can respond to tool errors and continue the conversation
       stopWhen: stepCountIs(5),
-      // Enable reasoning based on model provider
-      ...(model.startsWith("openai/") && {
-        providerOptions: {
-          openai: {
-            reasoningSummary: "detailed" as const, // OpenAI reasoning summaries
-          },
-        },
-      }),
-      ...(model.startsWith("google/") && {
-        providerOptions: {
-          google: {
-            thinkingConfig: {
-              thinkingBudget: 8192, // Google thinking budget
-              includeThoughts: true, // Google thinking summaries
+      // Enable reasoning based on model provider and user preference
+      ...(model.startsWith("openai/") &&
+        reasoning && {
+          providerOptions: {
+            openai: {
+              reasoningSummary: "detailed" as const, // OpenAI reasoning summaries
             },
           },
-        },
-      }),
+        }),
+      ...(model.startsWith("google/") &&
+        reasoning && {
+          providerOptions: {
+            google: {
+              thinkingConfig: {
+                thinkingBudget: 8192, // Google thinking budget
+                includeThoughts: true, // Google thinking summaries
+              },
+            },
+          },
+        }),
     });
 
     // Return UI message stream with reasoning summaries enabled
