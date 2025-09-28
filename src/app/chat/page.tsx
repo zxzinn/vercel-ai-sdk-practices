@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { CopyIcon, GlobeIcon, RefreshCcwIcon } from "lucide-react";
+import { CopyIcon, GlobeIcon, PaperclipIcon, RefreshCcwIcon } from "lucide-react";
 import { Fragment, useState } from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
@@ -186,98 +186,138 @@ export default function AIElementsChatShowcase() {
                         </Sources>
                       )}
 
-                    {/* Message Parts */}
-                    {message.parts.map((part, i) => {
-                      switch (part.type) {
-                        case "text":
-                          return (
-                            <Fragment key={`${message.id}-${i}`}>
-                              <Message from={message.role}>
-                                <MessageContent>
-                                  <Response>{part.text}</Response>
-                                </MessageContent>
-                              </Message>
-                              {message.role === "assistant" &&
-                                i === message.parts.length - 1 && (
-                                  <Actions className="mt-2">
-                                    <Action
-                                      onClick={() => regenerate()}
-                                      tooltip="Retry"
-                                    >
-                                      <RefreshCcwIcon className="size-3" />
-                                    </Action>
-                                    <Action
-                                      onClick={() =>
-                                        navigator.clipboard.writeText(part.text)
-                                      }
-                                      tooltip="Copy"
-                                    >
-                                      <CopyIcon className="size-3" />
-                                    </Action>
-                                  </Actions>
-                                )}
-                            </Fragment>
-                          );
-                        case "reasoning":
-                          return (
-                            <Reasoning
-                              key={`${message.id}-${i}`}
-                              className="w-full"
-                              isStreaming={
-                                status === "streaming" &&
-                                i === message.parts.length - 1 &&
-                                message.id === messages.at(-1)?.id
+                    {/* Message Parts - Group text and files together */}
+                    {(() => {
+                      const textParts = message.parts.filter(part => part.type === "text");
+                      const fileParts = message.parts.filter(part => part.type === "file");
+                      const otherParts = message.parts.filter(part => part.type !== "text" && part.type !== "file");
+                      
+                      return (
+                        <Fragment>
+                          {/* Render text and files together if they exist */}
+                          {(textParts.length > 0 || fileParts.length > 0) && (
+                            <Message from={message.role}>
+                              <MessageContent>
+                                <div className="flex flex-col gap-3">
+                                  {/* Render file attachments first */}
+                                  {fileParts.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {fileParts.map((part, i) => (
+                                        <div key={`file-${message.id}-${i}`}>
+                                          {part.mediaType?.startsWith("image/") ? (
+                                            <img
+                                              src={part.url}
+                                              alt={part.filename || "attachment"}
+                                              className="max-w-48 max-h-48 rounded-lg border object-cover"
+                                            />
+                                          ) : (
+                                            <div className="flex items-center gap-2 p-2 border rounded-lg bg-muted">
+                                              <PaperclipIcon className="size-4 text-muted-foreground" />
+                                              <span className="text-sm font-medium">
+                                                {part.filename || "attachment"}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Render text content */}
+                                  {textParts.map((part, i) => (
+                                    <Response key={`text-${message.id}-${i}`}>{part.text}</Response>
+                                  ))}
+                                </div>
+                              </MessageContent>
+                            </Message>
+                          )}
+                          
+                          {/* Actions for assistant messages */}
+                          {message.role === "assistant" && textParts.length > 0 && (
+                            <Actions className="mt-2">
+                              <Action
+                                onClick={() => regenerate()}
+                                tooltip="Retry"
+                              >
+                                <RefreshCcwIcon className="size-3" />
+                              </Action>
+                              <Action
+                                onClick={() =>
+                                  navigator.clipboard.writeText(textParts[0].text)
+                                }
+                                tooltip="Copy"
+                              >
+                                <CopyIcon className="size-3" />
+                              </Action>
+                            </Actions>
+                          )}
+                          
+                          {/* Render other parts separately */}
+                          {otherParts.map((part, i) => {
+                            switch (part.type) {
+                              case "reasoning":
+                                return (
+                                  <Reasoning
+                                    key={`${message.id}-${i}`}
+                                    className="w-full"
+                                    isStreaming={
+                                      status === "streaming" &&
+                                      i === message.parts.length - 1 &&
+                                      message.id === messages.at(-1)?.id
+                                    }
+                                  >
+                                    <ReasoningTrigger />
+                                    <ReasoningContent>{part.text}</ReasoningContent>
+                                  </Reasoning>
+                                );
+                              case "source-url":
+                                // Sources are rendered above, skip them here
+                                return null;
+                              case "tool-tavilySearch": {
+                                // Show search progress with Tool component
+                                const toolPart =
+                                  part as unknown as TavilySearchToolPart;
+                                return (
+                                  <Tool
+                                    key={`${message.id}-${i}`}
+                                    defaultOpen={toolPart.state === "output-error"}
+                                  >
+                                    <ToolHeader
+                                      title="Web Search"
+                                      type={toolPart.type}
+                                      state={toolPart.state}
+                                    />
+                                    <ToolContent>
+                                      {toolPart.input ? (
+                                        <ToolInput input={toolPart.input} />
+                                      ) : null}
+                                      {toolPart.output || toolPart.errorText ? (
+                                        <ToolOutput
+                                          output={toolPart.output}
+                                          errorText={toolPart.errorText}
+                                        />
+                                      ) : null}
+                                    </ToolContent>
+                                  </Tool>
+                                );
                               }
-                            >
-                              <ReasoningTrigger />
-                              <ReasoningContent>{part.text}</ReasoningContent>
-                            </Reasoning>
-                          );
-                        case "source-url":
-                          // Sources are rendered above, skip them here
-                          return null;
-                        case "tool-tavilySearch": {
-                          // Show search progress with Tool component
-                          const toolPart =
-                            part as unknown as TavilySearchToolPart;
-                          return (
-                            <Tool
-                              key={`${message.id}-${i}`}
-                              defaultOpen={toolPart.state === "output-error"}
-                            >
-                              <ToolHeader
-                                title="Web Search"
-                                type={toolPart.type}
-                                state={toolPart.state}
-                              />
-                              <ToolContent>
-                                {toolPart.input ? (
-                                  <ToolInput input={toolPart.input} />
-                                ) : null}
-                                {toolPart.output || toolPart.errorText ? (
-                                  <ToolOutput
-                                    output={toolPart.output}
-                                    errorText={toolPart.errorText}
-                                  />
-                                ) : null}
-                              </ToolContent>
-                            </Tool>
-                          );
-                        }
-                        case "step-start":
-                          // Step boundary - render a separator
-                          return i > 0 ? (
-                            <div
-                              key={`${message.id}-${i}`}
-                              className="text-gray-500"
-                            >
-                              <hr className="my-2 border-gray-300" />
-                            </div>
-                          ) : null;
-                        default:
-                          return null;
-                      }
-                    })}
+                              case "step-start":
+                                // Step boundary - render a separator
+                                return i > 0 ? (
+                                  <div
+                                    key={`${message.id}-${i}`}
+                                    className="text-gray-500"
+                                  >
+                                    <hr className="my-2 border-gray-300" />
+                                  </div>
+                                ) : null;
+                              default:
+                                return null;
+                            }
+                          })}
+                        </Fragment>
+                      );
+                    })()}
                   </div>
                 ))}
                 {status === "submitted" && <Loader />}
