@@ -62,7 +62,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { anthropicModels, googleModels, openaiModels } from "@/lib/providers";
+import { loadAllProviders } from "@/lib/providers/loader";
 
 // Type for Tavily search tool parts
 type TavilySearchToolPart = {
@@ -77,24 +77,8 @@ type TavilySearchToolPart = {
   errorText?: string;
 };
 
-// Provider definitions - showing all available models
-const providers = [
-  {
-    id: "openai",
-    name: "OpenAI",
-    models: openaiModels,
-  },
-  {
-    id: "anthropic",
-    name: "Anthropic",
-    models: anthropicModels,
-  },
-  {
-    id: "google",
-    name: "Google",
-    models: googleModels,
-  },
-];
+// Dynamically load all available providers
+const providers = loadAllProviders();
 
 export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
