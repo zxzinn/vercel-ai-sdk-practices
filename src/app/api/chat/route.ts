@@ -94,9 +94,9 @@ export async function POST(req: Request) {
         }),
     });
 
-    // Return UI message stream with reasoning summaries enabled
+    // Return UI message stream with reasoning summaries based on user preference
     return result.toUIMessageStreamResponse({
-      sendReasoning: true,
+      sendReasoning: reasoning,
       sendSources: true,
     });
   } catch (error) {
