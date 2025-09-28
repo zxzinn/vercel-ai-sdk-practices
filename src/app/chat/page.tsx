@@ -1,7 +1,12 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { CopyIcon, GlobeIcon, PaperclipIcon, RefreshCcwIcon } from "lucide-react";
+import {
+  CopyIcon,
+  GlobeIcon,
+  PaperclipIcon,
+  RefreshCcwIcon,
+} from "lucide-react";
 import { Fragment, useState } from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
@@ -188,10 +193,16 @@ export default function AIElementsChatShowcase() {
 
                     {/* Message Parts - Group text and files together */}
                     {(() => {
-                      const textParts = message.parts.filter(part => part.type === "text");
-                      const fileParts = message.parts.filter(part => part.type === "file");
-                      const otherParts = message.parts.filter(part => part.type !== "text" && part.type !== "file");
-                      
+                      const textParts = message.parts.filter(
+                        (part) => part.type === "text",
+                      );
+                      const fileParts = message.parts.filter(
+                        (part) => part.type === "file",
+                      );
+                      const otherParts = message.parts.filter(
+                        (part) => part.type !== "text" && part.type !== "file",
+                      );
+
                       return (
                         <Fragment>
                           {/* Render text and files together if they exist */}
@@ -204,10 +215,14 @@ export default function AIElementsChatShowcase() {
                                     <div className="flex flex-wrap gap-2">
                                       {fileParts.map((part, i) => (
                                         <div key={`file-${message.id}-${i}`}>
-                                          {part.mediaType?.startsWith("image/") ? (
+                                          {part.mediaType?.startsWith(
+                                            "image/",
+                                          ) ? (
                                             <img
                                               src={part.url}
-                                              alt={part.filename || "attachment"}
+                                              alt={
+                                                part.filename || "attachment"
+                                              }
                                               className="max-w-48 max-h-48 rounded-lg border object-cover"
                                             />
                                           ) : (
@@ -222,36 +237,41 @@ export default function AIElementsChatShowcase() {
                                       ))}
                                     </div>
                                   )}
-                                  
+
                                   {/* Render text content */}
                                   {textParts.map((part, i) => (
-                                    <Response key={`text-${message.id}-${i}`}>{part.text}</Response>
+                                    <Response key={`text-${message.id}-${i}`}>
+                                      {part.text}
+                                    </Response>
                                   ))}
                                 </div>
                               </MessageContent>
                             </Message>
                           )}
-                          
+
                           {/* Actions for assistant messages */}
-                          {message.role === "assistant" && textParts.length > 0 && (
-                            <Actions className="mt-2">
-                              <Action
-                                onClick={() => regenerate()}
-                                tooltip="Retry"
-                              >
-                                <RefreshCcwIcon className="size-3" />
-                              </Action>
-                              <Action
-                                onClick={() =>
-                                  navigator.clipboard.writeText(textParts[0].text)
-                                }
-                                tooltip="Copy"
-                              >
-                                <CopyIcon className="size-3" />
-                              </Action>
-                            </Actions>
-                          )}
-                          
+                          {message.role === "assistant" &&
+                            textParts.length > 0 && (
+                              <Actions className="mt-2">
+                                <Action
+                                  onClick={() => regenerate()}
+                                  tooltip="Retry"
+                                >
+                                  <RefreshCcwIcon className="size-3" />
+                                </Action>
+                                <Action
+                                  onClick={() =>
+                                    navigator.clipboard.writeText(
+                                      textParts[0].text,
+                                    )
+                                  }
+                                  tooltip="Copy"
+                                >
+                                  <CopyIcon className="size-3" />
+                                </Action>
+                              </Actions>
+                            )}
+
                           {/* Render other parts separately */}
                           {otherParts.map((part, i) => {
                             switch (part.type) {
@@ -267,7 +287,9 @@ export default function AIElementsChatShowcase() {
                                     }
                                   >
                                     <ReasoningTrigger />
-                                    <ReasoningContent>{part.text}</ReasoningContent>
+                                    <ReasoningContent>
+                                      {part.text}
+                                    </ReasoningContent>
                                   </Reasoning>
                                 );
                               case "source-url":
@@ -280,7 +302,9 @@ export default function AIElementsChatShowcase() {
                                 return (
                                   <Tool
                                     key={`${message.id}-${i}`}
-                                    defaultOpen={toolPart.state === "output-error"}
+                                    defaultOpen={
+                                      toolPart.state === "output-error"
+                                    }
                                   >
                                     <ToolHeader
                                       title="Web Search"
