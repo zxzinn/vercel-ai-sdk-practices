@@ -36,7 +36,6 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
-import { Response } from "@/components/ai-elements/response";
 import {
   Source,
   Sources,
@@ -50,6 +49,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import { ResponseWithCode } from "@/components/custom/response-with-code";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -162,7 +162,9 @@ export default function AIElementsChatShowcase() {
                             <Fragment key={`${message.id}-${i}`}>
                               <Message from={message.role}>
                                 <MessageContent>
-                                  <Response>{part.text}</Response>
+                                  <ResponseWithCode>
+                                    {part.text}
+                                  </ResponseWithCode>
                                 </MessageContent>
                               </Message>
                               {message.role === "assistant" &&
