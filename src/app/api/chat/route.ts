@@ -1,8 +1,5 @@
-import type { LanguageModelV2Source } from "@ai-sdk/provider";
 import {
   convertToModelMessages,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
   stepCountIs,
   streamText,
   type UIMessage,
@@ -11,12 +8,6 @@ import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
-
-interface ToolOutputWithSources {
-  sources?: LanguageModelV2Source[];
-  [key: string]: unknown;
-}
-
 export async function POST(req: Request) {
   try {
     const {
@@ -79,61 +70,19 @@ export async function POST(req: Request) {
       tools: hasSearchTools ? availableTools : undefined,
       // Critical: Enables multi-step execution so LLM can respond to tool errors and continue the conversation
       stopWhen: stepCountIs(5),
-    });
-
-    // Custom stream to extract sources from tool outputs
-    const stream = createUIMessageStream({
-      execute: async ({ writer }) => {
-        writer.write({ type: "start" });
-
-        // Convert and merge the main stream
-        const mainStream = result.toUIMessageStream({ sendStart: false });
-
-        // Process stream parts to extract sources from tool outputs
-        const reader = mainStream.getReader();
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            // Check for completed tool calls with sources
-            if (
-              value.type === "tool-output-available" &&
-              value.output &&
-              typeof value.output === "object" &&
-              "sources" in value.output
-            ) {
-              const toolOutput = value.output as ToolOutputWithSources;
-              if (
-                Array.isArray(toolOutput.sources) &&
-                toolOutput.sources &&
-                toolOutput.sources.length > 0
-              ) {
-                // Write sources before the tool result
-                toolOutput.sources.forEach((source) => {
-                  if (source.sourceType === "url") {
-                    writer.write({
-                      type: "source-url",
-                      sourceId: source.id,
-                      url: source.url,
-                      title: source.title,
-                    });
-                  }
-                });
-              }
-            }
-
-            // Write the original part
-            writer.write(value);
-          }
-        } finally {
-          reader.releaseLock();
-        }
+      // Enable reasoning summaries for reasoning models
+      providerOptions: {
+        openai: {
+          reasoningSummary: "detailed", // Enable detailed reasoning summaries
+        },
       },
-      originalMessages: messages,
     });
 
-    return createUIMessageStreamResponse({ stream });
+    // Return UI message stream with reasoning summaries enabled
+    return result.toUIMessageStreamResponse({
+      sendReasoning: true,
+      sendSources: true,
+    });
   } catch (error) {
     console.error("Error in chat API:", error);
     return new Response(
