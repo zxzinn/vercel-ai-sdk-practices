@@ -87,7 +87,23 @@ export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>(models[0].id);
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
 
-  const { messages, sendMessage, status, regenerate } = useChat();
+  const {
+    messages,
+    sendMessage,
+    status,
+    regenerate: originalRegenerate,
+  } = useChat();
+
+  // Custom regenerate function that includes our body parameters
+  const regenerate = () => {
+    originalRegenerate({
+      body: {
+        model: model,
+        webSearch: searchProviders.length > 0,
+        searchProviders: searchProviders,
+      },
+    });
+  };
 
   const handleSubmit = async (message: PromptInputMessage) => {
     // Guard against submits while not ready
