@@ -26,11 +26,6 @@ import {
   PromptInputAttachments,
   PromptInputBody,
   type PromptInputMessage,
-  PromptInputModelSelect,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectValue,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputToolbar,
@@ -60,6 +55,11 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { anthropicModels, googleModels, openaiModels } from "@/lib/providers";
@@ -77,15 +77,36 @@ type TavilySearchToolPart = {
   errorText?: string;
 };
 
-const models = [
-  ...openaiModels.slice(0, 3),
-  ...anthropicModels.slice(0, 2),
-  ...googleModels.slice(0, 2),
+// Provider definitions - showing all available models
+const providers = [
+  {
+    id: "openai",
+    name: "OpenAI",
+    models: openaiModels,
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    models: anthropicModels,
+  },
+  {
+    id: "google",
+    name: "Google",
+    models: googleModels,
+  },
 ];
 
 export default function AIElementsChatShowcase() {
-  const [model, setModel] = useState<string>(models[0].id);
+  const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
+
+  // Get current model's provider and name for display
+  const currentModel = providers
+    .flatMap((p) => p.models.map((m) => ({ ...m, providerName: p.name })))
+    .find((m) => m.id === model) || {
+    ...providers[0].models[0],
+    providerName: providers[0].name,
+  };
 
   const {
     messages,
@@ -123,7 +144,7 @@ export default function AIElementsChatShowcase() {
       processedFiles = await Promise.all(
         message.files.map(async (file) => {
           // Check if the URL is a blob URL that needs conversion
-          if (file.url && file.url.startsWith("blob:")) {
+          if (file.url?.startsWith("blob:")) {
             try {
               // Fetch the blob data
               const response = await fetch(file.url);
@@ -494,26 +515,60 @@ export default function AIElementsChatShowcase() {
                       </DropdownMenuCheckboxItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <PromptInputModelSelect
-                    onValueChange={(value) => {
-                      setModel(value);
-                    }}
-                    value={model}
-                  >
-                    <PromptInputModelSelectTrigger>
-                      <PromptInputModelSelectValue />
-                    </PromptInputModelSelectTrigger>
-                    <PromptInputModelSelectContent>
-                      {models.map((model) => (
-                        <PromptInputModelSelectItem
-                          key={model.id}
-                          value={model.id}
-                        >
-                          {model.name}
-                        </PromptInputModelSelectItem>
+                  {/* Nested Model Selection with Provider Hover Submenus */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 justify-between"
+                      >
+                        <span className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            {currentModel.providerName}
+                          </span>
+                          <span>{currentModel.name}</span>
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                      {providers.map((provider, index) => (
+                        <div key={provider.id}>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <span className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {provider.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  ({provider.models.length} models)
+                                </span>
+                              </span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-56 max-h-80 overflow-y-auto">
+                              {provider.models.map((modelOption) => (
+                                <DropdownMenuItem
+                                  key={modelOption.id}
+                                  onClick={() => setModel(modelOption.id)}
+                                  className="flex items-center justify-between"
+                                >
+                                  <span>{modelOption.name}</span>
+                                  {model === modelOption.id && (
+                                    <span className="text-xs text-primary">
+                                      ✓
+                                    </span>
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                          {index < providers.length - 1 && (
+                            <DropdownMenuSeparator />
+                          )}
+                        </div>
                       ))}
-                    </PromptInputModelSelectContent>
-                  </PromptInputModelSelect>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </PromptInputTools>
                 <PromptInputSubmit
                   disabled={status !== "ready"}
