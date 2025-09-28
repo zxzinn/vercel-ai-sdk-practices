@@ -4,7 +4,6 @@ import {
   streamText,
   type UIMessage,
 } from "ai";
-import { getProviderOptions } from "@/lib/providers/registry";
 import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
@@ -16,13 +15,11 @@ export async function POST(req: Request) {
       model,
       webSearch = false,
       searchProviders = [],
-      reasoning = true,
     }: {
       messages: UIMessage[];
       model: string;
       webSearch?: boolean;
       searchProviders?: string[];
-      reasoning?: boolean;
     } = await req.json();
 
     if (!model) {
@@ -64,10 +61,6 @@ export async function POST(req: Request) {
     }
 
     const hasSearchTools = Object.keys(availableTools).length > 0;
-
-    // Build provider options
-    const providerOptions = getProviderOptions(model, reasoning);
-
     const result = streamText({
       model: model,
       messages: convertedMessages,
@@ -77,7 +70,24 @@ export async function POST(req: Request) {
       tools: hasSearchTools ? availableTools : undefined,
       // Critical: Enables multi-step execution so LLM can respond to tool errors and continue the conversation
       stopWhen: stepCountIs(5),
-      ...(Object.keys(providerOptions).length > 0 && { providerOptions }),
+      // Enable reasoning based on model provider
+      ...(model.startsWith("openai/") && {
+        providerOptions: {
+          openai: {
+            reasoningSummary: "detailed" as const, // OpenAI reasoning summaries
+          },
+        },
+      }),
+      ...(model.startsWith("google/") && {
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              thinkingBudget: 8192, // Google thinking budget
+              includeThoughts: true, // Google thinking summaries
+            },
+          },
+        },
+      }),
     });
 
     // Return UI message stream with reasoning summaries enabled
