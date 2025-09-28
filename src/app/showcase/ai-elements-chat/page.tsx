@@ -189,6 +189,16 @@ export default function AIElementsChatShowcase() {
                         case "source-url":
                           // Sources are rendered above, skip them here
                           return null;
+                        case "tool-tavilySearch":
+                          // Show search progress feedback
+                          return (
+                            <div
+                              key={`${message.id}-${i}`}
+                              className="text-sm text-muted-foreground italic"
+                            >
+                              🔍 Searching the web...
+                            </div>
+                          );
                         case "step-start":
                           // Step boundary - render a separator
                           return i > 0 ? (
