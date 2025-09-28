@@ -95,7 +95,7 @@ export default function AIElementsChatShowcase() {
 
     sendMessage(
       {
-        text: message.text || "Sent with attachments",
+        text: message.text ?? "",
         files: message.files,
       },
       {

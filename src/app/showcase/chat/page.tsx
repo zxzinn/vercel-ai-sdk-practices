@@ -103,13 +103,12 @@ export default function AIElementsChatShowcase() {
 
     // Validate model selection
     if (!models.some((m) => m.id === model)) {
-      console.error("Invalid model selected:", model);
       return;
     }
 
     sendMessage(
       {
-        text: message.text || "Sent with attachments",
+        text: message.text ?? "",
         files: message.files,
       },
       {
@@ -187,11 +186,8 @@ export default function AIElementsChatShowcase() {
                                       onClick={() =>
                                         navigator.clipboard
                                           .writeText(part.text)
-                                          .catch((err) => {
-                                            console.error(
-                                              "Failed to copy text:",
-                                              err,
-                                            );
+                                          .catch(() => {
+                                            // Silently handle copy failures
                                           })
                                       }
                                       tooltip="Copy"
