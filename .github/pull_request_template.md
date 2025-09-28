@@ -13,6 +13,7 @@ Brief description of what this PR does.
 ## Changes
 
 - [ ] List your changes here
+- [ ] No debug print statements left in code (console.log, print, etc.)
 
 ## Testing
 
