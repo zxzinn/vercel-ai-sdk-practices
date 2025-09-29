@@ -5,14 +5,25 @@ import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
+// Schema that matches Vercel AI SDK's UIMessage format
+const MessageSchema = z.object({
+  id: z.string().optional(),
+  role: z.enum(["user", "assistant", "system"]),
+  parts: z.array(z.any()).min(1),
+  // Additional fields for compatibility
+  content: z.string().optional(),
+  createdAt: z.date().optional(),
+});
+
 const RequestBodySchema = z.object({
-  messages: z.array(z.any()).min(1, "At least one message is required"),
+  messages: z.array(MessageSchema).min(1, "At least one message is required"),
   model: z.string().min(1, "Model is required"),
   webSearch: z.boolean().optional().default(false),
   searchProviders: z
     .array(z.enum(["tavily", "exa"]))
     .optional()
-    .default([]),
+    .default([])
+    .transform((arr) => Array.from(new Set(arr))),
   reasoning: z.boolean().optional().default(true),
 });
 
