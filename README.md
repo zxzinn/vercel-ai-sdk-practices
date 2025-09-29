@@ -20,7 +20,15 @@ AI_GATEWAY_API_KEY=your_key
 ## Roadmap
 
 ### 🔍 Search Engine Integration
-- [ ] Exa API
+- [x] Exa API
 - [ ] Bing Search API
 - [ ] Perplexity API
 - [ ] Google Search API
+
+### 🧠 RAG
+- [ ] Naive RAG
+
+### Features
+- [ ] DeepResearch
+- [ ] Image Generation
+- [ ] Voice Input
