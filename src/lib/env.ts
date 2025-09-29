@@ -9,6 +9,10 @@ const envSchema = z
     // OpenAI (fallback if not using AI Gateway)
     OPENAI_API_KEY: z.string().optional(),
 
+    // Web search providers
+    TAVILY_API_KEY: z.string().optional(),
+    EXA_API_KEY: z.string().optional(),
+
     // Node environment
     NODE_ENV: z
       .enum(["development", "production", "test"])

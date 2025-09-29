@@ -4,6 +4,7 @@ import {
   streamText,
   type UIMessage,
 } from "ai";
+import { exaSearch } from "@/lib/tools/websearch/exa-search";
 import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
@@ -41,7 +42,10 @@ export async function POST(req: Request) {
     const convertedMessages = convertToModelMessages(messages);
 
     // Determine available search tools based on searchProviders
-    const availableTools: Record<string, typeof tavilySearch> = {};
+    const availableTools: Record<
+      string,
+      typeof tavilySearch | typeof exaSearch
+    > = {};
 
     if (webSearch) {
       const providers =
@@ -52,10 +56,9 @@ export async function POST(req: Request) {
           case "tavily":
             availableTools.tavilySearch = tavilySearch;
             break;
-          // Future search providers can be added here
-          // case 'exa':
-          //   availableTools.exa_search = exaSearch;
-          //   break;
+          case "exa":
+            availableTools.exaSearch = exaSearch;
+            break;
           default:
             console.warn(`Unknown search provider: ${provider}`);
         }
