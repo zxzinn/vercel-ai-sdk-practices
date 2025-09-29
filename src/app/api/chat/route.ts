@@ -6,14 +6,29 @@ import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 // Schema that matches Vercel AI SDK's UIMessage format
-const MessageSchema = z.object({
-  id: z.string().optional(),
-  role: z.enum(["user", "assistant", "system"]),
-  parts: z.array(z.any()).min(1),
-  // Additional fields for compatibility
-  content: z.string().optional(),
-  createdAt: z.date().optional(),
-});
+const MessageSchema = z
+  .object({
+    id: z.string().optional(),
+    role: z.enum(["user", "assistant", "system"]),
+    parts: z.array(z.any()).optional(),
+    // Support legacy content-only messages
+    content: z.string().min(1).optional(),
+    createdAt: z
+      .union([z.string().datetime(), z.date()])
+      .optional()
+      .transform((v) => (typeof v === "string" ? new Date(v) : v)),
+  })
+  .refine(
+    (m) =>
+      (typeof m.content === "string" && m.content.length > 0) ||
+      (Array.isArray(m.parts) && m.parts.length > 0),
+    { message: "Message must include either non-empty content or parts." },
+  )
+  .transform((m) => ({
+    ...m,
+    // Ensure parts array exists for UIMessage compatibility
+    parts: m.parts || [],
+  }));
 
 const RequestBodySchema = z.object({
   messages: z.array(MessageSchema).min(1, "At least one message is required"),
