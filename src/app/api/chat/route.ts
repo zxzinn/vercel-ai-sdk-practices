@@ -1,35 +1,31 @@
-import {
-  convertToModelMessages,
-  stepCountIs,
-  streamText,
-  type UIMessage,
-} from "ai";
+import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import { z } from "zod";
 import { exaSearch } from "@/lib/tools/websearch/exa-search";
 import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
+const RequestBodySchema = z.object({
+  messages: z.array(z.any()).min(1, "At least one message is required"),
+  model: z.string().min(1, "Model is required"),
+  webSearch: z.boolean().optional().default(false),
+  searchProviders: z
+    .array(z.enum(["tavily", "exa"]))
+    .optional()
+    .default([]),
+  reasoning: z.boolean().optional().default(true),
+});
+
 export async function POST(req: Request) {
   try {
-    const {
-      messages,
-      model,
-      webSearch = false,
-      searchProviders = [],
-      reasoning = true,
-    }: {
-      messages: UIMessage[];
-      model: string;
-      webSearch?: boolean;
-      searchProviders?: string[];
-      reasoning?: boolean;
-    } = await req.json();
+    const body = await req.json();
+    const validation = RequestBodySchema.safeParse(body);
 
-    if (!model) {
+    if (!validation.success) {
       return new Response(
         JSON.stringify({
-          error: "Model is required",
-          message: "Please specify a model to use",
+          error: "Invalid request body",
+          details: validation.error.issues,
         }),
         {
           status: 400,
@@ -37,6 +33,9 @@ export async function POST(req: Request) {
         },
       );
     }
+
+    const { messages, model, webSearch, searchProviders, reasoning } =
+      validation.data;
 
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
