@@ -64,9 +64,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { loadAllProviders } from "@/lib/providers/loader";
 
-// Type for Tavily search tool parts
+// Type for search tool parts
 type TavilySearchToolPart = {
   type: "tool-tavilySearch";
+  state:
+    | "input-streaming"
+    | "input-available"
+    | "output-available"
+    | "output-error";
+  input?: { query: string };
+  output?: unknown;
+  errorText?: string;
+};
+
+type ExaSearchToolPart = {
+  type: "tool-exaSearch";
   state:
     | "input-streaming"
     | "input-available"
@@ -353,7 +365,38 @@ export default function AIElementsChatShowcase() {
                                     }
                                   >
                                     <ToolHeader
-                                      title="Web Search"
+                                      title="Web Search (Tavily)"
+                                      type={toolPart.type}
+                                      state={toolPart.state}
+                                    />
+                                    <ToolContent>
+                                      {toolPart.input ? (
+                                        <ToolInput input={toolPart.input} />
+                                      ) : null}
+                                      {toolPart.output || toolPart.errorText ? (
+                                        <ToolOutput
+                                          output={toolPart.output}
+                                          errorText={toolPart.errorText}
+                                        />
+                                      ) : null}
+                                    </ToolContent>
+                                  </Tool>
+                                );
+                              }
+
+                              case "tool-exaSearch": {
+                                // Show search progress with Tool component
+                                const toolPart =
+                                  part as unknown as ExaSearchToolPart;
+                                return (
+                                  <Tool
+                                    key={`${message.id}-${i}`}
+                                    defaultOpen={
+                                      toolPart.state === "output-error"
+                                    }
+                                  >
+                                    <ToolHeader
+                                      title="Web Search (Exa)"
                                       type={toolPart.type}
                                       state={toolPart.state}
                                     />
@@ -460,9 +503,8 @@ export default function AIElementsChatShowcase() {
                             );
                           }
                         }}
-                        disabled
                       >
-                        Exa Search (Coming Soon)
+                        Exa Search
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuCheckboxItem
                         checked={searchProviders.includes("bing")}
