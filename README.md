@@ -16,3 +16,11 @@ Create `.env.local`:
 ```bash
 AI_GATEWAY_API_KEY=your_key
 ```
+
+## Roadmap
+
+### 🔍 Search Engine Integration
+- [ ] Exa API
+- [ ] Bing Search API
+- [ ] Perplexity API
+- [ ] Google Search API
