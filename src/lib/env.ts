@@ -13,6 +13,9 @@ const envSchema = z
     TAVILY_API_KEY: z.string().optional(),
     EXA_API_KEY: z.string().optional(),
 
+    // RAG - Vector store
+    CHROMA_URL: z.string().optional().default("http://localhost:8000"),
+
     // Node environment
     NODE_ENV: z
       .enum(["development", "production", "test"])
