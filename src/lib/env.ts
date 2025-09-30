@@ -38,6 +38,14 @@ const envSchema = z
   );
 
 function validateEnv() {
+  // Skip validation during build or when explicitly disabled
+  const shouldSkip = process.env.SKIP_ENV_VALIDATION === "1";
+
+  if (shouldSkip) {
+    console.warn("⚠️  Environment validation skipped");
+    return process.env as z.infer<typeof envSchema>;
+  }
+
   try {
     return envSchema.parse(process.env);
   } catch (error) {
