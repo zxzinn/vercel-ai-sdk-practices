@@ -17,7 +17,6 @@ const DEFAULT_COLLECTION = "rag_documents";
 const DEFAULT_CHUNK_SIZE = 1000;
 const DEFAULT_CHUNK_OVERLAP = 200;
 
-// 创建空的 embedding function（我们自己生成 embeddings）
 const customEmbeddingFunction = {
   generate: async () => [],
 };
@@ -32,9 +31,6 @@ export class RAGService {
     });
   }
 
-  /**
-   * 获取或创建 collection
-   */
   private async getCollection(name: string): Promise<Collection> {
     if (this.collections.has(name)) {
       return this.collections.get(name)!;
@@ -55,9 +51,6 @@ export class RAGService {
     }
   }
 
-  /**
-   * 简单的文本切分器
-   */
   private chunkText(
     text: string,
     chunkSize: number,
@@ -86,9 +79,6 @@ export class RAGService {
     return chunks;
   }
 
-  /**
-   * 索引文档到向量数据库
-   */
   async ingest(
     documents: RAGDocument[],
     options: RAGIngestOptions = {},
@@ -105,7 +95,6 @@ export class RAGService {
     const allIds: string[] = [];
     const allMetadatas: Record<string, string | number | boolean | null>[] = [];
 
-    // 切分文档
     for (const doc of documents) {
       const chunks = this.chunkText(doc.content, chunkSize, chunkOverlap);
 
@@ -124,14 +113,12 @@ export class RAGService {
       });
     }
 
-    // 生成 embeddings
     console.log(`Generating embeddings for ${allChunks.length} chunks...`);
     const { embeddings } = await embedMany({
       model: EMBEDDING_MODEL,
       values: allChunks,
     });
 
-    // 添加到 Chromadb
     await collection.add({
       ids: allIds,
       embeddings,
@@ -148,9 +135,6 @@ export class RAGService {
     };
   }
 
-  /**
-   * 查询相关文档
-   */
   async query(
     queryText: string,
     options: RAGQueryOptions = {},
@@ -163,19 +147,16 @@ export class RAGService {
 
     const collection = await this.getCollection(collectionName);
 
-    // 生成查询 embedding
     const { embedding } = await embed({
       model: EMBEDDING_MODEL,
       value: queryText,
     });
 
-    // 查询 Chromadb
     const results = (await collection.query({
       queryEmbeddings: [embedding],
       nResults: topK,
     })) as ChromaQueryResult;
 
-    // 转换结果
     const sources: RAGSource[] = [];
 
     if (results.documents[0]) {
@@ -183,9 +164,8 @@ export class RAGService {
         if (!doc) return;
 
         const distance = results.distances?.[0]?.[index] ?? 0;
-        const score = 1 / (1 + distance); // 转换为相似度分数
+        const score = 1 / (1 + distance);
 
-        // 过滤低分结果
         if (score < scoreThreshold) return;
 
         const metadata = (results.metadatas?.[0]?.[index] ?? {}) as Record<
@@ -238,17 +218,12 @@ export class RAGService {
     };
   }
 
-  /**
-   * 删除文档
-   */
   async deleteDocument(
     documentId: string,
     collectionName: string = DEFAULT_COLLECTION,
   ): Promise<void> {
     const collection = await this.getCollection(collectionName);
 
-    // 删除该文档的所有 chunks
-    // Chromadb 不支持按 metadata 删除，需要先查询再删除
     const results = await collection.get({
       where: { originalDocId: documentId },
     });
@@ -263,9 +238,6 @@ export class RAGService {
     }
   }
 
-  /**
-   * 清空 collection
-   */
   async clearCollection(
     collectionName: string = DEFAULT_COLLECTION,
   ): Promise<void> {
@@ -278,14 +250,10 @@ export class RAGService {
     }
   }
 
-  /**
-   * 列出所有 collections
-   */
   async listCollections(): Promise<string[]> {
     const collections = await this.chromaClient.listCollections();
     return collections.map((c) => c.name);
   }
 }
 
-// 导出单例实例
 export const ragService = new RAGService();

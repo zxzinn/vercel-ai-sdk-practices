@@ -31,7 +31,7 @@ export const ragQuery = {
       const result = await ragService.query(query, {
         topK,
         collectionName,
-        scoreThreshold: 0.3, // 过滤相似度过低的结果
+        scoreThreshold: 0.3,
       });
 
       if (result.sources.length === 0) {
@@ -44,7 +44,6 @@ export const ragQuery = {
         };
       }
 
-      // 格式化返回结果，包含交互性信息
       return {
         success: true as const,
         query,

@@ -27,7 +27,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    // 处理文件
     const documents: RAGDocument[] = [];
 
     for (const file of files) {
@@ -46,7 +45,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 索引文档
     const result = await ragService.ingest(documents, {
       collectionName,
     });

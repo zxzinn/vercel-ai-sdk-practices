@@ -43,7 +43,14 @@ function validateEnv() {
 
   if (shouldSkip) {
     console.warn("⚠️  Environment validation skipped");
-    return process.env as z.infer<typeof envSchema>;
+    // Still apply defaults to maintain Env contract
+    return {
+      ...process.env,
+      CHROMA_URL: process.env.CHROMA_URL || "http://localhost:8000",
+      NODE_ENV:
+        (process.env.NODE_ENV as "development" | "production" | "test") ||
+        "development",
+    } as z.infer<typeof envSchema>;
   }
 
   try {
