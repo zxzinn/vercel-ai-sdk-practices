@@ -8,7 +8,18 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const files = formData.getAll("files") as File[];
+    const raw = formData.getAll("files");
+    const files = raw.filter(
+      (f): f is File => typeof f !== "string" && "arrayBuffer" in f,
+    );
+    const MAX_FILE_MB = 10;
+    const tooLarge = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
+    if (tooLarge) {
+      return NextResponse.json(
+        { error: `File ${tooLarge.name} exceeds ${MAX_FILE_MB}MB limit` },
+        { status: 413 },
+      );
+    }
     const collectionName =
       (formData.get("collectionName") as string) || undefined;
 

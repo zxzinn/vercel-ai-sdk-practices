@@ -3,6 +3,7 @@ import { ChromaClient, type Collection } from "chromadb";
 import { env } from "@/lib/env";
 import type {
   ChromaQueryResult,
+  DocumentMetadata,
   RAGDocument,
   RAGIngestOptions,
   RAGIngestResult,
@@ -62,6 +63,15 @@ export class RAGService {
     chunkSize: number,
     overlap: number,
   ): string[] {
+    if (!Number.isFinite(chunkSize) || chunkSize <= 0) {
+      throw new RangeError(`chunkSize must be > 0 (got ${chunkSize})`);
+    }
+    if (!Number.isFinite(overlap) || overlap < 0) {
+      throw new RangeError(`chunkOverlap must be >= 0 (got ${overlap})`);
+    }
+    if (overlap >= chunkSize) {
+      overlap = Math.max(0, Math.floor(chunkSize / 4));
+    }
     const chunks: string[] = [];
     let start = 0;
 
@@ -178,7 +188,10 @@ export class RAGService {
         // 过滤低分结果
         if (score < scoreThreshold) return;
 
-        const metadata = results.metadatas?.[0]?.[index] || {};
+        const metadata = (results.metadatas?.[0]?.[index] ?? {}) as Record<
+          string,
+          unknown
+        >;
         const id = results.ids?.[0]?.[index] || `unknown-${index}`;
 
         sources.push({
@@ -187,16 +200,33 @@ export class RAGService {
           score,
           distance,
           metadata: {
-            filename: (metadata.filename as string) || "unknown",
-            fileType: (metadata.fileType as string) || "unknown",
-            uploadedAt: metadata.uploadedAt
-              ? new Date(metadata.uploadedAt as string)
-              : new Date(),
-            size: (metadata.size as number) || 0,
-            chunkIndex: metadata.chunkIndex as number | undefined,
-            totalChunks: metadata.totalChunks as number | undefined,
             ...metadata,
-          },
+            filename:
+              typeof metadata.filename === "string"
+                ? metadata.filename
+                : "unknown",
+            fileType:
+              typeof metadata.fileType === "string"
+                ? metadata.fileType
+                : "unknown",
+            uploadedAt:
+              typeof metadata.uploadedAt === "string"
+                ? new Date(metadata.uploadedAt)
+                : new Date(),
+            size:
+              typeof metadata.size === "number"
+                ? metadata.size
+                : Number(metadata.size ?? 0) || 0,
+            chunkIndex:
+              metadata.chunkIndex !== undefined && metadata.chunkIndex !== null
+                ? Number(metadata.chunkIndex)
+                : undefined,
+            totalChunks:
+              metadata.totalChunks !== undefined &&
+              metadata.totalChunks !== null
+                ? Number(metadata.totalChunks)
+                : undefined,
+          } as DocumentMetadata,
         });
       });
     }
