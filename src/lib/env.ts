@@ -13,6 +13,9 @@ const envSchema = z
     TAVILY_API_KEY: z.string().optional(),
     EXA_API_KEY: z.string().optional(),
 
+    // RAG - Vector store
+    CHROMA_URL: z.string().optional().default("http://localhost:8000"),
+
     // Node environment
     NODE_ENV: z
       .enum(["development", "production", "test"])
@@ -35,6 +38,21 @@ const envSchema = z
   );
 
 function validateEnv() {
+  // Skip validation during build or when explicitly disabled
+  const shouldSkip = process.env.SKIP_ENV_VALIDATION === "1";
+
+  if (shouldSkip) {
+    console.warn("⚠️  Environment validation skipped");
+    // Still apply defaults to maintain Env contract
+    return {
+      ...process.env,
+      CHROMA_URL: process.env.CHROMA_URL || "http://localhost:8000",
+      NODE_ENV:
+        (process.env.NODE_ENV as "development" | "production" | "test") ||
+        "development",
+    } as z.infer<typeof envSchema>;
+  }
+
   try {
     return envSchema.parse(process.env);
   } catch (error) {

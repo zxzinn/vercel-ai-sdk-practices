@@ -3,6 +3,8 @@
 import { useChat } from "@ai-sdk/react";
 import {
   CopyIcon,
+  DatabaseIcon,
+  FileUpIcon,
   GlobeIcon,
   PaperclipIcon,
   RefreshCcwIcon,
@@ -89,12 +91,29 @@ type ExaSearchToolPart = {
   errorText?: string;
 };
 
+type RAGQueryToolPart = {
+  type: "tool-ragQuery";
+  state:
+    | "input-streaming"
+    | "input-available"
+    | "output-available"
+    | "output-error";
+  input?: { query: string; topK?: number; collectionName?: string };
+  output?: unknown;
+  errorText?: string;
+};
+
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
 export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
+  const [ragEnabled, setRagEnabled] = useState<boolean>(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>("");
 
   // Get current model's provider and name for display
   const currentModel = providers
@@ -111,6 +130,48 @@ export default function AIElementsChatShowcase() {
     regenerate: originalRegenerate,
   } = useChat();
 
+  // Handle file upload to vector database
+  const handleUploadToVectorDB = async () => {
+    if (selectedFiles.length === 0) return;
+
+    setUploading(true);
+    setUploadStatus("Uploading files...");
+
+    try {
+      const formData = new FormData();
+      selectedFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      const response = await fetch("/api/rag/ingest", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const result = await response.json();
+      setUploadStatus(
+        `✅ Success! Indexed ${result.totalChunks} chunks from ${selectedFiles.length} file(s)`,
+      );
+      setSelectedFiles([]);
+
+      // Close dialog after 2 seconds
+      setTimeout(() => {
+        setUploadDialogOpen(false);
+        setUploadStatus("");
+      }, 2000);
+    } catch (error) {
+      setUploadStatus(
+        `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {
     originalRegenerate({
@@ -118,6 +179,7 @@ export default function AIElementsChatShowcase() {
         model: model,
         webSearch: searchProviders.length > 0,
         searchProviders: searchProviders,
+        rag: ragEnabled,
       },
     });
   };
@@ -177,6 +239,7 @@ export default function AIElementsChatShowcase() {
           model: model,
           webSearch: searchProviders.length > 0,
           searchProviders: searchProviders,
+          rag: ragEnabled,
         },
       },
     );
@@ -415,6 +478,37 @@ export default function AIElementsChatShowcase() {
                                 );
                               }
 
+                              case "tool-ragQuery": {
+                                // Show RAG query progress
+                                const toolPart =
+                                  part as unknown as RAGQueryToolPart;
+                                return (
+                                  <Tool
+                                    key={`${message.id}-${i}`}
+                                    defaultOpen={
+                                      toolPart.state === "output-error"
+                                    }
+                                  >
+                                    <ToolHeader
+                                      title="Document Search (RAG)"
+                                      type={toolPart.type}
+                                      state={toolPart.state}
+                                    />
+                                    <ToolContent>
+                                      {toolPart.input ? (
+                                        <ToolInput input={toolPart.input} />
+                                      ) : null}
+                                      {toolPart.output || toolPart.errorText ? (
+                                        <ToolOutput
+                                          output={toolPart.output}
+                                          errorText={toolPart.errorText}
+                                        />
+                                      ) : null}
+                                    </ToolContent>
+                                  </Tool>
+                                );
+                              }
+
                               case "step-start":
                                 // Step boundary - render a separator
                                 return i > 0 ? (
@@ -460,6 +554,65 @@ export default function AIElementsChatShowcase() {
                       <PromptInputActionAddAttachments />
                     </PromptInputActionMenuContent>
                   </PromptInputActionMenu>
+                  {/* RAG File Upload */}
+                  <label>
+                    <Button variant="outline" size="sm" className="h-8" asChild>
+                      <span>
+                        <FileUpIcon size={16} />
+                        <span>Upload Docs</span>
+                      </span>
+                    </Button>
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      accept=".txt,.md,.json,.csv"
+                      onChange={async (e) => {
+                        if (!e.target.files || e.target.files.length === 0)
+                          return;
+
+                        const files = Array.from(e.target.files);
+                        setUploading(true);
+
+                        try {
+                          const formData = new FormData();
+                          files.forEach((file) => {
+                            formData.append("files", file);
+                          });
+
+                          const response = await fetch("/api/rag/ingest", {
+                            method: "POST",
+                            body: formData,
+                          });
+
+                          if (!response.ok) {
+                            throw new Error("Upload failed");
+                          }
+
+                          const result = await response.json();
+                          alert(
+                            `✅ Success! Indexed ${result.totalChunks} chunks from ${files.length} file(s)`,
+                          );
+                        } catch (error) {
+                          alert(
+                            `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+                          );
+                        } finally {
+                          setUploading(false);
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                  </label>
+                  <Button
+                    variant={ragEnabled ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setRagEnabled(!ragEnabled)}
+                  >
+                    <DatabaseIcon size={16} />
+                    <span>RAG {ragEnabled ? "ON" : "OFF"}</span>
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button

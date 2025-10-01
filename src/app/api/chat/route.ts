@@ -1,5 +1,6 @@
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
+import { ragQuery } from "@/lib/tools/rag/query";
 import { exaSearch } from "@/lib/tools/websearch/exa-search";
 import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
@@ -39,6 +40,7 @@ const RequestBodySchema = z.object({
     .optional()
     .default([])
     .transform((arr) => Array.from(new Set(arr))),
+  rag: z.boolean().optional().default(false),
   reasoning: z.boolean().optional().default(true),
 });
 
@@ -60,16 +62,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages, model, webSearch, searchProviders, reasoning } =
+    const { messages, model, webSearch, searchProviders, rag, reasoning } =
       validation.data;
 
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
 
-    // Determine available search tools based on searchProviders
+    // Determine available tools based on webSearch and rag flags
     const availableTools: Record<
       string,
-      typeof tavilySearch | typeof exaSearch
+      typeof tavilySearch | typeof exaSearch | typeof ragQuery
     > = {};
 
     if (webSearch) {
@@ -90,14 +92,38 @@ export async function POST(req: Request) {
       });
     }
 
-    const hasSearchTools = Object.keys(availableTools).length > 0;
+    if (rag) {
+      availableTools.ragQuery = ragQuery;
+    }
+
+    const hasTools = Object.keys(availableTools).length > 0;
+
+    // Build system prompt based on available tools
+    let systemPrompt = "You are a helpful assistant";
+    if (webSearch && rag) {
+      systemPrompt +=
+        " with access to web search and document search capabilities. " +
+        "Use web search for current information and ragQuery for searching through uploaded documents. " +
+        "Always cite your sources.";
+    } else if (webSearch) {
+      systemPrompt +=
+        " with access to web search capabilities. " +
+        "When users ask questions that would benefit from current information, use the available search tools. " +
+        "Always cite your sources.";
+    } else if (rag) {
+      systemPrompt +=
+        " with access to document search capabilities. " +
+        "When users ask questions about their documents or uploaded content, use ragQuery to find relevant information. " +
+        "Always cite the document sources and chunk information.";
+    } else {
+      systemPrompt += " that can answer questions and help with tasks.";
+    }
+
     const result = streamText({
       model: model,
       messages: convertedMessages,
-      system: hasSearchTools
-        ? "You are a helpful assistant with access to web search capabilities. When users ask questions that would benefit from current information, use the available search tools to find up-to-date information and cite your sources."
-        : "You are a helpful assistant that can answer questions and help with tasks.",
-      tools: hasSearchTools ? availableTools : undefined,
+      system: systemPrompt,
+      tools: hasTools ? availableTools : undefined,
       // Critical: Enables multi-step execution so LLM can respond to tool errors and continue the conversation
       stopWhen: stepCountIs(5),
       // Enable reasoning based on model provider and user preference
