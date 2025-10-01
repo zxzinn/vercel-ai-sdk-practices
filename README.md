@@ -32,7 +32,3 @@ AI_GATEWAY_API_KEY=your_key
 - [ ] DeepResearch
 - [ ] Image Generation
 - [ ] Voice Input
-
-## Testing
-
-Testing Linear ↔ GitHub integration workflow (SPA-21)
