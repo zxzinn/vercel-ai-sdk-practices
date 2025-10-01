@@ -16,6 +16,10 @@ const envSchema = z
     // RAG - Vector store
     CHROMA_URL: z.string().optional().default("http://localhost:8000"),
 
+    // Database (Supabase PostgreSQL via Prisma)
+    DATABASE_URL: z.string().optional(),
+    DIRECT_URL: z.string().optional(),
+
     // Node environment
     NODE_ENV: z
       .enum(["development", "production", "test"])
