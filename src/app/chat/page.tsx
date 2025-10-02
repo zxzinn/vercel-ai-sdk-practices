@@ -91,6 +91,18 @@ type ExaSearchToolPart = {
   errorText?: string;
 };
 
+type PerplexitySearchToolPart = {
+  type: "tool-perplexitySearch";
+  state:
+    | "input-streaming"
+    | "input-available"
+    | "output-available"
+    | "output-error";
+  input?: { query: string };
+  output?: unknown;
+  errorText?: string;
+};
+
 type RAGQueryToolPart = {
   type: "tool-ragQuery";
   state:
@@ -478,6 +490,37 @@ export default function AIElementsChatShowcase() {
                                 );
                               }
 
+                              case "tool-perplexitySearch": {
+                                // Show search progress with Tool component
+                                const toolPart =
+                                  part as unknown as PerplexitySearchToolPart;
+                                return (
+                                  <Tool
+                                    key={`${message.id}-${i}`}
+                                    defaultOpen={
+                                      toolPart.state === "output-error"
+                                    }
+                                  >
+                                    <ToolHeader
+                                      title="Web Search (Perplexity)"
+                                      type={toolPart.type}
+                                      state={toolPart.state}
+                                    />
+                                    <ToolContent>
+                                      {toolPart.input ? (
+                                        <ToolInput input={toolPart.input} />
+                                      ) : null}
+                                      {toolPart.output || toolPart.errorText ? (
+                                        <ToolOutput
+                                          output={toolPart.output}
+                                          errorText={toolPart.errorText}
+                                        />
+                                      ) : null}
+                                    </ToolContent>
+                                  </Tool>
+                                );
+                              }
+
                               case "tool-ragQuery": {
                                 // Show RAG query progress
                                 const toolPart =
@@ -688,9 +731,8 @@ export default function AIElementsChatShowcase() {
                             );
                           }
                         }}
-                        disabled
                       >
-                        Perplexity (Coming Soon)
+                        Perplexity Search
                       </DropdownMenuCheckboxItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
