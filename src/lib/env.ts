@@ -12,6 +12,7 @@ const envSchema = z
     // Web search providers
     TAVILY_API_KEY: z.string().optional(),
     EXA_API_KEY: z.string().optional(),
+    PERPLEXITY_API_KEY: z.string().optional(),
 
     // RAG - Vector store
     CHROMA_URL: z.string().optional().default("http://localhost:8000"),
