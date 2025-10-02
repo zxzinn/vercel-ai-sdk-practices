@@ -2,6 +2,7 @@ import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
 import { ragQuery } from "@/lib/tools/rag/query";
 import { exaSearch } from "@/lib/tools/websearch/exa-search";
+import { perplexitySearch } from "@/lib/tools/websearch/perplexity-search";
 import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
@@ -36,7 +37,7 @@ const RequestBodySchema = z.object({
   model: z.string().min(1, "Model is required"),
   webSearch: z.boolean().optional().default(false),
   searchProviders: z
-    .array(z.enum(["tavily", "exa"]))
+    .array(z.enum(["tavily", "exa", "perplexity"]))
     .optional()
     .default([])
     .transform((arr) => Array.from(new Set(arr))),
@@ -71,7 +72,10 @@ export async function POST(req: Request) {
     // Determine available tools based on webSearch and rag flags
     const availableTools: Record<
       string,
-      typeof tavilySearch | typeof exaSearch | typeof ragQuery
+      | typeof tavilySearch
+      | typeof exaSearch
+      | typeof perplexitySearch
+      | typeof ragQuery
     > = {};
 
     if (webSearch) {
@@ -85,6 +89,9 @@ export async function POST(req: Request) {
             break;
           case "exa":
             availableTools.exaSearch = exaSearch;
+            break;
+          case "perplexity":
+            availableTools.perplexitySearch = perplexitySearch;
             break;
           default:
             console.warn(`Unknown search provider: ${provider}`);
