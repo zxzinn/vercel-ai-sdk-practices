@@ -20,6 +20,10 @@ const envSchema = z
     DATABASE_URL: z.string().optional(),
     DIRECT_URL: z.string().optional(),
 
+    // Supabase Storage (for generated images)
+    SUPABASE_URL: z.string().optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+
     // Node environment
     NODE_ENV: z
       .enum(["development", "production", "test"])
