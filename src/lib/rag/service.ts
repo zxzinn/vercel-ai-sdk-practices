@@ -32,8 +32,9 @@ export class RAGService {
   }
 
   private async getCollection(name: string): Promise<Collection> {
-    if (this.collections.has(name)) {
-      return this.collections.get(name)!;
+    const cached = this.collections.get(name);
+    if (cached) {
+      return cached;
     }
 
     try {
