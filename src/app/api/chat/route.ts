@@ -1,5 +1,6 @@
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
+import { generateImageTool } from "@/lib/tools/image/generate-image";
 import { ragQuery } from "@/lib/tools/rag/query";
 import { exaSearch } from "@/lib/tools/websearch/exa-search";
 import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
@@ -41,6 +42,7 @@ const RequestBodySchema = z.object({
     .default([])
     .transform((arr) => Array.from(new Set(arr))),
   rag: z.boolean().optional().default(false),
+  imageGeneration: z.boolean().optional().default(true),
   reasoning: z.boolean().optional().default(true),
 });
 
@@ -62,17 +64,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages, model, webSearch, searchProviders, rag, reasoning } =
-      validation.data;
+    const {
+      messages,
+      model,
+      webSearch,
+      searchProviders,
+      rag,
+      imageGeneration,
+      reasoning,
+    } = validation.data;
 
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
 
-    // Determine available tools based on webSearch and rag flags
-    const availableTools: Record<
-      string,
-      typeof tavilySearch | typeof exaSearch | typeof ragQuery
-    > = {};
+    // Determine available tools based on flags
+    // biome-ignore lint/suspicious/noExplicitAny: Tools have different types, complex union causes type errors
+    const availableTools = {} as Record<string, any>;
 
     if (webSearch) {
       const providers =
@@ -94,6 +101,10 @@ export async function POST(req: Request) {
 
     if (rag) {
       availableTools.ragQuery = ragQuery;
+    }
+
+    if (imageGeneration) {
+      availableTools.generateImage = generateImageTool;
     }
 
     const hasTools = Object.keys(availableTools).length > 0;
@@ -119,13 +130,18 @@ export async function POST(req: Request) {
       systemPrompt += " that can answer questions and help with tasks.";
     }
 
+    // Determine max steps based on enabled tools
+    // For image-only generation, stop after tool execution (no need for LLM to respond)
+    // For other tools or mixed scenarios, allow multi-step execution
+    const maxSteps = imageGeneration && !webSearch && !rag ? 1 : 5;
+
     const result = streamText({
       model: model,
       messages: convertedMessages,
       system: systemPrompt,
       tools: hasTools ? availableTools : undefined,
       // Critical: Enables multi-step execution so LLM can respond to tool errors and continue the conversation
-      stopWhen: stepCountIs(5),
+      stopWhen: stepCountIs(maxSteps),
       // Enable reasoning based on model provider and user preference
       ...(model.startsWith("openai/") &&
         reasoning && {

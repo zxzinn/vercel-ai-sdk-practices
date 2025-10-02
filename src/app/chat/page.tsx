@@ -103,6 +103,18 @@ type RAGQueryToolPart = {
   errorText?: string;
 };
 
+type GenerateImageToolPart = {
+  type: "tool-generateImage";
+  state:
+    | "input-streaming"
+    | "input-available"
+    | "output-available"
+    | "output-error";
+  input?: { prompt: string };
+  output?: { imageUrl: string; prompt: string };
+  errorText?: string;
+};
+
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
@@ -110,10 +122,7 @@ export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string>("");
 
   // Get current model's provider and name for display
   const currentModel = providers
@@ -131,47 +140,6 @@ export default function AIElementsChatShowcase() {
   } = useChat();
 
   // Handle file upload to vector database
-  const handleUploadToVectorDB = async () => {
-    if (selectedFiles.length === 0) return;
-
-    setUploading(true);
-    setUploadStatus("Uploading files...");
-
-    try {
-      const formData = new FormData();
-      selectedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/rag/ingest", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const result = await response.json();
-      setUploadStatus(
-        `✅ Success! Indexed ${result.totalChunks} chunks from ${selectedFiles.length} file(s)`,
-      );
-      setSelectedFiles([]);
-
-      // Close dialog after 2 seconds
-      setTimeout(() => {
-        setUploadDialogOpen(false);
-        setUploadStatus("");
-      }, 2000);
-    } catch (error) {
-      setUploadStatus(
-        `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
-
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {
     originalRegenerate({
@@ -328,6 +296,7 @@ export default function AIElementsChatShowcase() {
                                                       {filePart.mediaType?.startsWith(
                                                         "image/",
                                                       ) ? (
+                                                        /* biome-ignore lint/performance/noImgElement: Dynamic user uploads, not static images */
                                                         <img
                                                           src={filePart.url}
                                                           alt={
@@ -503,6 +472,52 @@ export default function AIElementsChatShowcase() {
                                           output={toolPart.output}
                                           errorText={toolPart.errorText}
                                         />
+                                      ) : null}
+                                    </ToolContent>
+                                  </Tool>
+                                );
+                              }
+
+                              case "tool-generateImage": {
+                                // Show image generation progress
+                                const toolPart =
+                                  part as unknown as GenerateImageToolPart;
+                                return (
+                                  <Tool
+                                    key={`${message.id}-${i}`}
+                                    defaultOpen={
+                                      toolPart.state === "output-error" ||
+                                      toolPart.state === "output-available"
+                                    }
+                                  >
+                                    <ToolHeader
+                                      title="Image Generation (DALL-E 3)"
+                                      type={toolPart.type}
+                                      state={toolPart.state}
+                                    />
+                                    <ToolContent>
+                                      {toolPart.input ? (
+                                        <ToolInput input={toolPart.input} />
+                                      ) : null}
+                                      {toolPart.output || toolPart.errorText ? (
+                                        <div className="mt-2">
+                                          {toolPart.output?.imageUrl ? (
+                                            /* biome-ignore lint/performance/noImgElement: External Supabase URL, not static asset */
+                                            <img
+                                              src={toolPart.output.imageUrl}
+                                              alt={
+                                                toolPart.output.prompt ||
+                                                "Generated image"
+                                              }
+                                              className="max-w-full rounded-lg border"
+                                            />
+                                          ) : (
+                                            <ToolOutput
+                                              output={toolPart.output}
+                                              errorText={toolPart.errorText}
+                                            />
+                                          )}
+                                        </div>
                                       ) : null}
                                     </ToolContent>
                                   </Tool>
