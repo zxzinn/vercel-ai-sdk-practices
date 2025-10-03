@@ -1,12 +1,26 @@
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
+import { getCurrentUserId } from "@/lib/auth/server";
 import type { RAGDocument } from "@/lib/rag";
 import { ragService } from "@/lib/rag";
+import { uploadFile } from "@/lib/storage/server";
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
+    const userId = await getCurrentUserId();
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized - Please refresh the page to sign in",
+          code: "AUTH_REQUIRED",
+        },
+        { status: 401 },
+      );
+    }
+
     const formData = await req.formData();
     const raw = formData.getAll("files");
     const files = raw.filter(
@@ -33,6 +47,12 @@ export async function POST(req: Request) {
       const content = await file.text();
       const docId = nanoid();
 
+      const { storageUrl } = await uploadFile({
+        userId,
+        documentId: docId,
+        file,
+      });
+
       documents.push({
         id: docId,
         content,
@@ -41,6 +61,7 @@ export async function POST(req: Request) {
           fileType: file.type || "text/plain",
           uploadedAt: new Date(),
           size: file.size,
+          storageUrl,
         },
       });
     }
