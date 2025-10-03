@@ -13,6 +13,22 @@ export interface UploadFileResult {
   fullPath: string;
 }
 
+function sanitizeFileName(fileName: string): string {
+  // Extract extension
+  const lastDotIndex = fileName.lastIndexOf(".");
+  const extension = lastDotIndex > 0 ? fileName.slice(lastDotIndex) : "";
+  const baseName =
+    lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
+
+  // Sanitize base name (only alphanumeric, underscore, hyphen)
+  const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  // Sanitize extension
+  const sanitizedExtension = extension.replace(/[^a-zA-Z0-9.]/g, "");
+
+  return sanitizedBaseName + sanitizedExtension;
+}
+
 export async function uploadFile({
   userId,
   documentId,
@@ -20,7 +36,8 @@ export async function uploadFile({
 }: UploadFileOptions): Promise<UploadFileResult> {
   const supabase = await createClient();
 
-  const filePath = `${userId}/${documentId}/${file.name}`;
+  const sanitizedFileName = sanitizeFileName(file.name);
+  const filePath = `${userId}/${documentId}/${sanitizedFileName}`;
 
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)
