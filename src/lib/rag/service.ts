@@ -26,10 +26,27 @@ export class RAGService {
   private collections: Map<string, Collection> = new Map();
 
   constructor() {
-    const url = new URL(env.CHROMA_URL);
+    const chromaUrl = env.CHROMA_URL;
+    let url: URL;
+
+    try {
+      url = new URL(chromaUrl);
+      if (!url.hostname) {
+        url = new URL(`http://${chromaUrl}`);
+      }
+    } catch {
+      url = new URL(`http://${chromaUrl}`);
+    }
+
+    const port = url.port
+      ? Number(url.port)
+      : url.protocol === "https:"
+        ? 443
+        : 8000;
+
     this.chromaClient = new ChromaClient({
       host: url.hostname,
-      port: Number(url.port) || (url.protocol === "https:" ? 443 : 8000),
+      port,
       ssl: url.protocol === "https:",
     });
   }
