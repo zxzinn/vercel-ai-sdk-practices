@@ -9,6 +9,7 @@ export interface DocumentMetadata {
   fileType: string;
   uploadedAt: Date;
   size: number;
+  storageUrl?: string;
   chunkIndex?: number;
   totalChunks?: number;
   [key: string]: unknown;
