@@ -2,6 +2,7 @@
 
 import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { getOrCreateAnonymousUser } from "./anonymous";
 
 interface AuthContextType {
@@ -22,12 +23,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function initAuth() {
-      const anonymousUser = await getOrCreateAnonymousUser();
-      setUser(anonymousUser);
-      setIsLoading(false);
+      try {
+        const anonymousUser = await getOrCreateAnonymousUser();
+        setUser(anonymousUser);
+      } catch (error) {
+        console.error("Auth initialization failed:", error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     initAuth();
+
+    // Subscribe to auth state changes
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
