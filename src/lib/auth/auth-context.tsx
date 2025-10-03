@@ -40,8 +40,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        return;
+      }
+
+      // Session lost (expired/signed out) - recreate anonymous user
+      try {
+        const anonymousUser = await getOrCreateAnonymousUser();
+        setUser(anonymousUser);
+      } catch (error) {
+        console.error("Failed to recover anonymous session:", error);
+        setUser(null);
+      }
     });
 
     return () => {
