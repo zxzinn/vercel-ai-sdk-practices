@@ -17,10 +17,6 @@ const DEFAULT_COLLECTION = "rag_documents";
 const DEFAULT_CHUNK_SIZE = 1000;
 const DEFAULT_CHUNK_OVERLAP = 200;
 
-const customEmbeddingFunction = {
-  generate: async () => [],
-};
-
 export class RAGService {
   private chromaClient: ChromaClient;
   private collections: Map<string, Collection> = new Map();
@@ -59,8 +55,10 @@ export class RAGService {
     try {
       const collection = await this.chromaClient.getOrCreateCollection({
         name,
-        embeddingFunction: customEmbeddingFunction,
-        metadata: { description: "RAG document collection" },
+        metadata: {
+          description: "RAG document collection with external embeddings",
+          "hnsw:space": "cosine",
+        },
       });
 
       this.collections.set(name, collection);
@@ -273,6 +271,34 @@ export class RAGService {
   async listCollections(): Promise<string[]> {
     const collections = await this.chromaClient.listCollections();
     return collections.map((c) => c.name);
+  }
+
+  async updateDocumentMetadata(
+    oldDocumentId: string,
+    newDocumentId: string,
+    collectionName: string = DEFAULT_COLLECTION,
+  ): Promise<void> {
+    const collection = await this.getCollection(collectionName);
+
+    const results = await collection.get({
+      where: { originalDocId: oldDocumentId },
+    });
+
+    if (results.ids.length > 0) {
+      const updatedMetadatas = results.metadatas?.map((meta) => ({
+        ...meta,
+        originalDocId: newDocumentId,
+      }));
+
+      await collection.update({
+        ids: results.ids,
+        metadatas: updatedMetadatas,
+      });
+
+      console.log(
+        `✅ Updated ${results.ids.length} chunks: ${oldDocumentId} → ${newDocumentId}`,
+      );
+    }
   }
 }
 

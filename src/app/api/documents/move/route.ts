@@ -47,25 +47,11 @@ export async function POST(request: Request) {
     try {
       const collections = await ragService.listCollections();
       for (const collectionName of collections) {
-        const collection = await ragService.getCollection(collectionName);
-
-        // Get all chunks with this originalDocId
-        const results = await collection.get({
-          where: { originalDocId: fromDocId },
-        });
-
-        if (results.ids.length > 0) {
-          // Update metadata for all chunks
-          const updatedMetadatas = results.metadatas.map((meta) => ({
-            ...meta,
-            originalDocId: toDocId,
-          }));
-
-          await collection.update({
-            ids: results.ids,
-            metadatas: updatedMetadatas,
-          });
-        }
+        await ragService.updateDocumentMetadata(
+          fromDocId,
+          toDocId,
+          collectionName,
+        );
       }
     } catch (ragError) {
       console.error("Failed to update RAG metadata:", ragError);
