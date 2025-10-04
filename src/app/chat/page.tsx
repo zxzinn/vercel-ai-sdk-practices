@@ -122,10 +122,10 @@ export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [_uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string>("");
+  const [_uploading, setUploading] = useState(false);
+  const [_uploadStatus, setUploadStatus] = useState<string>("");
 
   // Get current model's provider and name for display
   const currentModel = providers
@@ -143,7 +143,7 @@ export default function AIElementsChatShowcase() {
   } = useChat();
 
   // Handle file upload to vector database
-  const handleUploadToVectorDB = async () => {
+  const _handleUploadToVectorDB = async () => {
     if (selectedFiles.length === 0) return;
 
     setUploading(true);
@@ -263,7 +263,12 @@ export default function AIElementsChatShowcase() {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">AI Elements Chat</h1>
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl font-bold">AI Elements Chat</h1>
+              <Button asChild variant="outline">
+                <a href="/documents">Manage Documents</a>
+              </Button>
+            </div>
             <p className="text-muted-foreground">
               Enhanced chat interface with file attachments, model selection,
               and web search
