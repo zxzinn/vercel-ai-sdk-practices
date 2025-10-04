@@ -118,6 +118,14 @@ type RAGQueryToolPart = {
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
+// Tool rendering configuration
+const TOOL_CONFIG = {
+  "tool-tavilySearch": { title: "Web Search (Tavily)" },
+  "tool-exaSearch": { title: "Web Search (Exa)" },
+  "tool-perplexitySearch": { title: "Web Search (Perplexity)" },
+  "tool-ragQuery": { title: "Document Search (RAG)" },
+} as const;
+
 export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
@@ -428,103 +436,22 @@ export default function AIElementsChatShowcase() {
                                 // Sources are rendered above, skip them here
                                 return null;
 
-                              case "tool-tavilySearch": {
-                                // Show search progress with Tool component
-                                const toolPart =
-                                  part as unknown as TavilySearchToolPart;
-                                return (
-                                  <Tool
-                                    key={`${message.id}-${i}`}
-                                    defaultOpen={
-                                      toolPart.state === "output-error"
-                                    }
-                                  >
-                                    <ToolHeader
-                                      title="Web Search (Tavily)"
-                                      type={toolPart.type}
-                                      state={toolPart.state}
-                                    />
-                                    <ToolContent>
-                                      {toolPart.input ? (
-                                        <ToolInput input={toolPart.input} />
-                                      ) : null}
-                                      {toolPart.output || toolPart.errorText ? (
-                                        <ToolOutput
-                                          output={toolPart.output}
-                                          errorText={toolPart.errorText}
-                                        />
-                                      ) : null}
-                                    </ToolContent>
-                                  </Tool>
-                                );
-                              }
-
-                              case "tool-exaSearch": {
-                                // Show search progress with Tool component
-                                const toolPart =
-                                  part as unknown as ExaSearchToolPart;
-                                return (
-                                  <Tool
-                                    key={`${message.id}-${i}`}
-                                    defaultOpen={
-                                      toolPart.state === "output-error"
-                                    }
-                                  >
-                                    <ToolHeader
-                                      title="Web Search (Exa)"
-                                      type={toolPart.type}
-                                      state={toolPart.state}
-                                    />
-                                    <ToolContent>
-                                      {toolPart.input ? (
-                                        <ToolInput input={toolPart.input} />
-                                      ) : null}
-                                      {toolPart.output || toolPart.errorText ? (
-                                        <ToolOutput
-                                          output={toolPart.output}
-                                          errorText={toolPart.errorText}
-                                        />
-                                      ) : null}
-                                    </ToolContent>
-                                  </Tool>
-                                );
-                              }
-
-                              case "tool-perplexitySearch": {
-                                // Show search progress with Tool component
-                                const toolPart =
-                                  part as unknown as PerplexitySearchToolPart;
-                                return (
-                                  <Tool
-                                    key={`${message.id}-${i}`}
-                                    defaultOpen={
-                                      toolPart.state === "output-error"
-                                    }
-                                  >
-                                    <ToolHeader
-                                      title="Web Search (Perplexity)"
-                                      type={toolPart.type}
-                                      state={toolPart.state}
-                                    />
-                                    <ToolContent>
-                                      {toolPart.input ? (
-                                        <ToolInput input={toolPart.input} />
-                                      ) : null}
-                                      {toolPart.output || toolPart.errorText ? (
-                                        <ToolOutput
-                                          output={toolPart.output}
-                                          errorText={toolPart.errorText}
-                                        />
-                                      ) : null}
-                                    </ToolContent>
-                                  </Tool>
-                                );
-                              }
-
+                              case "tool-tavilySearch":
+                              case "tool-exaSearch":
+                              case "tool-perplexitySearch":
                               case "tool-ragQuery": {
-                                // Show RAG query progress
-                                const toolPart =
-                                  part as unknown as RAGQueryToolPart;
+                                const config =
+                                  TOOL_CONFIG[
+                                    part.type as keyof typeof TOOL_CONFIG
+                                  ];
+                                if (!config) return null;
+
+                                const toolPart = part as unknown as
+                                  | TavilySearchToolPart
+                                  | ExaSearchToolPart
+                                  | PerplexitySearchToolPart
+                                  | RAGQueryToolPart;
+
                                 return (
                                   <Tool
                                     key={`${message.id}-${i}`}
@@ -533,7 +460,7 @@ export default function AIElementsChatShowcase() {
                                     }
                                   >
                                     <ToolHeader
-                                      title="Document Search (RAG)"
+                                      title={config.title}
                                       type={toolPart.type}
                                       state={toolPart.state}
                                     />
