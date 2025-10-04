@@ -105,26 +105,53 @@ export async function POST(req: Request) {
 
     const hasTools = Object.keys(availableTools).length > 0;
 
-    // Build system prompt based on available tools
-    let systemPrompt = "You are a helpful assistant";
-    if (webSearch && rag) {
-      systemPrompt +=
-        " with access to web search and document search capabilities. " +
-        "Use web search for current information and ragQuery for searching through uploaded documents. " +
-        "Always cite your sources.";
-    } else if (webSearch) {
-      systemPrompt +=
-        " with access to web search capabilities. " +
-        "When users ask questions that would benefit from current information, use the available search tools. " +
-        "Always cite your sources.";
-    } else if (rag) {
-      systemPrompt +=
-        " with access to document search capabilities. " +
-        "When users ask questions about their documents or uploaded content, use ragQuery to find relevant information. " +
-        "Always cite the document sources and chunk information.";
-    } else {
-      systemPrompt += " that can answer questions and help with tasks.";
-    }
+    // System prompt configuration for each capability
+    const PROMPT_CONFIG = {
+      base: "You are a helpful assistant",
+      webSearch: {
+        capabilities: "web search",
+        usage: "Use web search for current information",
+        citation: "Always cite your sources.",
+      },
+      rag: {
+        capabilities: "document search",
+        usage:
+          "Use ragQuery for searching through uploaded documents when users ask about their documents or uploaded content",
+        citation: "Always cite the document sources and chunk information.",
+      },
+      fallback: "that can answer questions and help with tasks.",
+    } as const;
+
+    // Build system prompt dynamically based on enabled tools
+    const buildSystemPrompt = () => {
+      if (!webSearch && !rag) {
+        return `${PROMPT_CONFIG.base} ${PROMPT_CONFIG.fallback}`;
+      }
+
+      const capabilities: string[] = [];
+      const usageInstructions: string[] = [];
+      const citations: string[] = [];
+
+      if (webSearch) {
+        capabilities.push(PROMPT_CONFIG.webSearch.capabilities);
+        usageInstructions.push(PROMPT_CONFIG.webSearch.usage);
+        citations.push(PROMPT_CONFIG.webSearch.citation);
+      }
+
+      if (rag) {
+        capabilities.push(PROMPT_CONFIG.rag.capabilities);
+        usageInstructions.push(PROMPT_CONFIG.rag.usage);
+        citations.push(PROMPT_CONFIG.rag.citation);
+      }
+
+      const capabilitiesText = capabilities.join(" and ");
+      const usageText = usageInstructions.join(". ");
+      const citationText = citations[0]; // Both share the same citation requirement
+
+      return `${PROMPT_CONFIG.base} with access to ${capabilitiesText} capabilities. ${usageText}. ${citationText}`;
+    };
+
+    const systemPrompt = buildSystemPrompt();
 
     const result = streamText({
       model: model,
