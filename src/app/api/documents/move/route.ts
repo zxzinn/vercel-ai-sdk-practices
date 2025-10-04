@@ -28,6 +28,19 @@ export async function POST(request: Request) {
 
     // Extract filename from path
     const fileName = filePath.split("/").pop();
+    if (!fileName) {
+      return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
+    }
+
+    // Validate that filePath belongs to current user and fromDocId
+    const expectedPrefix = `${userId}/${fromDocId}/`;
+    if (!filePath.startsWith(expectedPrefix)) {
+      return NextResponse.json(
+        { error: "Unauthorized: Invalid file path" },
+        { status: 403 },
+      );
+    }
+
     const newPath = `${userId}/${toDocId}/${fileName}`;
 
     // Move file in Storage
@@ -50,6 +63,7 @@ export async function POST(request: Request) {
         await ragService.updateDocumentMetadata(
           fromDocId,
           toDocId,
+          fileName,
           collectionName,
         );
       }

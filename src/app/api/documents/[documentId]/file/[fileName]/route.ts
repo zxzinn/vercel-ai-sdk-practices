@@ -38,9 +38,17 @@ export async function DELETE(
 
     // Delete from RAG if this is the only file in the document
     try {
-      const { data: remainingFiles } = await supabase.storage
+      const { data: remainingFiles, error: listError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .list(`${userId}/${documentId}`);
+
+      if (listError) {
+        console.error("Failed to check remaining files:", listError);
+        return NextResponse.json(
+          { error: "Failed to verify document state" },
+          { status: 500 },
+        );
+      }
 
       if (!remainingFiles || remainingFiles.length === 0) {
         const collections = await ragService.listCollections();

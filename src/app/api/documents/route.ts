@@ -32,9 +32,6 @@ export async function GET() {
       );
     }
 
-    console.log("User ID:", userId);
-    console.log("Folders found:", folders?.length || 0);
-
     // Process all folders in parallel
     const folderPromises = (folders || [])
       .filter((folder) => folder.id === null) // Only process folders

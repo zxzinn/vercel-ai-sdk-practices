@@ -276,12 +276,15 @@ export class RAGService {
   async updateDocumentMetadata(
     oldDocumentId: string,
     newDocumentId: string,
+    fileName: string,
     collectionName: string = DEFAULT_COLLECTION,
   ): Promise<void> {
     const collection = await this.getCollection(collectionName);
 
     const results = await collection.get({
-      where: { originalDocId: oldDocumentId },
+      where: {
+        $and: [{ originalDocId: oldDocumentId }, { filename: fileName }],
+      },
     });
 
     if (results.ids.length > 0) {
@@ -296,7 +299,7 @@ export class RAGService {
       });
 
       console.log(
-        `✅ Updated ${results.ids.length} chunks: ${oldDocumentId} → ${newDocumentId}`,
+        `✅ Updated ${results.ids.length} chunks for ${fileName}: ${oldDocumentId} → ${newDocumentId}`,
       );
     }
   }
