@@ -66,54 +66,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { loadAllProviders } from "@/lib/providers/loader";
 
-// Type for search tool parts
-type TavilySearchToolPart = {
-  type: "tool-tavilySearch";
+// Generic tool part type
+type ToolPart<TName extends string, TInput = unknown> = {
+  type: `tool-${TName}`;
   state:
     | "input-streaming"
     | "input-available"
     | "output-available"
     | "output-error";
-  input?: { query: string };
+  input?: TInput;
   output?: unknown;
   errorText?: string;
 };
 
-type ExaSearchToolPart = {
-  type: "tool-exaSearch";
-  state:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
-  input?: { query: string };
-  output?: unknown;
-  errorText?: string;
-};
-
-type PerplexitySearchToolPart = {
-  type: "tool-perplexitySearch";
-  state:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
-  input?: { query: string };
-  output?: unknown;
-  errorText?: string;
-};
-
-type RAGQueryToolPart = {
-  type: "tool-ragQuery";
-  state:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
-  input?: { query: string; topK?: number; collectionName?: string };
-  output?: unknown;
-  errorText?: string;
-};
+// Tool part types
+type TavilySearchToolPart = ToolPart<"tavilySearch", { query: string }>;
+type ExaSearchToolPart = ToolPart<"exaSearch", { query: string }>;
+type PerplexitySearchToolPart = ToolPart<"perplexitySearch", { query: string }>;
+type RAGQueryToolPart = ToolPart<
+  "ragQuery",
+  { query: string; topK?: number; collectionName?: string }
+>;
 
 // Dynamically load all available providers
 const providers = loadAllProviders();
