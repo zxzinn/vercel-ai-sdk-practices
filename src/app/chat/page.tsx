@@ -118,14 +118,30 @@ type RAGQueryToolPart = {
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
+// Helper function for file upload to RAG
+async function uploadFilesToRAG(files: File[]) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const response = await fetch("/api/rag/ingest", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("Upload failed");
+  }
+
+  return response.json();
+}
+
 export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string>("");
 
   // Get current model's provider and name for display
   const currentModel = providers
@@ -141,48 +157,6 @@ export default function AIElementsChatShowcase() {
     status,
     regenerate: originalRegenerate,
   } = useChat();
-
-  // Handle file upload to vector database
-  const handleUploadToVectorDB = async () => {
-    if (selectedFiles.length === 0) return;
-
-    setUploading(true);
-    setUploadStatus("Uploading files...");
-
-    try {
-      const formData = new FormData();
-      selectedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/rag/ingest", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const result = await response.json();
-      setUploadStatus(
-        `✅ Success! Indexed ${result.totalChunks} chunks from ${selectedFiles.length} file(s)`,
-      );
-      setSelectedFiles([]);
-
-      // Close dialog after 2 seconds
-      setTimeout(() => {
-        setUploadDialogOpen(false);
-        setUploadStatus("");
-      }, 2000);
-    } catch (error) {
-      setUploadStatus(
-        `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
 
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {
@@ -599,10 +573,18 @@ export default function AIElementsChatShowcase() {
                   </PromptInputActionMenu>
                   {/* RAG File Upload */}
                   <label>
-                    <Button variant="outline" size="sm" className="h-8" asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={uploading}
+                      asChild
+                    >
                       <span>
                         <FileUpIcon size={16} />
-                        <span>Upload Docs</span>
+                        <span>
+                          {uploading ? "Uploading..." : "Upload Docs"}
+                        </span>
                       </span>
                     </Button>
                     <input
@@ -618,21 +600,7 @@ export default function AIElementsChatShowcase() {
                         setUploading(true);
 
                         try {
-                          const formData = new FormData();
-                          files.forEach((file) => {
-                            formData.append("files", file);
-                          });
-
-                          const response = await fetch("/api/rag/ingest", {
-                            method: "POST",
-                            body: formData,
-                          });
-
-                          if (!response.ok) {
-                            throw new Error("Upload failed");
-                          }
-
-                          const result = await response.json();
+                          const result = await uploadFilesToRAG(files);
                           alert(
                             `✅ Success! Indexed ${result.totalChunks} chunks from ${files.length} file(s)`,
                           );
