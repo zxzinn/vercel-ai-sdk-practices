@@ -1,22 +1,20 @@
 "use client";
 
 import {
-  DownloadIcon,
-  FileTextIcon,
-  FolderIcon,
-  Loader2Icon,
-  MoreHorizontalIcon,
-  TrashIcon,
-} from "lucide-react";
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { FileTextIcon, Loader2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth/auth-context";
+import { DraggableFile } from "./components/draggable-file";
+import { DroppableFolder } from "./components/droppable-folder";
 
 interface DocumentFile {
   documentId: string;
@@ -34,7 +32,15 @@ export default function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [movingFile, setMovingFile] = useState<string | null>(null);
-  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  );
 
   useEffect(() => {
     if (authLoading || !userId) return;
@@ -181,7 +187,29 @@ export default function DocumentsPage() {
     {} as Record<string, DocumentFile[]>,
   );
 
-  const _allFolders = Object.keys(groupedDocs);
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as string);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const filePath = active.id as string;
+      const file = documents.find((d) => d.filePath === filePath);
+      const targetFolderId = over.id as string;
+
+      if (file && file.documentId !== targetFolderId) {
+        handleMove(filePath, file.documentId, targetFolderId);
+      }
+    }
+
+    setActiveId(null);
+  }
+
+  const activeFile = activeId
+    ? documents.find((d) => d.filePath === activeId)
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,133 +226,50 @@ export default function DocumentsPage() {
             <p>No documents uploaded yet</p>
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden">
-            {Object.entries(groupedDocs).map(([documentId, files]) => (
-              <div key={documentId}>
-                {/* Folder Header */}
-                <div
-                  className={`flex items-center justify-between px-4 py-2 bg-muted/30 border-b transition-colors ${
-                    dragOverFolder === documentId ? "bg-primary/20" : ""
-                  }`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOverFolder(documentId);
-                  }}
-                  onDragLeave={() => {
-                    setDragOverFolder(null);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const data = e.dataTransfer.getData("application/json");
-                    if (data) {
-                      const { filePath, fromDocId } = JSON.parse(data);
-                      if (fromDocId !== documentId) {
-                        handleMove(filePath, fromDocId, documentId);
-                      }
-                    }
-                    setDragOverFolder(null);
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <FolderIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-mono text-sm">{documentId}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({files.length})
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="border rounded-lg overflow-hidden">
+              {Object.entries(groupedDocs).map(([documentId, files]) => (
+                <div key={documentId}>
+                  <DroppableFolder
+                    documentId={documentId}
+                    fileCount={files.length}
+                    deletingId={deletingId}
+                    onDeleteFolder={handleDeleteFolder}
+                  />
+
+                  {/* File List */}
+                  {files.map((file) => (
+                    <DraggableFile
+                      key={file.filePath}
+                      file={file}
+                      documentId={documentId}
+                      movingFile={movingFile}
+                      formatFileSize={formatFileSize}
+                      formatDate={formatDate}
+                      onDeleteFile={handleDeleteFile}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <DragOverlay>
+              {activeFile ? (
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-2 bg-background border rounded shadow-lg">
+                  <div className="flex items-center gap-2 min-w-0 pl-6">
+                    <FileTextIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate text-sm">
+                      {activeFile.fileName}
                     </span>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        {deletingId === documentId ? (
-                          <Loader2Icon className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <MoreHorizontalIcon className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteFolder(documentId)}
-                        className="text-destructive"
-                      >
-                        <TrashIcon className="h-4 w-4 mr-2" />
-                        Delete Folder
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
-
-                {/* File List */}
-                {files.map((file) => (
-                  <div
-                    key={file.filePath}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData(
-                        "application/json",
-                        JSON.stringify({
-                          filePath: file.filePath,
-                          fromDocId: documentId,
-                        }),
-                      );
-                    }}
-                    className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-2 border-b last:border-b-0 hover:bg-accent/50 items-center cursor-move"
-                  >
-                    <div className="flex items-center gap-2 min-w-0 pl-6">
-                      <FileTextIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="truncate text-sm">{file.fileName}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatFileSize(file.size)}
-                    </div>
-                    <div className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDate(file.createdAt)}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={movingFile === file.filePath}
-                          >
-                            {movingFile === file.filePath ? (
-                              <Loader2Icon className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <MoreHorizontalIcon className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {file.downloadUrl && (
-                            <DropdownMenuItem asChild>
-                              <a
-                                href={file.downloadUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <DownloadIcon className="h-4 w-4 mr-2" />
-                                Download
-                              </a>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleDeleteFile(file.filePath, documentId)
-                            }
-                            className="text-destructive"
-                          >
-                            <TrashIcon className="h-4 w-4 mr-2" />
-                            Delete File
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
     </div>
