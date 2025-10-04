@@ -1,6 +1,11 @@
 import { generateId } from "@ai-sdk/provider-utils";
 import { tavily } from "@tavily/core";
 import { z } from "zod";
+import {
+  createMissingApiKeyResponse,
+  createNoResultsResponse,
+  createSearchErrorResponse,
+} from "./error-handler";
 import type { WebSearchToolResult } from "./types";
 
 export const tavilySearch = {
@@ -15,10 +20,7 @@ export const tavilySearch = {
   }): Promise<WebSearchToolResult> => {
     try {
       if (!process.env.TAVILY_API_KEY) {
-        return {
-          text: `I apologize, but web search is currently unavailable (API key not configured). Let me help you with the information I already have about "${query}".`,
-          sources: [],
-        };
+        return createMissingApiKeyResponse("Tavily", query);
       }
 
       const tavilyClient = tavily({
@@ -33,10 +35,7 @@ export const tavilySearch = {
       });
 
       if (!response.results || response.results.length === 0) {
-        return {
-          text: `I searched for "${query}" but didn't find any relevant results. Let me try to help you with my existing knowledge instead.`,
-          sources: [],
-        };
+        return createNoResultsResponse("Tavily", query);
       }
 
       // Format results for LLM
@@ -66,11 +65,7 @@ export const tavilySearch = {
         sources,
       };
     } catch (error) {
-      console.error("Tavily search error:", error);
-      return {
-        text: `I encountered an issue while searching for "${query}". Let me try to help you with my existing knowledge instead.`,
-        sources: [],
-      };
+      return createSearchErrorResponse("Tavily", query, error);
     }
   },
 };

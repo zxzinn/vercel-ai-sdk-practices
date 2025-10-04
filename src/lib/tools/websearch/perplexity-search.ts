@@ -1,6 +1,11 @@
 import { perplexity } from "@ai-sdk/perplexity";
 import { generateText } from "ai";
 import { z } from "zod";
+import {
+  createMissingApiKeyResponse,
+  createNoResultsResponse,
+  createSearchErrorResponse,
+} from "./error-handler";
 import type { WebSearchToolResult } from "./types";
 
 export const perplexitySearch = {
@@ -16,10 +21,7 @@ export const perplexitySearch = {
   }): Promise<WebSearchToolResult> => {
     try {
       if (!process.env.PERPLEXITY_API_KEY) {
-        return {
-          text: `I apologize, but web search via Perplexity is currently unavailable (API key not configured). Let me help you with the information I already have about "${query}".`,
-          sources: [],
-        };
+        return createMissingApiKeyResponse("Perplexity", query);
       }
 
       const { text, sources } = await generateText({
@@ -28,10 +30,7 @@ export const perplexitySearch = {
       });
 
       if (!text) {
-        return {
-          text: `I searched for "${query}" using Perplexity but didn't find any relevant results. Let me try to help you with my existing knowledge instead.`,
-          sources: [],
-        };
+        return createNoResultsResponse("Perplexity", query);
       }
 
       return {
@@ -39,11 +38,7 @@ export const perplexitySearch = {
         sources: sources || [],
       };
     } catch (error) {
-      console.error("Perplexity search error:", error);
-      return {
-        text: `I encountered an issue while searching for "${query}" with Perplexity. Let me try to help you with my existing knowledge instead.`,
-        sources: [],
-      };
+      return createSearchErrorResponse("Perplexity", query, error);
     }
   },
 };
