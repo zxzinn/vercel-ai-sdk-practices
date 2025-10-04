@@ -118,6 +118,13 @@ type RAGQueryToolPart = {
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
+const searchProviderOptions = [
+  { id: "tavily" as const, label: "Tavily Search" },
+  { id: "exa" as const, label: "Exa Search" },
+  { id: "perplexity" as const, label: "Perplexity Search" },
+  { id: "bing" as const, label: "Bing Search (Coming Soon)", disabled: true },
+];
+
 export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
@@ -674,66 +681,27 @@ export default function AIElementsChatShowcase() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("tavily")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "tavily"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "tavily"),
-                            );
-                          }
-                        }}
-                      >
-                        Tavily Search
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("exa")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "exa"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "exa"),
-                            );
-                          }
-                        }}
-                      >
-                        Exa Search
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("bing")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "bing"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "bing"),
-                            );
-                          }
-                        }}
-                        disabled
-                      >
-                        Bing Search (Coming Soon)
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("perplexity")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([
-                              ...searchProviders,
-                              "perplexity",
-                            ]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "perplexity"),
-                            );
-                          }
-                        }}
-                      >
-                        Perplexity Search
-                      </DropdownMenuCheckboxItem>
+                      {searchProviderOptions.map((option) => (
+                        <DropdownMenuCheckboxItem
+                          key={option.id}
+                          checked={searchProviders.includes(option.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSearchProviders([
+                                ...searchProviders,
+                                option.id,
+                              ]);
+                            } else {
+                              setSearchProviders(
+                                searchProviders.filter((p) => p !== option.id),
+                              );
+                            }
+                          }}
+                          disabled={option.disabled}
+                        >
+                          {option.label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {/* Nested Model Selection with Provider Hover Submenus */}
