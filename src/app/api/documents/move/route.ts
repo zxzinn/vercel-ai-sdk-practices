@@ -42,11 +42,14 @@ export async function POST(request: Request) {
     }
 
     // Validate destination folder belongs to current user
+    // Note: Supabase returns an empty array for non-existent paths, not null
     const { data: destCheck, error: destCheckError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .list(`${userId}/${toDocId}`, { limit: 1 });
 
-    if (destCheckError || !destCheck) {
+    // Reject if there's an error, destCheck is null, or the folder doesn't exist (empty array)
+    // An existing folder will have at least one entry (files or .emptyFolderPlaceholder)
+    if (destCheckError || !destCheck || destCheck.length === 0) {
       return NextResponse.json(
         { error: "Unauthorized: Invalid destination folder" },
         { status: 403 },

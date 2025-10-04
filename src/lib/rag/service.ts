@@ -311,10 +311,16 @@ export class RAGService {
     });
 
     if (results.ids.length > 0) {
-      const updatedMetadatas = results.metadatas?.map((meta) => ({
-        ...meta,
-        originalDocId: newDocumentId,
-      }));
+      // Handle potentially undefined metadatas array and null individual metadata objects
+      const updatedMetadatas =
+        results.metadatas?.map((meta) =>
+          meta
+            ? {
+                ...meta,
+                originalDocId: newDocumentId,
+              }
+            : { originalDocId: newDocumentId },
+        ) || results.ids.map(() => ({ originalDocId: newDocumentId }));
 
       await collection.update({
         ids: results.ids,

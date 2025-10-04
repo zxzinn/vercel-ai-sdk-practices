@@ -244,6 +244,68 @@ describe("RAGService", () => {
       expect(mockCollection.get).toHaveBeenCalled();
       expect(mockCollection.update).not.toHaveBeenCalled();
     });
+
+    it("should handle undefined metadatas gracefully", async () => {
+      const oldDocId = "doc1";
+      const newDocId = "doc2";
+      const fileName = "test.txt";
+
+      mockCollection.get.mockResolvedValue({
+        ids: ["doc1_chunk_0", "doc1_chunk_1"],
+        metadatas: undefined, // ChromaDB might return undefined
+      });
+
+      await ragService.updateDocumentMetadata(oldDocId, newDocId, fileName);
+
+      expect(mockCollection.update).toHaveBeenCalledWith({
+        ids: ["doc1_chunk_0", "doc1_chunk_1"],
+        metadatas: [{ originalDocId: newDocId }, { originalDocId: newDocId }],
+      });
+    });
+
+    it("should handle null metadata objects gracefully", async () => {
+      const oldDocId = "doc1";
+      const newDocId = "doc2";
+      const fileName = "test.txt";
+
+      mockCollection.get.mockResolvedValue({
+        ids: ["doc1_chunk_0", "doc1_chunk_1", "doc1_chunk_2"],
+        metadatas: [
+          { filename: fileName, originalDocId: oldDocId },
+          null, // Some metadata might be null
+          { filename: fileName, originalDocId: oldDocId, chunkIndex: 2 },
+        ],
+      });
+
+      await ragService.updateDocumentMetadata(oldDocId, newDocId, fileName);
+
+      expect(mockCollection.update).toHaveBeenCalledWith({
+        ids: ["doc1_chunk_0", "doc1_chunk_1", "doc1_chunk_2"],
+        metadatas: [
+          { filename: fileName, originalDocId: newDocId },
+          { originalDocId: newDocId }, // null metadata gets minimal replacement
+          { filename: fileName, originalDocId: newDocId, chunkIndex: 2 },
+        ],
+      });
+    });
+
+    it("should handle mixed null and valid metadata objects", async () => {
+      const oldDocId = "doc1";
+      const newDocId = "doc2";
+      const fileName = "test.txt";
+
+      mockCollection.get.mockResolvedValue({
+        ids: ["id1", "id2"],
+        metadatas: [null, null], // All null
+      });
+
+      await ragService.updateDocumentMetadata(oldDocId, newDocId, fileName);
+
+      expect(mockCollection.update).toHaveBeenCalledWith({
+        ids: ["id1", "id2"],
+        metadatas: [{ originalDocId: newDocId }, { originalDocId: newDocId }],
+      });
+    });
   });
 
   describe("listCollections", () => {

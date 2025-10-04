@@ -134,7 +134,7 @@ describe("POST /api/documents/move", () => {
     expect(data.error).toBe("Unauthorized: Invalid file path");
   });
 
-  it("should return 403 if destination folder does not exist", async () => {
+  it("should return 403 if destination folder does not exist (error)", async () => {
     vi.mocked(getCurrentUserId).mockResolvedValue("user1");
 
     const mockList = vi.fn().mockResolvedValue({
@@ -164,10 +164,44 @@ describe("POST /api/documents/move", () => {
     expect(mockList).toHaveBeenCalledWith("user1/doc2", { limit: 1 });
   });
 
+  it("should return 403 if destination folder does not exist (empty array)", async () => {
+    vi.mocked(getCurrentUserId).mockResolvedValue("user1");
+
+    // Supabase returns empty array for non-existent paths
+    const mockList = vi.fn().mockResolvedValue({
+      data: [], // Empty array = folder doesn't exist
+      error: null,
+    });
+
+    mockSupabase.storage.from.mockReturnValue({
+      list: mockList,
+      move: vi.fn(),
+    });
+
+    const request = new Request("http://localhost/api/documents/move", {
+      method: "POST",
+      body: JSON.stringify({
+        filePath: "user1/doc1/file.txt",
+        fromDocId: "doc1",
+        toDocId: "nonexistent",
+      }),
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toBe("Unauthorized: Invalid destination folder");
+    expect(mockList).toHaveBeenCalledWith("user1/nonexistent", { limit: 1 });
+  });
+
   it("should return 500 if file move fails", async () => {
     vi.mocked(getCurrentUserId).mockResolvedValue("user1");
 
-    const mockList = vi.fn().mockResolvedValue({ data: [], error: null });
+    const mockList = vi.fn().mockResolvedValue({
+      data: [{ name: "existing-file.txt" }], // Non-empty = folder exists
+      error: null,
+    });
     const mockMove = vi
       .fn()
       .mockResolvedValue({ error: { message: "Move failed" } });
@@ -200,7 +234,10 @@ describe("POST /api/documents/move", () => {
       new Error("RAG update failed"),
     );
 
-    const mockList = vi.fn().mockResolvedValue({ data: [], error: null });
+    const mockList = vi.fn().mockResolvedValue({
+      data: [{ name: "existing-file.txt" }], // Non-empty = folder exists
+      error: null,
+    });
     const mockMove = vi.fn().mockResolvedValue({ error: null });
 
     mockSupabase.storage.from.mockReturnValue({
@@ -237,7 +274,10 @@ describe("POST /api/documents/move", () => {
       new Error("RAG update failed"),
     );
 
-    const mockList = vi.fn().mockResolvedValue({ data: [], error: null });
+    const mockList = vi.fn().mockResolvedValue({
+      data: [{ name: "existing-file.txt" }], // Non-empty = folder exists
+      error: null,
+    });
     const mockMove = vi
       .fn()
       .mockResolvedValueOnce({ error: null }) // Initial move succeeds
@@ -274,7 +314,10 @@ describe("POST /api/documents/move", () => {
     ]);
     vi.mocked(ragService.updateDocumentMetadata).mockResolvedValue();
 
-    const mockList = vi.fn().mockResolvedValue({ data: [], error: null });
+    const mockList = vi.fn().mockResolvedValue({
+      data: [{ name: "existing-file.txt" }], // Non-empty = folder exists
+      error: null,
+    });
     const mockMove = vi.fn().mockResolvedValue({ error: null });
 
     mockSupabase.storage.from.mockReturnValue({
