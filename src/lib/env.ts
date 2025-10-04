@@ -17,6 +17,10 @@ const envSchema = z
     // RAG - Vector store
     CHROMA_URL: z.string().optional().default("http://localhost:8000"),
 
+    // Supabase
+    NEXT_PUBLIC_SUPABASE_URL: z.string().min(1),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+
     // Database (Supabase PostgreSQL via Prisma)
     DATABASE_URL: z.string().optional(),
     DIRECT_URL: z.string().optional(),
