@@ -142,48 +142,6 @@ export default function AIElementsChatShowcase() {
     regenerate: originalRegenerate,
   } = useChat();
 
-  // Handle file upload to vector database
-  const _handleUploadToVectorDB = async () => {
-    if (selectedFiles.length === 0) return;
-
-    setUploading(true);
-    setUploadStatus("Uploading files...");
-
-    try {
-      const formData = new FormData();
-      selectedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/rag/ingest", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const result = await response.json();
-      setUploadStatus(
-        `✅ Success! Indexed ${result.totalChunks} chunks from ${selectedFiles.length} file(s)`,
-      );
-      setSelectedFiles([]);
-
-      // Close dialog after 2 seconds
-      setTimeout(() => {
-        setUploadDialogOpen(false);
-        setUploadStatus("");
-      }, 2000);
-    } catch (error) {
-      setUploadStatus(
-        `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
-
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {
     originalRegenerate({
