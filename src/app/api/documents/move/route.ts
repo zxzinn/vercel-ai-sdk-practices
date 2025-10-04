@@ -69,7 +69,12 @@ export async function POST(request: Request) {
       }
     } catch (ragError) {
       console.error("Failed to update RAG metadata:", ragError);
-      // Continue even if RAG update fails
+      // Rollback: move file back to original location
+      await supabase.storage.from(STORAGE_BUCKET).move(newPath, filePath);
+      return NextResponse.json(
+        { error: "Failed to update search index" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({ success: true, newPath });

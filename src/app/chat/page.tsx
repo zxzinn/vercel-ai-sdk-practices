@@ -122,10 +122,7 @@ export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
-  const [_uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [_uploading, setUploading] = useState(false);
-  const [_uploadStatus, setUploadStatus] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
 
   // Get current model's provider and name for display
   const currentModel = providers
