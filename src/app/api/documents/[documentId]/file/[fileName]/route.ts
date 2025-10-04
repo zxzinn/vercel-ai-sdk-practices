@@ -36,28 +36,15 @@ export async function DELETE(
       );
     }
 
-    // Delete from RAG if this is the only file in the document
+    // Delete file chunks from RAG
     try {
-      const { data: remainingFiles, error: listError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .list(`${userId}/${documentId}`);
-
-      if (listError) {
-        console.error("Failed to check remaining files:", listError);
-        return NextResponse.json(
-          { error: "Failed to verify document state" },
-          { status: 500 },
-        );
-      }
-
-      if (!remainingFiles || remainingFiles.length === 0) {
-        const collections = await ragService.listCollections();
-        for (const collectionName of collections) {
-          await ragService.deleteDocument(documentId, collectionName);
-        }
+      const collections = await ragService.listCollections();
+      for (const collectionName of collections) {
+        await ragService.deleteFile(documentId, fileName, collectionName);
       }
     } catch (ragError) {
       console.error("Failed to delete from RAG:", ragError);
+      // Continue even if RAG deletion fails - file is already deleted from storage
     }
 
     return NextResponse.json({ success: true });

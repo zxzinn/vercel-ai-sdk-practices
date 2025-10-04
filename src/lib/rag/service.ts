@@ -256,6 +256,29 @@ export class RAGService {
     }
   }
 
+  async deleteFile(
+    documentId: string,
+    fileName: string,
+    collectionName: string = DEFAULT_COLLECTION,
+  ): Promise<void> {
+    const collection = await this.getCollection(collectionName);
+
+    const results = await collection.get({
+      where: {
+        $and: [{ originalDocId: documentId }, { filename: fileName }],
+      },
+    });
+
+    if (results.ids.length > 0) {
+      await collection.delete({
+        ids: results.ids,
+      });
+      console.log(
+        `✅ Deleted ${results.ids.length} chunks for file ${fileName} in doc ${documentId}`,
+      );
+    }
+  }
+
   async clearCollection(
     collectionName: string = DEFAULT_COLLECTION,
   ): Promise<void> {

@@ -41,6 +41,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate destination folder belongs to current user
+    const { data: destCheck, error: destCheckError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .list(`${userId}/${toDocId}`, { limit: 1 });
+
+    if (destCheckError || !destCheck) {
+      return NextResponse.json(
+        { error: "Unauthorized: Invalid destination folder" },
+        { status: 403 },
+      );
+    }
+
     const newPath = `${userId}/${toDocId}/${fileName}`;
 
     // Move file in Storage
@@ -70,7 +82,21 @@ export async function POST(request: Request) {
     } catch (ragError) {
       console.error("Failed to update RAG metadata:", ragError);
       // Rollback: move file back to original location
-      await supabase.storage.from(STORAGE_BUCKET).move(newPath, filePath);
+      const { error: rollbackError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .move(newPath, filePath);
+
+      if (rollbackError) {
+        console.error("Failed to rollback file move:", rollbackError);
+        return NextResponse.json(
+          {
+            error:
+              "Failed to update search index and rollback failed - system in inconsistent state",
+          },
+          { status: 500 },
+        );
+      }
+
       return NextResponse.json(
         { error: "Failed to update search index" },
         { status: 500 },
