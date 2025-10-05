@@ -415,8 +415,10 @@ export const PromptInput = ({
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const text = (formData.get("message") as string) || "";
+    form.reset();
 
     // Convert blob URLs to data URLs asynchronously
     Promise.all(
