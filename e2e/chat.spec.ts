@@ -5,9 +5,7 @@ test("send chat message", async ({ page }) => {
     waitUntil: "networkidle",
   });
 
-  const messageInput = page.getByRole("textbox", {
-    name: "Type your message...",
-  });
+  const messageInput = page.getByPlaceholder("Type your message...");
 
   // Wait for the input to be stable and ready
   await messageInput.waitFor({ state: "visible" });
