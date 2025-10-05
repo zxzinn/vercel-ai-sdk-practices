@@ -1,6 +1,11 @@
 import { generateId } from "@ai-sdk/provider-utils";
 import Exa from "exa-js";
 import { z } from "zod";
+import {
+  createMissingApiKeyResponse,
+  createNoResultsResponse,
+  createSearchErrorResponse,
+} from "./error-handler";
 import type { WebSearchToolResult } from "./types";
 
 export const exaSearch = {
@@ -15,10 +20,7 @@ export const exaSearch = {
   }): Promise<WebSearchToolResult> => {
     try {
       if (!process.env.EXA_API_KEY) {
-        return {
-          text: `I apologize, but web search via Exa is currently unavailable (API key not configured). Let me help you with the information I already have about "${query}".`,
-          sources: [],
-        };
+        return createMissingApiKeyResponse("Exa", query);
       }
 
       const exaClient = new Exa(process.env.EXA_API_KEY);
@@ -37,10 +39,7 @@ export const exaSearch = {
       });
 
       if (!response.results || response.results.length === 0) {
-        return {
-          text: `I searched for "${query}" using Exa but didn't find any relevant results. Let me try to help you with my existing knowledge instead.`,
-          sources: [],
-        };
+        return createNoResultsResponse("Exa", query);
       }
 
       // Format results for LLM
@@ -72,11 +71,7 @@ export const exaSearch = {
         sources,
       };
     } catch (error) {
-      console.error("Exa search error:", error);
-      return {
-        text: `I encountered an issue while searching for "${query}" with Exa. Let me try to help you with my existing knowledge instead.`,
-        sources: [],
-      };
+      return createSearchErrorResponse("Exa", query, error);
     }
   },
 };
