@@ -66,54 +66,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { loadAllProviders } from "@/lib/providers/loader";
 
-// Type for search tool parts
-type TavilySearchToolPart = {
-  type: "tool-tavilySearch";
+// Generic tool part type
+type ToolPart<TName extends string, TInput = unknown> = {
+  type: `tool-${TName}`;
   state:
     | "input-streaming"
     | "input-available"
     | "output-available"
     | "output-error";
-  input?: { query: string };
+  input?: TInput;
   output?: unknown;
   errorText?: string;
 };
 
-type ExaSearchToolPart = {
-  type: "tool-exaSearch";
-  state:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
-  input?: { query: string };
-  output?: unknown;
-  errorText?: string;
-};
-
-type PerplexitySearchToolPart = {
-  type: "tool-perplexitySearch";
-  state:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
-  input?: { query: string };
-  output?: unknown;
-  errorText?: string;
-};
-
-type RAGQueryToolPart = {
-  type: "tool-ragQuery";
-  state:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
-  input?: { query: string; topK?: number; collectionName?: string };
-  output?: unknown;
-  errorText?: string;
-};
+// Tool part types
+type TavilySearchToolPart = ToolPart<"tavilySearch", { query: string }>;
+type ExaSearchToolPart = ToolPart<"exaSearch", { query: string }>;
+type PerplexitySearchToolPart = ToolPart<"perplexitySearch", { query: string }>;
+type RAGQueryToolPart = ToolPart<
+  "ragQuery",
+  { query: string; topK?: number; collectionName?: string }
+>;
 
 // Dynamically load all available providers
 const providers = loadAllProviders();
@@ -125,15 +98,36 @@ const TOOL_CONFIG = {
   "tool-perplexitySearch": { title: "Web Search (Perplexity)" },
   "tool-ragQuery": { title: "Document Search (RAG)" },
 } as const;
+// Helper function for file upload to RAG
+async function uploadFilesToRAG(files: File[]) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const response = await fetch("/api/rag/ingest", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("Upload failed");
+  }
+
+  return response.json();
+}
+const searchProviderOptions = [
+  { id: "tavily" as const, label: "Tavily Search" },
+  { id: "exa" as const, label: "Exa Search" },
+  { id: "perplexity" as const, label: "Perplexity Search" },
+  { id: "bing" as const, label: "Bing Search (Coming Soon)", disabled: true },
+];
 
 export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string>("");
 
   // Get current model's provider and name for display
   const currentModel = providers
@@ -149,48 +143,6 @@ export default function AIElementsChatShowcase() {
     status,
     regenerate: originalRegenerate,
   } = useChat();
-
-  // Handle file upload to vector database
-  const handleUploadToVectorDB = async () => {
-    if (selectedFiles.length === 0) return;
-
-    setUploading(true);
-    setUploadStatus("Uploading files...");
-
-    try {
-      const formData = new FormData();
-      selectedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/rag/ingest", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const result = await response.json();
-      setUploadStatus(
-        `✅ Success! Indexed ${result.totalChunks} chunks from ${selectedFiles.length} file(s)`,
-      );
-      setSelectedFiles([]);
-
-      // Close dialog after 2 seconds
-      setTimeout(() => {
-        setUploadDialogOpen(false);
-        setUploadStatus("");
-      }, 2000);
-    } catch (error) {
-      setUploadStatus(
-        `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
 
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {
@@ -526,10 +478,18 @@ export default function AIElementsChatShowcase() {
                   </PromptInputActionMenu>
                   {/* RAG File Upload */}
                   <label>
-                    <Button variant="outline" size="sm" className="h-8" asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={uploading}
+                      asChild
+                    >
                       <span>
                         <FileUpIcon size={16} />
-                        <span>Upload Docs</span>
+                        <span>
+                          {uploading ? "Uploading..." : "Upload Docs"}
+                        </span>
                       </span>
                     </Button>
                     <input
@@ -545,21 +505,7 @@ export default function AIElementsChatShowcase() {
                         setUploading(true);
 
                         try {
-                          const formData = new FormData();
-                          files.forEach((file) => {
-                            formData.append("files", file);
-                          });
-
-                          const response = await fetch("/api/rag/ingest", {
-                            method: "POST",
-                            body: formData,
-                          });
-
-                          if (!response.ok) {
-                            throw new Error("Upload failed");
-                          }
-
-                          const result = await response.json();
+                          const result = await uploadFilesToRAG(files);
                           alert(
                             `✅ Success! Indexed ${result.totalChunks} chunks from ${files.length} file(s)`,
                           );
@@ -601,66 +547,27 @@ export default function AIElementsChatShowcase() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("tavily")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "tavily"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "tavily"),
-                            );
-                          }
-                        }}
-                      >
-                        Tavily Search
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("exa")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "exa"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "exa"),
-                            );
-                          }
-                        }}
-                      >
-                        Exa Search
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("bing")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([...searchProviders, "bing"]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "bing"),
-                            );
-                          }
-                        }}
-                        disabled
-                      >
-                        Bing Search (Coming Soon)
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={searchProviders.includes("perplexity")}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSearchProviders([
-                              ...searchProviders,
-                              "perplexity",
-                            ]);
-                          } else {
-                            setSearchProviders(
-                              searchProviders.filter((p) => p !== "perplexity"),
-                            );
-                          }
-                        }}
-                      >
-                        Perplexity Search
-                      </DropdownMenuCheckboxItem>
+                      {searchProviderOptions.map((option) => (
+                        <DropdownMenuCheckboxItem
+                          key={option.id}
+                          checked={searchProviders.includes(option.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSearchProviders([
+                                ...searchProviders,
+                                option.id,
+                              ]);
+                            } else {
+                              setSearchProviders(
+                                searchProviders.filter((p) => p !== option.id),
+                              );
+                            }
+                          }}
+                          disabled={option.disabled}
+                        >
+                          {option.label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {/* Nested Model Selection with Provider Hover Submenus */}
