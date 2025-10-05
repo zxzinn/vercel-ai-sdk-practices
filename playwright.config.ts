@@ -19,6 +19,9 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      SKIP_ENV_VALIDATION: process.env.SKIP_ENV_VALIDATION || "1",
+    },
   },
 
   projects: [
