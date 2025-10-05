@@ -214,7 +214,7 @@ export type PromptInputProps = Omit<
   onSubmit: (
     message: PromptInputMessage,
     event: FormEvent<HTMLFormElement>,
-  ) => void | Promise<void>;
+  ) => void;
 };
 
 export const PromptInput = ({
@@ -227,6 +227,7 @@ export const PromptInput = ({
   maxFileSize,
   onError,
   onSubmit,
+  children,
   ...props
 }: PromptInputProps) => {
   const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
@@ -400,30 +401,38 @@ export const PromptInput = ({
     }
   };
 
-  const handleSubmit: FormEventHandler<HTMLFormElement> = async (event) => {
+  const convertBlobUrlToDataUrl = async (url: string): Promise<string> => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
-    const files: FileUIPart[] = items.map(({ ...item }) => ({
-      ...item,
-    }));
+    const formData = new FormData(event.currentTarget);
+    const text = (formData.get("message") as string) || "";
 
-    // Capture form and current value before awaiting
-    const formEl = event.currentTarget;
-    const textValue = formEl.message?.value ?? "";
-
-    // Wait for submit to complete before clearing
-    await Promise.resolve(onSubmit({ text: textValue, files }, event));
-
-    // Clear attachments after submit completes
-    clear();
-
-    // Clear the text input
-    const messageInput = formEl.elements.namedItem(
-      "message",
-    ) as HTMLTextAreaElement | null;
-    if (messageInput) {
-      messageInput.value = "";
-    }
+    // Convert blob URLs to data URLs asynchronously
+    Promise.all(
+      items.map(async ({ id, ...item }) => {
+        if (item.url && item.url.startsWith("blob:")) {
+          return {
+            ...item,
+            url: await convertBlobUrlToDataUrl(item.url),
+          };
+        }
+        return item;
+      }),
+    ).then((files: FileUIPart[]) => {
+      onSubmit({ text, files }, event);
+      clear();
+    });
   };
 
   const ctx = useMemo<AttachmentsContext>(
@@ -456,7 +465,9 @@ export const PromptInput = ({
         )}
         onSubmit={handleSubmit}
         {...props}
-      />
+      >
+        {children}
+      </form>
     </AttachmentsContext.Provider>
   );
 };
@@ -668,6 +679,7 @@ export const PromptInputSubmit = ({
 
   return (
     <Button
+      aria-label="Submit"
       className={cn("gap-1.5 rounded-lg", className)}
       size={size}
       type="submit"
