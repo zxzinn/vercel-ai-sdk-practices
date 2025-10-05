@@ -1,20 +1,24 @@
 import { expect, test } from "@playwright/test";
 
 test("send chat message", async ({ page }) => {
-  await page.goto("http://localhost:3000/chat");
-  await page.getByRole("textbox", { name: "Type your message..." }).click();
-  await page.getByRole("textbox", { name: "Type your message..." }).fill("Hi");
+  await page.goto("http://localhost:3000/chat", {
+    waitUntil: "networkidle",
+  });
 
-  // 按 Enter 发送消息
-  await page
-    .getByRole("textbox", { name: "Type your message..." })
-    .press("Enter");
+  const messageInput = page.getByRole("textbox", {
+    name: "Type your message...",
+  });
 
-  // 验证消息出现在页面上
+  // Wait for the input to be stable and ready
+  await messageInput.waitFor({ state: "visible" });
+  await page.waitForTimeout(500);
+
+  await messageInput.fill("Hi");
+  await messageInput.press("Enter");
+
+  // Verify the message appears on the page
   await expect(page.getByText("Hi")).toBeVisible();
 
-  // 验证输入框被清空
-  await expect(
-    page.getByRole("textbox", { name: "Type your message..." }),
-  ).toHaveValue("");
+  // Verify the input box is cleared
+  await expect(messageInput).toHaveValue("");
 });
