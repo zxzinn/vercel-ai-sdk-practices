@@ -42,3 +42,5 @@ next-env.d.ts
 .idea
 CLAUDE.md
 /src/generated/prisma
+playwright-report
+test-results
