@@ -7,6 +7,14 @@ import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
+
+// Map of search providers to their tool implementations
+const SEARCH_PROVIDER_MAP = {
+  tavily: tavilySearch,
+  exa: exaSearch,
+  perplexity: perplexitySearch,
+} as const;
+
 // Schema that matches Vercel AI SDK's UIMessage format
 const MessageSchema = z
   .object({
@@ -83,18 +91,12 @@ export async function POST(req: Request) {
         searchProviders.length > 0 ? searchProviders : ["tavily"];
 
       providers.forEach((provider) => {
-        switch (provider) {
-          case "tavily":
-            availableTools.tavilySearch = tavilySearch;
-            break;
-          case "exa":
-            availableTools.exaSearch = exaSearch;
-            break;
-          case "perplexity":
-            availableTools.perplexitySearch = perplexitySearch;
-            break;
-          default:
-            console.warn(`Unknown search provider: ${provider}`);
+        const tool =
+          SEARCH_PROVIDER_MAP[provider as keyof typeof SEARCH_PROVIDER_MAP];
+        if (tool) {
+          availableTools[`${provider}Search`] = tool;
+        } else {
+          console.warn(`Unknown search provider: ${provider}`);
         }
       });
     }
