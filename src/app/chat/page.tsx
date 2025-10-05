@@ -167,44 +167,10 @@ export default function AIElementsChatShowcase() {
       return;
     }
 
-    let processedFiles = message.files;
-
-    // Convert blob URLs to base64 data URLs for AI model compatibility
-    if (message.files && message.files.length > 0) {
-      processedFiles = await Promise.all(
-        message.files.map(async (file) => {
-          // Check if the URL is a blob URL that needs conversion
-          if (file.url?.startsWith("blob:")) {
-            try {
-              // Fetch the blob data
-              const response = await fetch(file.url);
-              const blob = await response.blob();
-
-              // Convert blob to base64 data URL
-              return new Promise<typeof file>((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                  resolve({
-                    ...file,
-                    url: reader.result as string, // This will be a base64 data URL
-                  });
-                };
-                reader.readAsDataURL(blob);
-              });
-            } catch (error) {
-              console.error("Error converting blob URL to base64:", error);
-              return file; // Return original file if conversion fails
-            }
-          }
-          return file; // Return file as-is if it's already a data URL
-        }),
-      );
-    }
-
     sendMessage(
       {
         text: message.text ?? "",
-        files: processedFiles,
+        files: message.files,
       },
       {
         body: {
