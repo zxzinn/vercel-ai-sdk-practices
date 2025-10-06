@@ -56,12 +56,20 @@ export const openaiModels = [
     name: "o3 Mini",
   },
   {
+    id: "openai/o3-pro",
+    name: "o3 Pro",
+  },
+  {
     id: "openai/o4-mini",
     name: "o4 Mini",
   },
   {
     id: "openai/o1",
     name: "o1",
+  },
+  {
+    id: "openai/o1-mini",
+    name: "o1 Mini",
   },
   {
     id: "openai/gpt-oss-120b",
