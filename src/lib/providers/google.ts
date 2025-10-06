@@ -1,15 +1,65 @@
-export const googleModels = [
+import type { Model } from "./types";
+
+export const googleModels: Model[] = [
   {
     id: "google/gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
+    reasoning: {
+      type: "google",
+      thinkingConfig: {
+        thinkingBudget: {
+          min: 0,
+          max: 24576,
+          default: -1,
+          budgetMapping: {
+            low: 4096,
+            medium: 8192,
+            high: 16384,
+          },
+        },
+        includeThoughts: { supported: true, default: true },
+      },
+    },
   },
   {
     id: "google/gemini-2.5-pro",
     name: "Gemini 2.5 Pro",
+    reasoning: {
+      type: "google",
+      thinkingConfig: {
+        thinkingBudget: {
+          min: 128,
+          max: 32768,
+          default: -1,
+          budgetMapping: {
+            low: 4096,
+            medium: 8192,
+            high: 16384,
+          },
+        },
+        includeThoughts: { supported: true, default: true },
+      },
+    },
   },
   {
     id: "google/gemini-2.5-flash-lite",
     name: "Gemini 2.5 Flash Lite",
+    reasoning: {
+      type: "google",
+      thinkingConfig: {
+        thinkingBudget: {
+          min: 0,
+          max: 24576,
+          default: 0,
+          budgetMapping: {
+            low: 4096,
+            medium: 8192,
+            high: 16384,
+          },
+        },
+        includeThoughts: { supported: true, default: false },
+      },
+    },
   },
   {
     id: "google/gemini-2.5-flash-preview-09-2025",
