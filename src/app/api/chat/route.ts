@@ -53,6 +53,10 @@ const RequestBodySchema = z.object({
     .transform((arr) => Array.from(new Set(arr))),
   rag: z.boolean().optional().default(false),
   reasoning: z.boolean().optional().default(false),
+  reasoningBudget: z
+    .enum(["low", "medium", "high"])
+    .optional()
+    .default("medium"),
 });
 
 export async function POST(req: Request) {
@@ -73,8 +77,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages, model, webSearch, searchProviders, rag, reasoning } =
-      validation.data;
+    const {
+      messages,
+      model,
+      webSearch,
+      searchProviders,
+      rag,
+      reasoning,
+      reasoningBudget,
+    } = validation.data;
 
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
@@ -162,6 +173,7 @@ export async function POST(req: Request) {
       model,
       allModels,
       reasoning,
+      reasoningBudget,
     );
 
     const result = streamText({

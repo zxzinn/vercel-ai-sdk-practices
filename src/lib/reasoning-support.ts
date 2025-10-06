@@ -1,4 +1,8 @@
-import type { Model, ReasoningCapability } from "./providers/types";
+import type {
+  Model,
+  ReasoningBudgetLevel,
+  ReasoningCapability,
+} from "./providers/types";
 
 export function getProviderFromModelId(modelId: string): string {
   return modelId.split("/")[0];
@@ -8,6 +12,7 @@ export function getReasoningConfig(
   modelId: string,
   allModels: Model[],
   enabled: boolean,
+  budgetLevel: ReasoningBudgetLevel = "medium",
 ):
   | {
       openai: {
@@ -20,6 +25,14 @@ export function getReasoningConfig(
         thinkingConfig: {
           thinkingBudget: number;
           includeThoughts: boolean;
+        };
+      };
+    }
+  | {
+      anthropic: {
+        thinking: {
+          type: "enabled";
+          budgetTokens: number;
         };
       };
     }
@@ -36,7 +49,8 @@ export function getReasoningConfig(
       if (provider === "openai") {
         return {
           openai: {
-            reasoningEffort: modelConfig.reasoning.reasoningEffort.default,
+            reasoningEffort:
+              modelConfig.reasoning.reasoningEffort.budgetMapping[budgetLevel],
             reasoningSummary: modelConfig.reasoning.reasoningSummary.default,
           },
         };
@@ -49,9 +63,30 @@ export function getReasoningConfig(
           google: {
             thinkingConfig: {
               thinkingBudget:
-                modelConfig.reasoning.thinkingConfig.thinkingBudget.default,
+                modelConfig.reasoning.thinkingConfig.thinkingBudget
+                  .budgetMapping[budgetLevel],
               includeThoughts:
                 modelConfig.reasoning.thinkingConfig.includeThoughts.default,
+            },
+          },
+        };
+      }
+      return undefined;
+
+    case "anthropic":
+      if (
+        provider === "anthropic" ||
+        provider === "vertex" ||
+        provider === "bedrock"
+      ) {
+        return {
+          anthropic: {
+            thinking: {
+              type: "enabled",
+              budgetTokens:
+                modelConfig.reasoning.thinking.budgetTokens.budgetMapping[
+                  budgetLevel
+                ],
             },
           },
         };

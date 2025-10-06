@@ -9,6 +9,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["minimal", "low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -24,6 +29,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["minimal", "low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -39,6 +49,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["minimal", "low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -54,6 +69,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -101,6 +121,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -116,6 +141,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -131,6 +161,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -146,6 +181,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
@@ -161,6 +201,11 @@ export const openaiModels: Model[] = [
       reasoningEffort: {
         supported: ["low", "medium", "high"],
         default: "medium",
+        budgetMapping: {
+          low: "low",
+          medium: "medium",
+          high: "high",
+        },
       },
       reasoningSummary: {
         supported: ["auto", "detailed"],
