@@ -1,19 +1,65 @@
-export const openaiModels = [
+import type { Model } from "./types";
+
+export const openaiModels: Model[] = [
   {
     id: "openai/gpt-5",
     name: "GPT-5",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["minimal", "low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/gpt-5-nano",
     name: "GPT-5 Nano",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["minimal", "low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/gpt-5-mini",
     name: "GPT-5 Mini",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["minimal", "low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/gpt-5-codex",
     name: "GPT-5 Codex",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/gpt-4.1",
@@ -50,22 +96,77 @@ export const openaiModels = [
   {
     id: "openai/o3",
     name: "o3",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/o3-mini",
     name: "o3 Mini",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/o3-pro",
     name: "o3 Pro",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/o4-mini",
     name: "o4 Mini",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/o1",
     name: "o1",
+    reasoning: {
+      type: "openai",
+      reasoningEffort: {
+        supported: ["low", "medium", "high"],
+        default: "medium",
+      },
+      reasoningSummary: {
+        supported: ["auto", "detailed"],
+        default: "detailed",
+      },
+    },
   },
   {
     id: "openai/o1-mini",

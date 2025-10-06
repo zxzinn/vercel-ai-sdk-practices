@@ -1,5 +1,7 @@
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
+import { getAllModels } from "@/lib/providers/loader";
+import { getReasoningConfig } from "@/lib/reasoning-support";
 import { ragQuery } from "@/lib/tools/rag/query";
 import { exaSearch } from "@/lib/tools/websearch/exa-search";
 import { perplexitySearch } from "@/lib/tools/websearch/perplexity-search";
@@ -155,6 +157,13 @@ export async function POST(req: Request) {
 
     const systemPrompt = buildSystemPrompt();
 
+    const allModels = getAllModels();
+    const reasoningProviderOptions = getReasoningConfig(
+      model,
+      allModels,
+      reasoning,
+    );
+
     const result = streamText({
       model: model,
       messages: convertedMessages,
@@ -162,26 +171,10 @@ export async function POST(req: Request) {
       tools: hasTools ? availableTools : undefined,
       // Critical: Enables multi-step execution so LLM can respond to tool errors and continue the conversation
       stopWhen: stepCountIs(5),
-      // Enable reasoning based on model provider and user preference
-      ...(model.startsWith("openai/") &&
-        reasoning && {
-          providerOptions: {
-            openai: {
-              reasoningSummary: "detailed" as const, // OpenAI reasoning summaries
-            },
-          },
-        }),
-      ...(model.startsWith("google/") &&
-        reasoning && {
-          providerOptions: {
-            google: {
-              thinkingConfig: {
-                thinkingBudget: 8192, // Google thinking budget
-                includeThoughts: true, // Google thinking summaries
-              },
-            },
-          },
-        }),
+      // Enable reasoning based on model capability and user preference
+      ...(reasoningProviderOptions && {
+        providerOptions: reasoningProviderOptions,
+      }),
     });
 
     // Return UI message stream with reasoning summaries based on user preference

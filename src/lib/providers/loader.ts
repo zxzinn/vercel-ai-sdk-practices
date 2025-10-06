@@ -48,3 +48,11 @@ export function getDefaultModelId(): string {
   const firstProvider = providers.find((p) => p.models.length > 0);
   return firstProvider?.models[0]?.id || "";
 }
+
+/**
+ * Gets a flat list of all models from all providers
+ */
+export function getAllModels() {
+  const providers = loadAllProviders();
+  return providers.flatMap((provider) => provider.models);
+}
