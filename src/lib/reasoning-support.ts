@@ -46,52 +46,40 @@ export function getReasoningConfig(
 
   switch (modelConfig.reasoning.type) {
     case "openai":
-      if (provider === "openai") {
-        return {
-          openai: {
-            reasoningEffort:
-              modelConfig.reasoning.reasoningEffort.budgetMapping[budgetLevel],
-            reasoningSummary: modelConfig.reasoning.reasoningSummary.default,
-          },
-        };
-      }
-      return undefined;
+      return {
+        openai: {
+          reasoningEffort:
+            modelConfig.reasoning.reasoningEffort.budgetMapping[budgetLevel],
+          reasoningSummary: modelConfig.reasoning.reasoningSummary.default,
+        },
+      };
 
     case "google":
-      if (provider === "google" || provider === "vertex") {
-        return {
-          google: {
-            thinkingConfig: {
-              thinkingBudget:
-                modelConfig.reasoning.thinkingConfig.thinkingBudget
-                  .budgetMapping[budgetLevel],
-              includeThoughts:
-                modelConfig.reasoning.thinkingConfig.includeThoughts.default,
-            },
+      return {
+        google: {
+          thinkingConfig: {
+            thinkingBudget:
+              modelConfig.reasoning.thinkingConfig.thinkingBudget.budgetMapping[
+                budgetLevel
+              ],
+            includeThoughts:
+              modelConfig.reasoning.thinkingConfig.includeThoughts.default,
           },
-        };
-      }
-      return undefined;
+        },
+      };
 
     case "anthropic":
-      if (
-        provider === "anthropic" ||
-        provider === "vertex" ||
-        provider === "bedrock"
-      ) {
-        return {
-          anthropic: {
-            thinking: {
-              type: "enabled",
-              budgetTokens:
-                modelConfig.reasoning.thinking.budgetTokens.budgetMapping[
-                  budgetLevel
-                ],
-            },
+      return {
+        anthropic: {
+          thinking: {
+            type: "enabled",
+            budgetTokens:
+              modelConfig.reasoning.thinking.budgetTokens.budgetMapping[
+                budgetLevel
+              ],
           },
-        };
-      }
-      return undefined;
+        },
+      };
 
     default:
       return undefined;

@@ -154,26 +154,6 @@ export const openaiModels: Model[] = [
     },
   },
   {
-    id: "openai/o3-pro",
-    name: "o3 Pro",
-    reasoning: {
-      type: "openai",
-      reasoningEffort: {
-        supported: ["low", "medium", "high"],
-        default: "medium",
-        budgetMapping: {
-          low: "low",
-          medium: "medium",
-          high: "high",
-        },
-      },
-      reasoningSummary: {
-        supported: ["auto", "detailed"],
-        default: "detailed",
-      },
-    },
-  },
-  {
     id: "openai/o4-mini",
     name: "o4 Mini",
     reasoning: {
