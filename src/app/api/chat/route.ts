@@ -50,7 +50,7 @@ const RequestBodySchema = z.object({
     .default([])
     .transform((arr) => Array.from(new Set(arr))),
   rag: z.boolean().optional().default(false),
-  reasoning: z.boolean().optional().default(true),
+  reasoning: z.boolean().optional().default(false),
 });
 
 export async function POST(req: Request) {

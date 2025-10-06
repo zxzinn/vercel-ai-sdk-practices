@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import {
+  BrainIcon,
   CopyIcon,
   DatabaseIcon,
   FileUpIcon,
@@ -127,6 +128,7 @@ export default function AIElementsChatShowcase() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
+  const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
   const [uploading, setUploading] = useState(false);
 
   // Get current model's provider and name for display
@@ -152,6 +154,7 @@ export default function AIElementsChatShowcase() {
         webSearch: searchProviders.length > 0,
         searchProviders: searchProviders,
         rag: ragEnabled,
+        reasoning: reasoningEnabled,
       },
     });
   };
@@ -178,6 +181,7 @@ export default function AIElementsChatShowcase() {
           webSearch: searchProviders.length > 0,
           searchProviders: searchProviders,
           rag: ragEnabled,
+          reasoning: reasoningEnabled,
         },
       },
     );
@@ -494,6 +498,15 @@ export default function AIElementsChatShowcase() {
                   >
                     <DatabaseIcon size={16} />
                     <span>RAG {ragEnabled ? "ON" : "OFF"}</span>
+                  </Button>
+                  <Button
+                    variant={reasoningEnabled ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                  >
+                    <BrainIcon size={16} />
+                    <span>Reasoning {reasoningEnabled ? "ON" : "OFF"}</span>
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
