@@ -42,8 +42,6 @@ export function getReasoningConfig(
   const modelConfig = allModels.find((m) => m.id === modelId);
   if (!modelConfig?.reasoning) return undefined;
 
-  const provider = getProviderFromModelId(modelId);
-
   switch (modelConfig.reasoning.type) {
     case "openai":
       return {
