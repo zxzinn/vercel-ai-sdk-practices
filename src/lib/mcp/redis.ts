@@ -98,15 +98,18 @@ export async function deleteMCPConnection(
   await redis.del(key);
 }
 
+export interface OAuthStateData {
+  sessionId: string;
+  connectionId: string;
+  connectionName: string;
+  endpoint: string;
+  codeVerifier: string;
+  clientId?: string;
+}
+
 export async function storeOAuthState(
   state: string,
-  data: {
-    sessionId: string;
-    connectionId: string;
-    endpoint: string;
-    codeVerifier: string;
-    clientId?: string;
-  },
+  data: OAuthStateData,
 ): Promise<void> {
   const redis = getRedisClient();
   const key = `oauth:state:${state}`;
@@ -114,13 +117,9 @@ export async function storeOAuthState(
   await redis.setex(key, 600, JSON.stringify(data));
 }
 
-export async function getOAuthState(state: string): Promise<{
-  sessionId: string;
-  connectionId: string;
-  endpoint: string;
-  codeVerifier: string;
-  clientId?: string;
-} | null> {
+export async function getOAuthState(
+  state: string,
+): Promise<OAuthStateData | null> {
   const redis = getRedisClient();
   const key = `oauth:state:${state}`;
 
@@ -130,14 +129,8 @@ export async function getOAuthState(state: string): Promise<{
   await redis.del(key);
 
   if (typeof data === "string") {
-    return JSON.parse(data);
+    return JSON.parse(data) as OAuthStateData;
   }
 
-  return data as {
-    sessionId: string;
-    connectionId: string;
-    endpoint: string;
-    codeVerifier: string;
-    clientId?: string;
-  };
+  return data as OAuthStateData;
 }

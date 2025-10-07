@@ -8,7 +8,6 @@ export type { MCPClient };
 export interface MCPClientConfig {
   endpoint: string;
   accessToken?: string;
-  sessionId?: string;
 }
 
 export async function createMCPClient(

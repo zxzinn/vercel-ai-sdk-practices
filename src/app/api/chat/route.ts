@@ -133,7 +133,6 @@ export async function POST(req: Request) {
             const client = await createMCPClient({
               endpoint: connection.endpoint,
               accessToken: connection.accessToken,
-              sessionId,
             });
 
             const mcpTools = await discoverMCPTools(client);

@@ -31,6 +31,12 @@ const CallbackParamsSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    // Get the parent origin for postMessage (use referer or default to own origin)
+    const refererHeader = req.headers.get("referer");
+    const parentOrigin = refererHeader
+      ? new URL(refererHeader).origin
+      : req.nextUrl.origin;
+
     const searchParams = req.nextUrl.searchParams;
     const params = CallbackParamsSchema.parse({
       code: searchParams.get("code") || undefined,
@@ -51,7 +57,7 @@ export async function GET(req: NextRequest) {
                 type: 'mcp-oauth-error',
                 error: ${escapeJson(params.error)},
                 description: ${escapeJson(params.error_description || "Unknown error")}
-              }, '*');
+              }, ${escapeJson(parentOrigin)});
               window.close();
             </script>
           </head>
@@ -81,14 +87,14 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const { sessionId, connectionId, endpoint, codeVerifier, clientId } =
-      stateData;
-
-    const connection = await getMCPConnection(sessionId, connectionId);
-
-    if (!connection) {
-      return new Response("Connection not found", { status: 404 });
-    }
+    const {
+      sessionId,
+      connectionId,
+      connectionName,
+      endpoint,
+      codeVerifier,
+      clientId,
+    } = stateData;
 
     const mcpServerUrl = new URL(endpoint);
     const tokenEndpoint = new URL("/token", mcpServerUrl.origin).toString();
@@ -105,17 +111,21 @@ export async function GET(req: NextRequest) {
       clientId: clientId || "vercel-ai-mcp-client",
     });
 
-    const updatedConnection = {
-      ...connection,
+    // Create and store the connection with OAuth tokens (only after successful OAuth)
+    const connection = {
+      id: connectionId,
+      name: connectionName,
+      endpoint,
       accessToken: tokenResponse.access_token,
       refreshToken: tokenResponse.refresh_token,
       tokenExpiresAt: tokenResponse.expires_in
         ? Date.now() + tokenResponse.expires_in * 1000
         : undefined,
+      createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
-    await storeMCPConnection(sessionId, updatedConnection);
+    await storeMCPConnection(sessionId, connection);
 
     return new Response(
       `
@@ -128,7 +138,7 @@ export async function GET(req: NextRequest) {
               type: 'mcp-oauth-success',
               connectionId: ${escapeJson(connectionId)},
               sessionId: ${escapeJson(sessionId)}
-            }, '*');
+            }, ${escapeJson(parentOrigin)});
             window.close();
           </script>
         </head>
@@ -167,7 +177,7 @@ export async function GET(req: NextRequest) {
               type: 'mcp-oauth-error',
               error: 'callback_failed',
               description: ${escapeJson(errorMessage)}
-            }, '*');
+            }, ${escapeJson(req.nextUrl.origin)});
             window.close();
           </script>
         </head>

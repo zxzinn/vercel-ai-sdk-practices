@@ -387,7 +387,8 @@ export default function AIElementsChatShowcase() {
                                 return null;
 
                               case "dynamic-tool": {
-                                // Handle MCP tools (they come as dynamic-tool type)
+                                // Handle dynamic tools (including MCP tools)
+                                // Dynamic tools have type: 'dynamic-tool' with toolName property
                                 const dynamicToolPart = part as {
                                   type: string;
                                   toolName?: string;
@@ -403,47 +404,22 @@ export default function AIElementsChatShowcase() {
                                 };
                                 const toolName = dynamicToolPart.toolName || "";
 
-                                // Check if it's an MCP tool (contains __)
+                                // Parse tool name for MCP tools
+                                // Dynamic tools from MCP servers use serverName__toolName format
+                                // (e.g., 'localhost__add' becomes 'localhost: add')
+                                // This naming convention is specific to dynamic tools created via
+                                // experimental_createMCPClient in src/app/api/chat/route.ts
+                                // Static tools (tavily, exa, etc.) don't use this format
+                                let displayTitle = toolName;
                                 if (toolName.includes("__")) {
-                                  const [serverName, actualToolName] =
-                                    toolName.split("__");
-
-                                  return (
-                                    <Tool
-                                      key={`${message.id}-${i}`}
-                                      defaultOpen={
-                                        dynamicToolPart.state === "output-error"
-                                      }
-                                    >
-                                      <ToolHeader
-                                        title={`${serverName}: ${actualToolName}`}
-                                        type={`tool-${toolName}`}
-                                        state={
-                                          dynamicToolPart.state ||
-                                          "output-available"
-                                        }
-                                      />
-                                      <ToolContent>
-                                        {dynamicToolPart.input ? (
-                                          <ToolInput
-                                            input={dynamicToolPart.input}
-                                          />
-                                        ) : null}
-                                        {dynamicToolPart.output ||
-                                        dynamicToolPart.errorText ? (
-                                          <ToolOutput
-                                            output={dynamicToolPart.output}
-                                            errorText={
-                                              dynamicToolPart.errorText
-                                            }
-                                          />
-                                        ) : null}
-                                      </ToolContent>
-                                    </Tool>
-                                  );
+                                  const parts = toolName.split("__");
+                                  const serverName = parts[0];
+                                  const actualToolName = parts
+                                    .slice(1)
+                                    .join("__");
+                                  displayTitle = `${serverName}: ${actualToolName}`;
                                 }
 
-                                // Non-MCP dynamic tool
                                 return (
                                   <Tool
                                     key={`${message.id}-${i}`}
@@ -452,7 +428,7 @@ export default function AIElementsChatShowcase() {
                                     }
                                   >
                                     <ToolHeader
-                                      title={toolName}
+                                      title={displayTitle}
                                       type={`tool-${toolName}`}
                                       state={
                                         dynamicToolPart.state ||
@@ -532,48 +508,7 @@ export default function AIElementsChatShowcase() {
                                 ) : null;
 
                               default:
-                                // Handle dynamic MCP tools (format: tool-serverName__toolName)
-                                if (part.type.startsWith("tool-")) {
-                                  const toolName = part.type.replace(
-                                    "tool-",
-                                    "",
-                                  );
-
-                                  // Check if it's an MCP tool (contains __)
-                                  if (toolName.includes("__")) {
-                                    const [serverName, actualToolName] =
-                                      toolName.split("__");
-
-                                    const toolPart = part as ToolPart<string>;
-
-                                    return (
-                                      <Tool
-                                        key={`${message.id}-${i}`}
-                                        defaultOpen={
-                                          toolPart.state === "output-error"
-                                        }
-                                      >
-                                        <ToolHeader
-                                          title={`${serverName}: ${actualToolName}`}
-                                          type={toolPart.type}
-                                          state={toolPart.state}
-                                        />
-                                        <ToolContent>
-                                          {toolPart.input ? (
-                                            <ToolInput input={toolPart.input} />
-                                          ) : null}
-                                          {toolPart.output ||
-                                          toolPart.errorText ? (
-                                            <ToolOutput
-                                              output={toolPart.output}
-                                              errorText={toolPart.errorText}
-                                            />
-                                          ) : null}
-                                        </ToolContent>
-                                      </Tool>
-                                    );
-                                  }
-                                }
+                                // Unknown part type - ignore
                                 return null;
                             }
                           })}

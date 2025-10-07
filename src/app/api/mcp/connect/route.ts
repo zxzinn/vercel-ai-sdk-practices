@@ -81,19 +81,18 @@ export async function POST(req: NextRequest) {
     const registrationData = await registrationResponse.json();
     const clientId = registrationData.client_id;
 
-    // Only persist connection after successful registration
-    await storeMCPConnection(sessionId, connection);
-
     const state = generateState();
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
 
+    // Store OAuth state with connection info (connection will be persisted after OAuth success)
     await storeOAuthState(state, {
       sessionId,
       connectionId,
       endpoint,
       codeVerifier,
       clientId,
+      connectionName,
     });
 
     const authEndpoint = new URL("/authorize", mcpServerUrl.origin).toString();
