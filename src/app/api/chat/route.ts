@@ -137,11 +137,12 @@ export async function POST(req: Request) {
 
             const mcpTools = await discoverMCPTools(client);
 
-            // Prefix tools with connection name to avoid conflicts and show source
-            // Use underscore instead of colon for OpenAI API compatibility
+            // Prefix tools with connection ID and name to avoid conflicts
+            // Connection ID ensures uniqueness even if names are identical after sanitization
+            // Format: connectionId_sanitizedName__toolName
             Object.entries(mcpTools).forEach(([toolName, tool]) => {
               const safeName = connection.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
-              const prefixedName = `${safeName}__${toolName}`;
+              const prefixedName = `${connection.id}_${safeName}__${toolName}`;
               availableTools[prefixedName] = tool;
             });
 

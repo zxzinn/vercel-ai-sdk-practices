@@ -1,11 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { exchangeCodeForToken } from "@/lib/mcp/oauth";
-import {
-  getMCPConnection,
-  getOAuthState,
-  storeMCPConnection,
-} from "@/lib/mcp/redis";
+import { getOAuthState, storeMCPConnection } from "@/lib/mcp/redis";
 
 // HTML escape utility to prevent XSS
 function escapeHtml(str: string): string {
@@ -31,11 +27,9 @@ const CallbackParamsSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    // Get the parent origin for postMessage (use referer or default to own origin)
-    const refererHeader = req.headers.get("referer");
-    const parentOrigin = refererHeader
-      ? new URL(refererHeader).origin
-      : req.nextUrl.origin;
+    // Use our own origin for postMessage - the popup was opened from our app
+    // Using referer would send to OAuth provider's origin (wrong target)
+    const parentOrigin = req.nextUrl.origin;
 
     const searchParams = req.nextUrl.searchParams;
     const params = CallbackParamsSchema.parse({

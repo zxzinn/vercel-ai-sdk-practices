@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircleIcon, PlugIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +40,9 @@ export function MCPConnector({
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Track cleanup functions for OAuth popups to prevent memory leaks
+  const cleanupFunctionsRef = useRef<Array<() => void>>([]);
+
   const loadConnections = useCallback(async () => {
     try {
       const response = await fetch("/api/mcp/list", {
@@ -76,6 +79,16 @@ export function MCPConnector({
     onConnectionsChange?.(connections);
   }, [connections, onConnectionsChange]);
 
+  // Cleanup all OAuth popups on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      for (const cleanup of cleanupFunctionsRef.current) {
+        cleanup();
+      }
+      cleanupFunctionsRef.current = [];
+    };
+  }, []);
+
   const handleConnect = async () => {
     if (!endpoint.trim()) return;
 
@@ -101,6 +114,15 @@ export function MCPConnector({
           "mcp-oauth",
           "width=600,height=700",
         );
+
+        // Handle popup blocker
+        if (!authWindow) {
+          setConnecting(false);
+          setError(
+            "Popup blocked. Please allow popups for this site and try again.",
+          );
+          return;
+        }
 
         // Get expected origin from auth URL for validation
         const expectedOrigin = new URL(data.authUrl).origin;
@@ -167,7 +189,15 @@ export function MCPConnector({
             checkIntervalId = null;
           }
           window.removeEventListener("message", handleMessage);
+          // Remove from tracked cleanups
+          const index = cleanupFunctionsRef.current.indexOf(cleanup);
+          if (index > -1) {
+            cleanupFunctionsRef.current.splice(index, 1);
+          }
         };
+
+        // Register cleanup function for component unmount
+        cleanupFunctionsRef.current.push(cleanup);
 
         checkIntervalId = setInterval(() => {
           checkCount++;

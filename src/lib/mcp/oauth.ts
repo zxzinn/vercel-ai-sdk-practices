@@ -7,10 +7,24 @@ export function generateCodeVerifier(): string {
 export async function generateCodeChallenge(
   codeVerifier: string,
 ): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(codeVerifier);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Buffer.from(hash).toString("base64url");
+  const data = new TextEncoder().encode(codeVerifier);
+
+  // Try WebCrypto API first (modern environments)
+  const subtle =
+    globalThis.crypto?.subtle ??
+    (crypto as { webcrypto?: { subtle?: SubtleCrypto } }).webcrypto?.subtle;
+
+  if (subtle) {
+    try {
+      const hash = await subtle.digest("SHA-256", data);
+      return Buffer.from(hash).toString("base64url");
+    } catch {
+      // Fall through to Node.js fallback
+    }
+  }
+
+  // Fallback to Node.js crypto (always available in Node)
+  return crypto.createHash("sha256").update(data).digest("base64url");
 }
 
 export function generateState(): string {
