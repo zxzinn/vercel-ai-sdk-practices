@@ -405,19 +405,15 @@ export default function AIElementsChatShowcase() {
                                 const toolName = dynamicToolPart.toolName || "";
 
                                 // Parse tool name for MCP tools
-                                // Dynamic tools from MCP servers use format: connectionId_serverName__toolName
-                                // (e.g., 'abc123_localhost__add' becomes 'localhost: add')
+                                // Dynamic tools from MCP servers use format: serverName__toolName
+                                // (e.g., 'localhost__add' becomes 'localhost: add')
                                 // This naming convention is specific to dynamic tools created via
                                 // experimental_createMCPClient in src/app/api/chat/route.ts
                                 // Static tools (tavily, exa, etc.) don't use this format
                                 let displayTitle = toolName;
                                 if (toolName.includes("__")) {
                                   const parts = toolName.split("__");
-                                  // parts[0] is "connectionId_serverName", extract server name
-                                  const prefix = parts[0];
-                                  const serverName = prefix.includes("_")
-                                    ? prefix.substring(prefix.indexOf("_") + 1)
-                                    : prefix;
+                                  const serverName = parts[0];
                                   const actualToolName = parts
                                     .slice(1)
                                     .join("__");

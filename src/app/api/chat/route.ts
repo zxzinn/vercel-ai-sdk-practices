@@ -137,12 +137,11 @@ export async function POST(req: Request) {
 
             const mcpTools = await discoverMCPTools(client);
 
-            // Prefix tools with connection ID and name to avoid conflicts
-            // Connection ID ensures uniqueness even if names are identical after sanitization
-            // Format: connectionId_sanitizedName__toolName
+            // Prefix tools with server name for identification
+            // Format: serverName__toolName
             Object.entries(mcpTools).forEach(([toolName, tool]) => {
               const safeName = connection.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
-              const prefixedName = `${connection.id}_${safeName}__${toolName}`;
+              const prefixedName = `${safeName}__${toolName}`;
               availableTools[prefixedName] = tool;
             });
 
