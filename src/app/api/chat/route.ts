@@ -1,5 +1,12 @@
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import {
+  type CoreTool,
+  convertToModelMessages,
+  stepCountIs,
+  streamText,
+} from "ai";
 import { z } from "zod";
+import { createMCPClient, discoverMCPTools } from "@/lib/mcp/client";
+import { getMCPConnection } from "@/lib/mcp/redis";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
 import { ragQuery } from "@/lib/tools/rag/query";
@@ -57,6 +64,8 @@ const RequestBodySchema = z.object({
     .enum(["low", "medium", "high"])
     .optional()
     .default("medium"),
+  mcpConnectionIds: z.array(z.string()).optional().default([]),
+  sessionId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -85,19 +94,15 @@ export async function POST(req: Request) {
       rag,
       reasoning,
       reasoningBudget,
+      mcpConnectionIds,
+      sessionId,
     } = validation.data;
 
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
 
     // Determine available tools based on webSearch and rag flags
-    const availableTools: Record<
-      string,
-      | typeof tavilySearch
-      | typeof exaSearch
-      | typeof perplexitySearch
-      | typeof ragQuery
-    > = {};
+    const availableTools: Record<string, CoreTool> = {};
 
     if (webSearch) {
       const providers =
@@ -116,6 +121,48 @@ export async function POST(req: Request) {
 
     if (rag) {
       availableTools.ragQuery = ragQuery;
+    }
+
+    // Add MCP tools if connections are provided
+    if (mcpConnectionIds.length > 0 && sessionId) {
+      try {
+        const connections = await Promise.all(
+          mcpConnectionIds.map((id) => getMCPConnection(sessionId, id)),
+        );
+
+        for (const connection of connections) {
+          if (!connection) continue;
+
+          try {
+            const client = await createMCPClient({
+              endpoint: connection.endpoint,
+              accessToken: connection.accessToken,
+              sessionId,
+            });
+
+            const mcpTools = await discoverMCPTools(client);
+
+            // Prefix tools with connection name to avoid conflicts and show source
+            // Use underscore instead of colon for OpenAI API compatibility
+            Object.entries(mcpTools).forEach(([toolName, tool]) => {
+              const safeName = connection.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+              const prefixedName = `${safeName}__${toolName}`;
+              availableTools[prefixedName] = tool;
+            });
+
+            // Note: Client will be closed after tool execution by the AI SDK
+          } catch (error) {
+            console.error(
+              `Failed to load tools from MCP server ${connection.name}:`,
+              error,
+            );
+            // Continue with other connections even if one fails
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load MCP tools:", error);
+        // Continue without MCP tools
+      }
     }
 
     const hasTools = Object.keys(availableTools).length > 0;

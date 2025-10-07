@@ -8,9 +8,10 @@ import {
   FileUpIcon,
   GlobeIcon,
   PaperclipIcon,
+  PlugIcon,
   RefreshCcwIcon,
 } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
   Conversation,
@@ -53,6 +54,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import { MCPConnector } from "@/components/mcp/mcp-connector";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -65,7 +67,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { loadAllProviders } from "@/lib/providers/loader";
+import { getSessionId } from "@/lib/session";
 
 // Generic tool part type
 type ToolPart<TName extends string, TInput = unknown> = {
@@ -130,6 +138,21 @@ export default function AIElementsChatShowcase() {
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
   const [uploading, setUploading] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("");
+  const [mcpConnections, setMcpConnections] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+
+  useEffect(() => {
+    setSessionId(getSessionId());
+  }, []);
+
+  const handleMcpConnectionsChange = useCallback(
+    (connections: Array<{ id: string; name: string; status: string }>) => {
+      setMcpConnections(connections.map((c) => ({ id: c.id, name: c.name })));
+    },
+    [],
+  );
 
   // Get current model's provider and name for display
   const currentModel = providers
@@ -155,6 +178,8 @@ export default function AIElementsChatShowcase() {
         searchProviders: searchProviders,
         rag: ragEnabled,
         reasoning: reasoningEnabled,
+        mcpConnectionIds: mcpConnections.map((c) => c.id),
+        sessionId,
       },
     });
   };
@@ -182,6 +207,8 @@ export default function AIElementsChatShowcase() {
           searchProviders: searchProviders,
           rag: ragEnabled,
           reasoning: reasoningEnabled,
+          mcpConnectionIds: mcpConnections.map((c) => c.id),
+          sessionId,
         },
       },
     );
@@ -270,6 +297,7 @@ export default function AIElementsChatShowcase() {
                                                       {filePart.mediaType?.startsWith(
                                                         "image/",
                                                       ) ? (
+                                                        // biome-ignore lint/performance/noImgElement: Data URLs from user uploads cannot use Next.js Image
                                                         <img
                                                           src={filePart.url}
                                                           alt={
@@ -358,6 +386,90 @@ export default function AIElementsChatShowcase() {
                                 // Sources are rendered above, skip them here
                                 return null;
 
+                              case "dynamic-tool": {
+                                // Handle MCP tools (they come as dynamic-tool type)
+                                const dynamicToolPart = part as {
+                                  type: string;
+                                  toolName?: string;
+                                  state?: string;
+                                  result?: unknown;
+                                };
+                                const toolName = dynamicToolPart.toolName || "";
+
+                                // Check if it's an MCP tool (contains __)
+                                if (toolName.includes("__")) {
+                                  const [serverName, actualToolName] =
+                                    toolName.split("__");
+
+                                  return (
+                                    <Tool
+                                      key={`${message.id}-${i}`}
+                                      defaultOpen={
+                                        dynamicToolPart.state === "output-error"
+                                      }
+                                    >
+                                      <ToolHeader
+                                        title={`${serverName}: ${actualToolName}`}
+                                        type={`tool-${toolName}`}
+                                        state={
+                                          dynamicToolPart.state ||
+                                          "output-available"
+                                        }
+                                      />
+                                      <ToolContent>
+                                        {dynamicToolPart.input ? (
+                                          <ToolInput
+                                            input={dynamicToolPart.input}
+                                          />
+                                        ) : null}
+                                        {dynamicToolPart.output ||
+                                        dynamicToolPart.errorText ? (
+                                          <ToolOutput
+                                            output={dynamicToolPart.output}
+                                            errorText={
+                                              dynamicToolPart.errorText
+                                            }
+                                          />
+                                        ) : null}
+                                      </ToolContent>
+                                    </Tool>
+                                  );
+                                }
+
+                                // Non-MCP dynamic tool
+                                return (
+                                  <Tool
+                                    key={`${message.id}-${i}`}
+                                    defaultOpen={
+                                      dynamicToolPart.state === "output-error"
+                                    }
+                                  >
+                                    <ToolHeader
+                                      title={toolName}
+                                      type={`tool-${toolName}`}
+                                      state={
+                                        dynamicToolPart.state ||
+                                        "output-available"
+                                      }
+                                    />
+                                    <ToolContent>
+                                      {dynamicToolPart.input ? (
+                                        <ToolInput
+                                          input={dynamicToolPart.input}
+                                        />
+                                      ) : null}
+                                      {dynamicToolPart.output ||
+                                      dynamicToolPart.errorText ? (
+                                        <ToolOutput
+                                          output={dynamicToolPart.output}
+                                          errorText={dynamicToolPart.errorText}
+                                        />
+                                      ) : null}
+                                    </ToolContent>
+                                  </Tool>
+                                );
+                              }
+
                               case "tool-tavilySearch":
                               case "tool-exaSearch":
                               case "tool-perplexitySearch":
@@ -413,6 +525,48 @@ export default function AIElementsChatShowcase() {
                                 ) : null;
 
                               default:
+                                // Handle dynamic MCP tools (format: tool-serverName__toolName)
+                                if (part.type.startsWith("tool-")) {
+                                  const toolName = part.type.replace(
+                                    "tool-",
+                                    "",
+                                  );
+
+                                  // Check if it's an MCP tool (contains __)
+                                  if (toolName.includes("__")) {
+                                    const [serverName, actualToolName] =
+                                      toolName.split("__");
+
+                                    const toolPart = part as ToolPart<string>;
+
+                                    return (
+                                      <Tool
+                                        key={`${message.id}-${i}`}
+                                        defaultOpen={
+                                          toolPart.state === "output-error"
+                                        }
+                                      >
+                                        <ToolHeader
+                                          title={`${serverName}: ${actualToolName}`}
+                                          type={toolPart.type}
+                                          state={toolPart.state}
+                                        />
+                                        <ToolContent>
+                                          {toolPart.input ? (
+                                            <ToolInput input={toolPart.input} />
+                                          ) : null}
+                                          {toolPart.output ||
+                                          toolPart.errorText ? (
+                                            <ToolOutput
+                                              output={toolPart.output}
+                                              errorText={toolPart.errorText}
+                                            />
+                                          ) : null}
+                                        </ToolContent>
+                                      </Tool>
+                                    );
+                                  }
+                                }
                                 return null;
                             }
                           })}
@@ -508,6 +662,30 @@ export default function AIElementsChatShowcase() {
                     <BrainIcon size={16} />
                     <span>Reasoning {reasoningEnabled ? "ON" : "OFF"}</span>
                   </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={
+                          mcpConnections.length > 0 ? "default" : "ghost"
+                        }
+                        size="sm"
+                        className="h-8"
+                      >
+                        <PlugIcon size={16} />
+                        <span>
+                          {mcpConnections.length === 0
+                            ? "MCP"
+                            : `MCP (${mcpConnections.length})`}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-96">
+                      <MCPConnector
+                        sessionId={sessionId}
+                        onConnectionsChange={handleMcpConnectionsChange}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
