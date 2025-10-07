@@ -391,8 +391,15 @@ export default function AIElementsChatShowcase() {
                                 const dynamicToolPart = part as {
                                   type: string;
                                   toolName?: string;
-                                  state?: string;
+                                  state?:
+                                    | "input-streaming"
+                                    | "input-available"
+                                    | "output-available"
+                                    | "output-error";
                                   result?: unknown;
+                                  input?: unknown;
+                                  output?: unknown;
+                                  errorText?: string;
                                 };
                                 const toolName = dynamicToolPart.toolName || "";
 

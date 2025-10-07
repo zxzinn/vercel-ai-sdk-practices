@@ -1,9 +1,5 @@
-import {
-  type CoreTool,
-  convertToModelMessages,
-  stepCountIs,
-  streamText,
-} from "ai";
+import type { Tool } from "ai";
+import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
 import { createMCPClient, discoverMCPTools } from "@/lib/mcp/client";
 import { getMCPConnection } from "@/lib/mcp/redis";
@@ -102,7 +98,7 @@ export async function POST(req: Request) {
     const convertedMessages = convertToModelMessages(messages);
 
     // Determine available tools based on webSearch and rag flags
-    const availableTools: Record<string, CoreTool> = {};
+    const availableTools: Record<string, Tool> = {};
 
     if (webSearch) {
       const providers =
