@@ -60,13 +60,25 @@ export async function getMCPServerInfo(
   try {
     const client = await createMCPClient({ endpoint });
 
+    // Probe server capabilities by attempting to call methods
+    let hasTools = false;
+    try {
+      const tools = await client.tools();
+      hasTools = Object.keys(tools).length > 0;
+    } catch {
+      // tools() not supported or returned error
+    }
+
+    // Extract server name from endpoint
+    const serverName = new URL(endpoint).hostname;
+
     const serverInfo = {
-      name: "Unknown",
-      version: "0.0.0",
+      name: serverName,
+      version: "0.0.0", // TODO: Add version detection when MCP SDK supports it
       capabilities: {
-        tools: true,
-        resources: false,
-        prompts: false,
+        tools: hasTools,
+        resources: false, // TODO: Probe resources when SDK supports it
+        prompts: false, // TODO: Probe prompts when SDK supports it
       },
     };
 

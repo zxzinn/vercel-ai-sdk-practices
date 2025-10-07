@@ -6,6 +6,7 @@ import {
   generateState,
 } from "@/lib/mcp/oauth";
 import {
+  deleteMCPConnection,
   type MCPConnectionState,
   storeMCPConnection,
   storeOAuthState,
@@ -45,87 +46,88 @@ export async function POST(req: NextRequest) {
       updatedAt: Date.now(),
     };
 
+    // Perform OAuth registration first before persisting connection
+    const mcpServerUrl = new URL(endpoint);
+    const registerEndpoint = new URL(
+      "/register",
+      mcpServerUrl.origin,
+    ).toString();
+    const redirectUri = new URL(
+      "/api/mcp/oauth/callback",
+      req.nextUrl.origin,
+    ).toString();
+
+    const registrationResponse = await fetch(registerEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        client_name: "Vercel AI MCP Client",
+        client_uri: req.nextUrl.origin,
+        redirect_uris: [redirectUri],
+        grant_types: ["authorization_code"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+      }),
+    });
+
+    if (!registrationResponse.ok) {
+      throw new Error(
+        `Client registration failed: ${registrationResponse.status}`,
+      );
+    }
+
+    const registrationData = await registrationResponse.json();
+    const clientId = registrationData.client_id;
+
+    // Only persist connection after successful registration
     await storeMCPConnection(sessionId, connection);
 
-    try {
-      const mcpServerUrl = new URL(endpoint);
-      const registerEndpoint = new URL(
-        "/register",
-        mcpServerUrl.origin,
-      ).toString();
-      const redirectUri = new URL(
-        "/api/mcp/oauth/callback",
-        req.nextUrl.origin,
-      ).toString();
+    const state = generateState();
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-      const registrationResponse = await fetch(registerEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          client_name: "Vercel AI MCP Client",
-          client_uri: req.nextUrl.origin,
-          redirect_uris: [redirectUri],
-          grant_types: ["authorization_code"],
-          response_types: ["code"],
-          token_endpoint_auth_method: "none",
-        }),
-      });
+    await storeOAuthState(state, {
+      sessionId,
+      connectionId,
+      endpoint,
+      codeVerifier,
+      clientId,
+    });
 
-      if (!registrationResponse.ok) {
-        throw new Error(
-          `Client registration failed: ${registrationResponse.status}`,
-        );
-      }
+    const authEndpoint = new URL("/authorize", mcpServerUrl.origin).toString();
 
-      const registrationData = await registrationResponse.json();
-      const clientId = registrationData.client_id;
+    const authUrl = new URL(authEndpoint);
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("state", state);
+    authUrl.searchParams.set("code_challenge", codeChallenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
 
-      const state = generateState();
-      const codeVerifier = generateCodeVerifier();
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-      await storeOAuthState(state, {
-        sessionId,
-        connectionId,
-        endpoint,
-        codeVerifier,
-        clientId,
-      });
-
-      const authEndpoint = new URL(
-        "/authorize",
-        mcpServerUrl.origin,
-      ).toString();
-
-      const authUrl = new URL(authEndpoint);
-      authUrl.searchParams.set("response_type", "code");
-      authUrl.searchParams.set("client_id", clientId);
-      authUrl.searchParams.set("redirect_uri", redirectUri);
-      authUrl.searchParams.set("state", state);
-      authUrl.searchParams.set("code_challenge", codeChallenge);
-      authUrl.searchParams.set("code_challenge_method", "S256");
-
-      return Response.json({
-        requiresAuth: true,
-        authUrl: authUrl.toString(),
-        connectionId,
-        sessionId,
-      });
-    } catch (error) {
-      console.error("MCP registration error:", error);
-      throw error;
-    }
+    return Response.json({
+      requiresAuth: true,
+      authUrl: authUrl.toString(),
+      connectionId,
+      sessionId,
+    });
   } catch (error) {
     console.error("MCP connect error:", error);
 
+    // Check if it's a Redis configuration error
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const isRedisError = errorMessage.includes("Redis configuration missing");
+
     return Response.json(
       {
-        error: "Failed to connect to MCP server",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: isRedisError
+          ? "MCP feature requires Redis configuration"
+          : "Failed to connect to MCP server",
+        message: errorMessage,
       },
-      { status: 500 },
+      { status: isRedisError ? 503 : 500 },
     );
   }
 }

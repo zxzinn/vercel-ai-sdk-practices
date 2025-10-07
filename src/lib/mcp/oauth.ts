@@ -23,7 +23,6 @@ export interface OAuthAuthorizationParams {
   redirectUri: string;
   scope?: string;
   state: string;
-  codeVerifier: string;
   codeChallenge: string;
 }
 

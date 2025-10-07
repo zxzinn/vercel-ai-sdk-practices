@@ -7,6 +7,21 @@ import {
   storeMCPConnection,
 } from "@/lib/mcp/redis";
 
+// HTML escape utility to prevent XSS
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
+// JSON escape for embedding in script tags
+function escapeJson(value: string): string {
+  return JSON.stringify(value);
+}
+
 const CallbackParamsSchema = z.object({
   code: z.string().min(1),
   state: z.string().min(1),
@@ -34,22 +49,26 @@ export async function GET(req: NextRequest) {
             <script>
               window.opener?.postMessage({
                 type: 'mcp-oauth-error',
-                error: '${params.error}',
-                description: '${params.error_description || "Unknown error"}'
+                error: ${escapeJson(params.error)},
+                description: ${escapeJson(params.error_description || "Unknown error")}
               }, '*');
               window.close();
             </script>
           </head>
           <body>
             <h1>Authentication Error</h1>
-            <p>${params.error_description || params.error}</p>
+            <p>${escapeHtml(params.error_description || params.error)}</p>
             <p>This window will close automatically...</p>
           </body>
         </html>
       `,
         {
           status: 400,
-          headers: { "Content-Type": "text/html" },
+          headers: {
+            "Content-Type": "text/html",
+            "Content-Security-Policy":
+              "default-src 'none'; script-src 'unsafe-inline'",
+          },
         },
       );
     }
@@ -107,8 +126,8 @@ export async function GET(req: NextRequest) {
           <script>
             window.opener?.postMessage({
               type: 'mcp-oauth-success',
-              connectionId: '${connectionId}',
-              sessionId: '${sessionId}'
+              connectionId: ${escapeJson(connectionId)},
+              sessionId: ${escapeJson(sessionId)}
             }, '*');
             window.close();
           </script>
@@ -121,11 +140,21 @@ export async function GET(req: NextRequest) {
     `,
       {
         status: 200,
-        headers: { "Content-Type": "text/html" },
+        headers: {
+          "Content-Type": "text/html",
+          "Content-Security-Policy":
+            "default-src 'none'; script-src 'unsafe-inline'",
+        },
       },
     );
   } catch (error) {
     console.error("OAuth callback error:", error);
+
+    // Check if it's a validation error (missing params) vs runtime error
+    const isValidationError = error instanceof z.ZodError;
+    const statusCode = isValidationError ? 400 : 500;
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       `
@@ -137,21 +166,25 @@ export async function GET(req: NextRequest) {
             window.opener?.postMessage({
               type: 'mcp-oauth-error',
               error: 'callback_failed',
-              description: '${error instanceof Error ? error.message : "Unknown error"}'
+              description: ${escapeJson(errorMessage)}
             }, '*');
             window.close();
           </script>
         </head>
         <body>
           <h1>Authentication Failed</h1>
-          <p>${error instanceof Error ? error.message : "An unknown error occurred"}</p>
+          <p>${escapeHtml(errorMessage)}</p>
           <p>This window will close automatically...</p>
         </body>
       </html>
     `,
       {
-        status: 500,
-        headers: { "Content-Type": "text/html" },
+        status: statusCode,
+        headers: {
+          "Content-Type": "text/html",
+          "Content-Security-Policy":
+            "default-src 'none'; script-src 'unsafe-inline'",
+        },
       },
     );
   }

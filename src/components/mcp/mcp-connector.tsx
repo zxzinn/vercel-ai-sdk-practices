@@ -72,9 +72,8 @@ export function MCPConnector({
   }, [sessionId, loadConnections]);
 
   useEffect(() => {
-    if (connections.length > 0 || onConnectionsChange) {
-      onConnectionsChange?.(connections);
-    }
+    // Always notify parent of connection changes, including when empty
+    onConnectionsChange?.(connections);
   }, [connections, onConnectionsChange]);
 
   const handleConnect = async () => {
@@ -103,8 +102,29 @@ export function MCPConnector({
           "width=600,height=700",
         );
 
+        // Get expected origin from auth URL for validation
+        const expectedOrigin = new URL(data.authUrl).origin;
+
         const handleMessage = (event: MessageEvent) => {
-          if (event.data.type === "mcp-oauth-success") {
+          // Validate message origin and source
+          if (event.source !== authWindow) {
+            return; // Ignore messages not from our popup
+          }
+
+          // For OAuth callback, the origin will be our own origin (callback URL)
+          const callbackOrigin = window.location.origin;
+          if (
+            event.origin !== callbackOrigin &&
+            event.origin !== expectedOrigin
+          ) {
+            console.warn(
+              "Ignored message from unexpected origin:",
+              event.origin,
+            );
+            return;
+          }
+
+          if (event.data?.type === "mcp-oauth-success") {
             window.removeEventListener("message", handleMessage);
             try {
               if (authWindow) {
@@ -118,7 +138,7 @@ export function MCPConnector({
             setEndpoint("");
             setName("");
             setConnecting(false);
-          } else if (event.data.type === "mcp-oauth-error") {
+          } else if (event.data?.type === "mcp-oauth-error") {
             window.removeEventListener("message", handleMessage);
             try {
               if (authWindow) {
@@ -137,13 +157,24 @@ export function MCPConnector({
 
         window.addEventListener("message", handleMessage);
 
+        // Cleanup function to avoid memory leaks
+        let checkIntervalId: NodeJS.Timeout | null = null;
         let checkCount = 0;
-        const checkClosed = setInterval(() => {
+
+        const cleanup = () => {
+          if (checkIntervalId) {
+            clearInterval(checkIntervalId);
+            checkIntervalId = null;
+          }
+          window.removeEventListener("message", handleMessage);
+        };
+
+        checkIntervalId = setInterval(() => {
           checkCount++;
 
+          // Timeout after 5 minutes (600 * 500ms)
           if (checkCount > 600) {
-            clearInterval(checkClosed);
-            window.removeEventListener("message", handleMessage);
+            cleanup();
             setConnecting(false);
             setError("Authentication timeout. Please try again.");
             return;
@@ -151,13 +182,12 @@ export function MCPConnector({
 
           try {
             if (authWindow?.closed) {
-              clearInterval(checkClosed);
-              window.removeEventListener("message", handleMessage);
+              cleanup();
               setConnecting(false);
             }
           } catch {
-            clearInterval(checkClosed);
-            window.removeEventListener("message", handleMessage);
+            // COOP error when accessing closed property
+            cleanup();
             setConnecting(false);
           }
         }, 500);
