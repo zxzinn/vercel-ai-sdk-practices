@@ -67,11 +67,25 @@ export async function listMCPConnections(
   const redis = getRedisClient();
   const pattern = `${MCP_CONNECTION_PREFIX}${sessionId}:*`;
 
-  const keys = await redis.keys(pattern);
-  if (keys.length === 0) return [];
+  // Use SCAN instead of KEYS to avoid blocking Redis
+  // SCAN is cursor-based and non-blocking, suitable for production
+  const allKeys: string[] = [];
+  let cursor = "0";
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, {
+      match: pattern,
+      count: 100, // Scan up to 100 keys per iteration
+    });
+
+    allKeys.push(...keys);
+    cursor = nextCursor;
+  } while (cursor !== "0");
+
+  if (allKeys.length === 0) return [];
 
   const connections = await Promise.all(
-    keys.map(async (key) => {
+    allKeys.map(async (key) => {
       const data = await redis.get(key);
       if (!data) return null;
 

@@ -124,24 +124,21 @@ export function MCPConnector({
           return;
         }
 
-        // Get expected origin from auth URL for validation
-        const expectedOrigin = new URL(data.authUrl).origin;
-
         const handleMessage = (event: MessageEvent) => {
           // Validate message origin and source
           if (event.source !== authWindow) {
             return; // Ignore messages not from our popup
           }
 
-          // For OAuth callback, the origin will be our own origin (callback URL)
+          // Only accept messages from our own origin (the OAuth callback URL)
+          // This prevents malicious MCP servers from spoofing OAuth messages
           const callbackOrigin = window.location.origin;
-          if (
-            event.origin !== callbackOrigin &&
-            event.origin !== expectedOrigin
-          ) {
+          if (event.origin !== callbackOrigin) {
             console.warn(
               "Ignored message from unexpected origin:",
               event.origin,
+              "Expected:",
+              callbackOrigin,
             );
             return;
           }
