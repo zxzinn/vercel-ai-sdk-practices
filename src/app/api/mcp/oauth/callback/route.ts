@@ -7,7 +7,7 @@ import {
 import { exchangeCodeForToken } from "@/lib/mcp/oauth";
 import { getOAuthState, storeMCPConnection } from "@/lib/mcp/redis";
 
-// HTML escape utility to prevent XSS
+// HTML escape utility to prevent XSS in HTML content
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -17,17 +17,19 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#x27;");
 }
 
-// JSON escape for embedding in script tags
-function escapeJson(value: string): string {
-  return JSON.stringify(value);
-}
-
-const CallbackParamsSchema = z.object({
-  code: z.string().min(1),
-  state: z.string().min(1),
-  error: z.string().optional(),
-  error_description: z.string().optional(),
-});
+// OAuth callback can receive either:
+// 1. Success: code + state (error parameters absent)
+// 2. Error: error + error_description (code/state may be absent per RFC 6749)
+const CallbackParamsSchema = z
+  .object({
+    code: z.string().min(1).optional(),
+    state: z.string().min(1).optional(),
+    error: z.string().optional(),
+    error_description: z.string().optional(),
+  })
+  .refine((data) => data.error || (data.code && data.state), {
+    message: "Either error or (code and state) must be present",
+  });
 
 export async function GET(req: NextRequest) {
   try {
@@ -53,12 +55,20 @@ export async function GET(req: NextRequest) {
         <html>
           <head>
             <title>OAuth Error</title>
+            <script type="application/json" id="oauth-data">
+              ${JSON.stringify({
+                type: "mcp-oauth-error",
+                error: params.error,
+                description: params.error_description || "Unknown error",
+              })}
+            </script>
+            <script type="application/json" id="oauth-config">
+              ${JSON.stringify({ parentOrigin })}
+            </script>
             <script>
-              window.opener?.postMessage({
-                type: 'mcp-oauth-error',
-                error: ${escapeJson(params.error)},
-                description: ${escapeJson(params.error_description || "Unknown error")}
-              }, ${escapeJson(parentOrigin)});
+              const data = JSON.parse(document.getElementById('oauth-data').textContent);
+              const config = JSON.parse(document.getElementById('oauth-config').textContent);
+              window.opener?.postMessage(data, config.parentOrigin);
               window.close();
             </script>
           </head>
@@ -80,7 +90,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const stateData = await getOAuthState(params.state);
+    // At this point, schema validation guarantees code and state are present
+    const stateData = await getOAuthState(params.state!);
 
     if (!stateData) {
       return new Response("Invalid or expired state parameter", {
@@ -97,8 +108,19 @@ export async function GET(req: NextRequest) {
       clientId,
     } = stateData;
 
-    const mcpServerUrl = new URL(endpoint);
-    const tokenEndpoint = new URL("/token", mcpServerUrl.origin).toString();
+    // Validate required OAuth state data
+    if (!clientId) {
+      throw new Error(
+        "Missing client_id in OAuth state - possible data corruption",
+      );
+    }
+
+    if (!params.code || !params.state) {
+      throw new Error("Missing code or state parameter in OAuth callback");
+    }
+
+    // Preserve endpoint path for MCP servers deployed on subpaths (SPA-58)
+    const tokenEndpoint = new URL("/token", endpoint).toString();
     const redirectUri = new URL(
       "/api/mcp/oauth/callback",
       req.nextUrl.origin,
@@ -109,7 +131,7 @@ export async function GET(req: NextRequest) {
       code: params.code,
       codeVerifier,
       redirectUri,
-      clientId: clientId || "vercel-ai-mcp-client",
+      clientId,
     });
 
     // Create and store the connection with OAuth tokens (only after successful OAuth)
@@ -134,12 +156,20 @@ export async function GET(req: NextRequest) {
       <html>
         <head>
           <title>OAuth Success</title>
+          <script type="application/json" id="oauth-data">
+            ${JSON.stringify({
+              type: "mcp-oauth-success",
+              connectionId,
+              sessionId,
+            })}
+          </script>
+          <script type="application/json" id="oauth-config">
+            ${JSON.stringify({ parentOrigin })}
+          </script>
           <script>
-            window.opener?.postMessage({
-              type: 'mcp-oauth-success',
-              connectionId: ${escapeJson(connectionId)},
-              sessionId: ${escapeJson(sessionId)}
-            }, ${escapeJson(parentOrigin)});
+            const data = JSON.parse(document.getElementById('oauth-data').textContent);
+            const config = JSON.parse(document.getElementById('oauth-config').textContent);
+            window.opener?.postMessage(data, config.parentOrigin);
             window.close();
           </script>
         </head>
@@ -174,12 +204,20 @@ export async function GET(req: NextRequest) {
       <html>
         <head>
           <title>OAuth Error</title>
+          <script type="application/json" id="oauth-data">
+            ${JSON.stringify({
+              type: "mcp-oauth-error",
+              error: "callback_failed",
+              description: errorMessage,
+            })}
+          </script>
+          <script type="application/json" id="oauth-config">
+            ${JSON.stringify({ parentOrigin: req.nextUrl.origin })}
+          </script>
           <script>
-            window.opener?.postMessage({
-              type: 'mcp-oauth-error',
-              error: 'callback_failed',
-              description: ${escapeJson(errorMessage)}
-            }, ${escapeJson(req.nextUrl.origin)});
+            const data = JSON.parse(document.getElementById('oauth-data').textContent);
+            const config = JSON.parse(document.getElementById('oauth-config').textContent);
+            window.opener?.postMessage(data, config.parentOrigin);
             window.close();
           </script>
         </head>
