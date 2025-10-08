@@ -1,7 +1,12 @@
 import type { Tool } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
-import { createMCPClient, discoverMCPTools } from "@/lib/mcp/client";
+import {
+  cleanupMCPClient,
+  createMCPClient,
+  discoverMCPTools,
+  type MCPClientWithTransport,
+} from "@/lib/mcp/client";
 import { getMCPConnection } from "@/lib/mcp/redis";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
@@ -66,14 +71,14 @@ const RequestBodySchema = z.object({
 
 export async function POST(req: Request) {
   // Track MCP clients for cleanup - must be outside try block
-  const mcpClients: Array<{ close: () => Promise<void> }> = [];
+  const mcpClients: Array<MCPClientWithTransport> = [];
 
   const cleanupClients = async () => {
     if (mcpClients.length > 0) {
       await Promise.allSettled(
-        mcpClients.map((client) =>
-          client.close().catch((error) => {
-            console.error("Failed to close MCP client:", error);
+        mcpClients.map((clientWithTransport) =>
+          cleanupMCPClient(clientWithTransport).catch((error) => {
+            console.error("Failed to cleanup MCP client:", error);
           }),
         ),
       );
@@ -145,15 +150,16 @@ export async function POST(req: Request) {
           if (!connection) continue;
 
           try {
-            const client = await createMCPClient({
+            const clientWithTransport = await createMCPClient({
               endpoint: connection.endpoint,
               accessToken: connection.accessToken,
+              sessionId: sessionId,
             });
 
             // Track client for cleanup
-            mcpClients.push(client);
+            mcpClients.push(clientWithTransport);
 
-            const mcpTools = await discoverMCPTools(client);
+            const mcpTools = await discoverMCPTools(clientWithTransport);
 
             // Prefix tools with server name for identification
             // Format: serverName__toolName
