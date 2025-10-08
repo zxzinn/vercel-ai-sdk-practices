@@ -119,6 +119,9 @@ export async function POST(req: Request) {
       availableTools.ragQuery = ragQuery;
     }
 
+    // Track MCP clients for cleanup
+    const mcpClients: Array<{ close: () => Promise<void> }> = [];
+
     // Add MCP tools if connections are provided
     if (mcpConnectionIds.length > 0 && sessionId) {
       try {
@@ -135,6 +138,9 @@ export async function POST(req: Request) {
               accessToken: connection.accessToken,
             });
 
+            // Track client for cleanup
+            mcpClients.push(client);
+
             const mcpTools = await discoverMCPTools(client);
 
             // Prefix tools with server name for identification
@@ -144,8 +150,6 @@ export async function POST(req: Request) {
               const prefixedName = `${safeName}__${toolName}`;
               availableTools[prefixedName] = tool;
             });
-
-            // Note: Client will be closed after tool execution by the AI SDK
           } catch (error) {
             console.error(
               `Failed to load tools from MCP server ${connection.name}:`,
@@ -229,6 +233,18 @@ export async function POST(req: Request) {
       ...(reasoningProviderOptions && {
         providerOptions: reasoningProviderOptions,
       }),
+      // Cleanup MCP clients when stream finishes
+      onFinish: async () => {
+        if (mcpClients.length > 0) {
+          await Promise.allSettled(
+            mcpClients.map((client) =>
+              client.close().catch((error) => {
+                console.error("Failed to close MCP client:", error);
+              }),
+            ),
+          );
+        }
+      },
     });
 
     // Return UI message stream with reasoning summaries based on user preference
