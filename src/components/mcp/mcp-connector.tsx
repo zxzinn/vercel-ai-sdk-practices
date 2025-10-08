@@ -2,6 +2,7 @@
 
 import { CheckCircleIcon, PlugIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +29,26 @@ interface MCPConnectorProps {
   sessionId: string;
   onConnectionsChange?: (connections: MCPConnection[]) => void;
 }
+
+// OAuth callback message validation schemas
+const OAuthSuccessMessageSchema = z.object({
+  type: z.literal("mcp-oauth-success"),
+  connectionId: z.string().optional(),
+  sessionId: z.string().optional(),
+});
+
+const OAuthErrorMessageSchema = z.object({
+  type: z.literal("mcp-oauth-error"),
+  error: z.string().optional(),
+  description: z.string().optional(),
+});
+
+const OAuthMessageSchema = z.union([
+  OAuthSuccessMessageSchema,
+  OAuthErrorMessageSchema,
+]);
+
+type OAuthMessage = z.infer<typeof OAuthMessageSchema>;
 
 export function MCPConnector({
   sessionId,
@@ -143,7 +164,21 @@ export function MCPConnector({
             return;
           }
 
-          if (event.data?.type === "mcp-oauth-success") {
+          // Validate message data structure to prevent malformed messages
+          const validation = OAuthMessageSchema.safeParse(event.data);
+          if (!validation.success) {
+            console.warn(
+              "Ignored message with invalid format:",
+              event.data,
+              "Errors:",
+              validation.error.issues,
+            );
+            return;
+          }
+
+          const data: OAuthMessage = validation.data;
+
+          if (data.type === "mcp-oauth-success") {
             window.removeEventListener("message", handleMessage);
             try {
               if (authWindow) {
@@ -157,7 +192,7 @@ export function MCPConnector({
             setEndpoint("");
             setName("");
             setConnecting(false);
-          } else if (event.data?.type === "mcp-oauth-error") {
+          } else if (data.type === "mcp-oauth-error") {
             window.removeEventListener("message", handleMessage);
             try {
               if (authWindow) {
@@ -167,8 +202,7 @@ export function MCPConnector({
               // Ignore COOP errors when closing window
             }
             setError(
-              event.data.description ||
-                "Authentication failed. Please try again.",
+              data.description || "Authentication failed. Please try again.",
             );
             setConnecting(false);
           }
@@ -178,7 +212,8 @@ export function MCPConnector({
 
         // Cleanup function to avoid memory leaks
         let checkIntervalId: NodeJS.Timeout | null = null;
-        let checkCount = 0;
+        const startTime = Date.now();
+        const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
         const cleanup = () => {
           if (checkIntervalId) {
@@ -197,10 +232,8 @@ export function MCPConnector({
         cleanupFunctionsRef.current.push(cleanup);
 
         checkIntervalId = setInterval(() => {
-          checkCount++;
-
-          // Timeout after 5 minutes (600 * 500ms)
-          if (checkCount > 600) {
+          // Use timestamp-based timeout for reliability across browser throttling
+          if (Date.now() - startTime > TIMEOUT_MS) {
             cleanup();
             setConnecting(false);
             setError("Authentication timeout. Please try again.");
@@ -218,12 +251,8 @@ export function MCPConnector({
             setConnecting(false);
           }
         }, 500);
-      } else if (data.success) {
-        setConnections([...connections, data.connection]);
-        setShowDialog(false);
-        setEndpoint("");
-        setName("");
       } else {
+        // Handle unexpected response (should not happen with current API)
         setError(data.error || "Failed to connect to MCP server");
       }
     } catch (error) {
