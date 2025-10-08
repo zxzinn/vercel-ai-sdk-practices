@@ -179,7 +179,8 @@ export function MCPConnector({
           const data: OAuthMessage = validation.data;
 
           if (data.type === "mcp-oauth-success") {
-            window.removeEventListener("message", handleMessage);
+            // Clean up interval and event listener
+            cleanup();
             try {
               if (authWindow) {
                 authWindow.close();
@@ -193,7 +194,8 @@ export function MCPConnector({
             setName("");
             setConnecting(false);
           } else if (data.type === "mcp-oauth-error") {
-            window.removeEventListener("message", handleMessage);
+            // Clean up interval and event listener
+            cleanup();
             try {
               if (authWindow) {
                 authWindow.close();
