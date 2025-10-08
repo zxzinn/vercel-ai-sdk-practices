@@ -65,6 +65,21 @@ const RequestBodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  // Track MCP clients for cleanup - must be outside try block
+  const mcpClients: Array<{ close: () => Promise<void> }> = [];
+
+  const cleanupClients = async () => {
+    if (mcpClients.length > 0) {
+      await Promise.allSettled(
+        mcpClients.map((client) =>
+          client.close().catch((error) => {
+            console.error("Failed to close MCP client:", error);
+          }),
+        ),
+      );
+    }
+  };
+
   try {
     const body = await req.json();
     const validation = RequestBodySchema.safeParse(body);
@@ -118,9 +133,6 @@ export async function POST(req: Request) {
     if (rag) {
       availableTools.ragQuery = ragQuery;
     }
-
-    // Track MCP clients for cleanup
-    const mcpClients: Array<{ close: () => Promise<void> }> = [];
 
     // Add MCP tools if connections are provided
     if (mcpConnectionIds.length > 0 && sessionId) {
@@ -233,18 +245,8 @@ export async function POST(req: Request) {
       ...(reasoningProviderOptions && {
         providerOptions: reasoningProviderOptions,
       }),
-      // Cleanup MCP clients when stream finishes
-      onFinish: async () => {
-        if (mcpClients.length > 0) {
-          await Promise.allSettled(
-            mcpClients.map((client) =>
-              client.close().catch((error) => {
-                console.error("Failed to close MCP client:", error);
-              }),
-            ),
-          );
-        }
-      },
+      // Cleanup MCP clients when stream finishes successfully
+      onFinish: cleanupClients,
     });
 
     // Return UI message stream with reasoning summaries based on user preference
@@ -254,6 +256,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Error in chat API:", error);
+
+    // Cleanup MCP clients on error
+    await cleanupClients();
+
     return new Response(
       JSON.stringify({
         error: "Internal server error",
