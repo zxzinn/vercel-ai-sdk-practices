@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { z } from "zod";
 import { env } from "@/lib/env";
 
 let redis: Redis | null = null;
@@ -19,6 +20,18 @@ export function getRedisClient(): Redis {
 
   return redis;
 }
+
+// Zod schemas for runtime validation
+const MCPConnectionStateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  endpoint: z.string(),
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional(),
+  tokenExpiresAt: z.number().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
 
 export interface MCPConnectionState {
   id: string;
@@ -54,11 +67,21 @@ export async function getMCPConnection(
   const data = await redis.get(key);
   if (!data) return null;
 
-  if (typeof data === "string") {
-    return JSON.parse(data) as MCPConnectionState;
+  // Parse if string (for backwards compatibility or manual writes)
+  const parsedData = typeof data === "string" ? JSON.parse(data) : data;
+
+  // Validate data structure with Zod
+  const validation = MCPConnectionStateSchema.safeParse(parsedData);
+  if (!validation.success) {
+    console.error(
+      `Invalid MCP connection data in Redis for key ${key}:`,
+      validation.error.issues,
+    );
+    // Return null instead of throwing to handle corrupted data gracefully
+    return null;
   }
 
-  return data as MCPConnectionState;
+  return validation.data;
 }
 
 export async function listMCPConnections(
@@ -89,11 +112,20 @@ export async function listMCPConnections(
       const data = await redis.get(key);
       if (!data) return null;
 
-      if (typeof data === "string") {
-        return JSON.parse(data) as MCPConnectionState;
+      // Parse if string
+      const parsedData = typeof data === "string" ? JSON.parse(data) : data;
+
+      // Validate data structure
+      const validation = MCPConnectionStateSchema.safeParse(parsedData);
+      if (!validation.success) {
+        console.error(
+          `Invalid MCP connection data in Redis for key ${key}:`,
+          validation.error.issues,
+        );
+        return null;
       }
 
-      return data as MCPConnectionState;
+      return validation.data;
     }),
   );
 
@@ -111,6 +143,15 @@ export async function deleteMCPConnection(
 
   await redis.del(key);
 }
+
+const OAuthStateDataSchema = z.object({
+  sessionId: z.string(),
+  connectionId: z.string(),
+  connectionName: z.string(),
+  endpoint: z.string(),
+  codeVerifier: z.string(),
+  clientId: z.string().optional(),
+});
 
 export interface OAuthStateData {
   sessionId: string;
@@ -140,11 +181,24 @@ export async function getOAuthState(
   const data = await redis.get(key);
   if (!data) return null;
 
+  // Delete state immediately (single-use token)
   await redis.del(key);
 
-  if (typeof data === "string") {
-    return JSON.parse(data) as OAuthStateData;
+  // Parse if string
+  const parsedData = typeof data === "string" ? JSON.parse(data) : data;
+
+  // Validate data structure - OAuth state is critical for security
+  const validation = OAuthStateDataSchema.safeParse(parsedData);
+  if (!validation.success) {
+    console.error(
+      `Invalid OAuth state data in Redis for key ${key}:`,
+      validation.error.issues,
+    );
+    // Throw error for OAuth state validation failure (security-critical)
+    throw new Error(
+      "Invalid OAuth state data - possible data corruption or tampering",
+    );
   }
 
-  return data as OAuthStateData;
+  return validation.data;
 }
