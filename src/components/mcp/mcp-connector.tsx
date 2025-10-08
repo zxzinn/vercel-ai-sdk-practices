@@ -251,9 +251,12 @@ export function MCPConnector({
             setConnecting(false);
           }
         }, 500);
+        // Note: connecting state will be reset by handleMessage or cleanup
+        // Don't reset here as OAuth flow is asynchronous
       } else {
         // Handle unexpected response (should not happen with current API)
         setError(data.error || "Failed to connect to MCP server");
+        setConnecting(false);
       }
     } catch (error) {
       setError(
@@ -261,7 +264,6 @@ export function MCPConnector({
           ? error.message
           : "Failed to connect to MCP server",
       );
-    } finally {
       setConnecting(false);
     }
   };
