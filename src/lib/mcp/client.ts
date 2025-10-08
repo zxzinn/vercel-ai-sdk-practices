@@ -16,6 +16,7 @@ export interface MCPClientConfig {
 export interface MCPClientWithTransport {
   client: MCPClient;
   transport: StreamableHTTPClientTransport;
+  serverSessionId?: string;
 }
 
 export async function createMCPClient(
@@ -24,7 +25,8 @@ export async function createMCPClient(
   const transport = new StreamableHTTPClientTransport(
     new URL(config.endpoint),
     {
-      sessionId: config.sessionId,
+      // Don't provide sessionId on initialization - let server generate it
+      // Server will assign a sessionId during the initialize handshake
       requestInit: config.accessToken
         ? {
             headers: {
@@ -40,7 +42,10 @@ export async function createMCPClient(
     name: `mcp-client-${config.sessionId}`,
   });
 
-  return { client, transport };
+  // Get the server-assigned sessionId after initialization
+  const serverSessionId = transport.sessionId;
+
+  return { client, transport, serverSessionId };
 }
 
 export async function discoverMCPTools(
