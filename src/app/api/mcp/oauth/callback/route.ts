@@ -1,5 +1,9 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import {
+  checkRedisConfig,
+  RedisConfigError,
+} from "@/lib/mcp/check-redis-config";
 import { exchangeCodeForToken } from "@/lib/mcp/oauth";
 import { getOAuthState, storeMCPConnection } from "@/lib/mcp/redis";
 
@@ -27,6 +31,9 @@ const CallbackParamsSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    // Check Redis configuration early, before any operations
+    checkRedisConfig();
+
     // Use our own origin for postMessage - the popup was opened from our app
     // Using referer would send to OAuth provider's origin (wrong target)
     const parentOrigin = req.nextUrl.origin;
@@ -156,7 +163,8 @@ export async function GET(req: NextRequest) {
 
     // Check if it's a validation error (missing params) vs runtime error
     const isValidationError = error instanceof z.ZodError;
-    const statusCode = isValidationError ? 400 : 500;
+    const isRedisConfigError = error instanceof RedisConfigError;
+    const statusCode = isValidationError ? 400 : isRedisConfigError ? 503 : 500;
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
 

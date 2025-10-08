@@ -1,5 +1,10 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import {
+  checkRedisConfig,
+  createRedisConfigErrorResponse,
+  RedisConfigError,
+} from "@/lib/mcp/check-redis-config";
 import { deleteMCPConnection } from "@/lib/mcp/redis";
 
 const DisconnectRequestSchema = z.object({
@@ -9,6 +14,9 @@ const DisconnectRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Check Redis configuration early, before any operations
+    checkRedisConfig();
+
     const body = await req.json();
     const validation = DisconnectRequestSchema.safeParse(body);
 
@@ -32,6 +40,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("MCP disconnect error:", error);
+
+    // Return specific error response for Redis configuration issues
+    if (error instanceof RedisConfigError) {
+      return createRedisConfigErrorResponse();
+    }
 
     return Response.json(
       {

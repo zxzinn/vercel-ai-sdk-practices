@@ -1,5 +1,10 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import {
+  checkRedisConfig,
+  createRedisConfigErrorResponse,
+  RedisConfigError,
+} from "@/lib/mcp/check-redis-config";
 import { listMCPConnections } from "@/lib/mcp/redis";
 
 const ListRequestSchema = z.object({
@@ -8,6 +13,9 @@ const ListRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Check Redis configuration early, before any operations
+    checkRedisConfig();
+
     const body = await req.json();
     const validation = ListRequestSchema.safeParse(body);
 
@@ -36,6 +44,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("MCP list error:", error);
+
+    // Return specific error response for Redis configuration issues
+    if (error instanceof RedisConfigError) {
+      return createRedisConfigErrorResponse();
+    }
 
     return Response.json(
       {

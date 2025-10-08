@@ -1,6 +1,11 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import {
+  checkRedisConfig,
+  createRedisConfigErrorResponse,
+  RedisConfigError,
+} from "@/lib/mcp/check-redis-config";
+import {
   generateCodeChallenge,
   generateCodeVerifier,
   generateState,
@@ -20,6 +25,9 @@ const ConnectRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Check Redis configuration early, before any operations
+    checkRedisConfig();
+
     const body = await req.json();
     const validation = ConnectRequestSchema.safeParse(body);
 
@@ -114,19 +122,17 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("MCP connect error:", error);
 
-    // Check if it's a Redis configuration error
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    const isRedisError = errorMessage.includes("Redis configuration missing");
+    // Return specific error response for Redis configuration issues
+    if (error instanceof RedisConfigError) {
+      return createRedisConfigErrorResponse();
+    }
 
     return Response.json(
       {
-        error: isRedisError
-          ? "MCP feature requires Redis configuration"
-          : "Failed to connect to MCP server",
-        message: errorMessage,
+        error: "Failed to connect to MCP server",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: isRedisError ? 503 : 500 },
+      { status: 500 },
     );
   }
 }
