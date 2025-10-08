@@ -10,12 +10,7 @@ import {
   generateCodeVerifier,
   generateState,
 } from "@/lib/mcp/oauth";
-import {
-  deleteMCPConnection,
-  type MCPConnectionState,
-  storeMCPConnection,
-  storeOAuthState,
-} from "@/lib/mcp/redis";
+import { storeOAuthState } from "@/lib/mcp/redis";
 
 const ConnectRequestSchema = z.object({
   endpoint: z.string().url(),
@@ -45,15 +40,8 @@ export async function POST(req: NextRequest) {
 
     const connectionId = crypto.randomUUID();
     const connectionName = name || new URL(endpoint).hostname;
-
-    const connection: MCPConnectionState = {
-      id: connectionId,
-      name: connectionName,
-      endpoint,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
+    Date.now();
+    Date.now();
     // Perform OAuth registration first before persisting connection
     const mcpServerUrl = new URL(endpoint);
     const registerEndpoint = new URL(
