@@ -40,8 +40,7 @@ export async function POST(req: NextRequest) {
 
     const connectionId = crypto.randomUUID();
     const connectionName = name || new URL(endpoint).hostname;
-    Date.now();
-    Date.now();
+
     // Perform OAuth registration first before persisting connection
     const mcpServerUrl = new URL(endpoint);
     const registerEndpoint = new URL(
