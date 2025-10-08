@@ -50,24 +50,29 @@ const MessageSchema = z
     parts: m.parts || [],
   }));
 
-const RequestBodySchema = z.object({
-  messages: z.array(MessageSchema).min(1, "At least one message is required"),
-  model: z.string().min(1, "Model is required"),
-  webSearch: z.boolean().optional().default(false),
-  searchProviders: z
-    .array(z.enum(["tavily", "exa", "perplexity"]))
-    .optional()
-    .default([])
-    .transform((arr) => Array.from(new Set(arr))),
-  rag: z.boolean().optional().default(false),
-  reasoning: z.boolean().optional().default(false),
-  reasoningBudget: z
-    .enum(["low", "medium", "high"])
-    .optional()
-    .default("medium"),
-  mcpConnectionIds: z.array(z.string()).optional().default([]),
-  sessionId: z.string().optional(),
-});
+const RequestBodySchema = z
+  .object({
+    messages: z.array(MessageSchema).min(1, "At least one message is required"),
+    model: z.string().min(1, "Model is required"),
+    webSearch: z.boolean().optional().default(false),
+    searchProviders: z
+      .array(z.enum(["tavily", "exa", "perplexity"]))
+      .optional()
+      .default([])
+      .transform((arr) => Array.from(new Set(arr))),
+    rag: z.boolean().optional().default(false),
+    reasoning: z.boolean().optional().default(false),
+    reasoningBudget: z
+      .enum(["low", "medium", "high"])
+      .optional()
+      .default("medium"),
+    mcpConnectionIds: z.array(z.string()).optional().default([]),
+    sessionId: z.string().optional(),
+  })
+  .refine((data) => data.mcpConnectionIds.length === 0 || data.sessionId, {
+    message: "sessionId is required when mcpConnectionIds is provided",
+    path: ["sessionId"],
+  });
 
 export async function POST(req: Request) {
   // Track MCP clients for cleanup - must be outside try block
@@ -85,10 +90,31 @@ export async function POST(req: Request) {
     }
   };
 
+  // KNOWN LIMITATION: Stream interruption cleanup
+  // If the client disconnects (closes browser tab, navigates away, network timeout)
+  // before the stream completes, the cleanup may not be triggered because:
+  // 1. onFinish callback only fires when stream completes successfully
+  // 2. ReadableStream.cancel() is not reliably called on client disconnect
+  //    (behavior varies by runtime: Node.js, Bun, Cloudflare Workers, etc.)
+  // 3. No error is thrown, so catch block won't execute
+  //
+  // This is a known limitation of the streaming response architecture.
+  // Potential mitigations (not implemented due to trade-offs):
+  // - Timeout-based cleanup: Risk of cleaning up active streams
+  // - AbortSignal: Not consistently available in Next.js Request
+  // - Connection tracking: Adds significant complexity
+  //
+  // In practice, MCP servers should implement their own session timeouts
+  // and the Streamable HTTP protocol's terminateSession() helps minimize
+  // resource leakage compared to the older SSE approach.
+
   try {
     const body = await req.json();
     const validation = RequestBodySchema.safeParse(body);
 
+    // Early return without cleanup is safe here:
+    // If validation fails, no MCP clients have been created yet,
+    // so mcpClients array is empty and cleanup is unnecessary
     if (!validation.success) {
       return new Response(
         JSON.stringify({
