@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import {
+  AlertCircleIcon,
   BrainIcon,
   CopyIcon,
   DatabaseIcon,
@@ -10,6 +11,7 @@ import {
   PaperclipIcon,
   PlugIcon,
   RefreshCcwIcon,
+  XIcon,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
@@ -166,8 +168,14 @@ export default function AIElementsChatShowcase() {
     messages,
     sendMessage,
     status,
+    error,
+    clearError,
     regenerate: originalRegenerate,
-  } = useChat();
+  } = useChat({
+    onError: (err) => {
+      console.error("Chat error:", err);
+    },
+  });
 
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {
@@ -185,6 +193,11 @@ export default function AIElementsChatShowcase() {
   };
 
   const handleSubmit = async (message: PromptInputMessage) => {
+    // Clear any existing error before submitting
+    if (error) {
+      clearError();
+    }
+
     // Guard against submits while not ready
     if (status !== "ready") return;
 
@@ -228,6 +241,30 @@ export default function AIElementsChatShowcase() {
           </div>
 
           <div className="flex flex-col h-[calc(100vh-200px)]">
+            {/* Error Banner */}
+            {error && (
+              <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
+                <AlertCircleIcon className="size-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-destructive mb-1">
+                    Chat Error
+                  </p>
+                  <p className="text-sm text-destructive/80 break-words">
+                    {error.message}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 shrink-0"
+                  onClick={clearError}
+                  aria-label="Dismiss error"
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              </div>
+            )}
+
             <Conversation className="h-full">
               <ConversationContent>
                 {messages.map((message) => (
