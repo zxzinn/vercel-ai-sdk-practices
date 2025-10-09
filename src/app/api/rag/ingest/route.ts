@@ -1,11 +1,24 @@
-import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth/server";
 import type { RAGDocument } from "@/lib/rag";
 import { ragService } from "@/lib/rag";
-import { uploadFile } from "@/lib/storage/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
+
+const STORAGE_BUCKET = "documents";
+const MAX_FILES = 20;
+
+interface IngestRequest {
+  files: Array<{
+    documentId: string;
+    fileName: string;
+    filePath: string;
+    size: number;
+    type: string;
+  }>;
+  collectionName?: string;
+}
 
 export async function POST(req: Request) {
   try {
@@ -21,49 +34,78 @@ export async function POST(req: Request) {
       );
     }
 
-    const formData = await req.formData();
-    const raw = formData.getAll("files");
-    const files = raw.filter(
-      (f): f is File => typeof f !== "string" && "arrayBuffer" in f,
-    );
-    const MAX_FILE_MB = 10;
-    const tooLarge = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
-    if (tooLarge) {
-      return NextResponse.json(
-        { error: `File ${tooLarge.name} exceeds ${MAX_FILE_MB}MB limit` },
-        { status: 413 },
-      );
-    }
-    const collectionName =
-      (formData.get("collectionName") as string) || undefined;
+    const body = (await req.json()) as IngestRequest;
+    const { files, collectionName } = body;
 
-    if (files.length === 0) {
+    if (!files || files.length === 0) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
+    // DoS prevention: limit number of files to prevent timeout
+    if (files.length > MAX_FILES) {
+      return NextResponse.json(
+        {
+          error: `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
+          limit: MAX_FILES,
+          provided: files.length,
+        },
+        { status: 413 },
+      );
+    }
+
+    // Note: File size limits are enforced by Supabase Storage during upload.
+    // We don't validate sizes here since they could be client-controlled.
+    // Supabase Free Plan enforces a 50 MB per file limit.
+
+    const supabase = await createClient();
     const documents: RAGDocument[] = [];
 
-    for (const file of files) {
-      const content = await file.text();
-      const docId = nanoid();
+    // Download files from Supabase and prepare for RAG indexing
+    for (const fileMetadata of files) {
+      try {
+        // Reconstruct file path from trusted data to prevent path traversal attacks
+        // Never trust client-provided filePath directly
+        const sanitizedFileName = sanitizeFileName(fileMetadata.fileName);
+        const trustedPath = `${userId}/${fileMetadata.documentId}/${sanitizedFileName}`;
 
-      const { storageUrl } = await uploadFile({
-        userId,
-        documentId: docId,
-        file,
-      });
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .download(trustedPath);
 
-      documents.push({
-        id: docId,
-        content,
-        metadata: {
-          filename: file.name,
-          fileType: file.type || "text/plain",
-          uploadedAt: new Date(),
-          size: file.size,
-          storageUrl,
-        },
-      });
+        if (error) {
+          console.error(`Failed to download ${fileMetadata.fileName}:`, error);
+          return NextResponse.json(
+            {
+              error: `Failed to download file: ${fileMetadata.fileName}`,
+              message: error.message,
+            },
+            { status: 500 },
+          );
+        }
+
+        const content = await data.text();
+
+        documents.push({
+          id: fileMetadata.documentId,
+          content,
+          metadata: {
+            filename: fileMetadata.fileName,
+            fileType: fileMetadata.type || "text/plain",
+            uploadedAt: new Date(),
+            size: fileMetadata.size,
+            storageUrl: trustedPath,
+          },
+        });
+      } catch (error) {
+        console.error(`Error processing file ${fileMetadata.fileName}:`, error);
+        return NextResponse.json(
+          {
+            error: `Failed to process file: ${fileMetadata.fileName}`,
+            message: error instanceof Error ? error.message : "Unknown error",
+          },
+          { status: 500 },
+        );
+      }
     }
 
     const result = await ragService.ingest(documents, {
@@ -85,4 +127,16 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+}
+
+function sanitizeFileName(fileName: string): string {
+  const lastDotIndex = fileName.lastIndexOf(".");
+  const extension = lastDotIndex > 0 ? fileName.slice(lastDotIndex) : "";
+  const baseName =
+    lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
+
+  const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const sanitizedExtension = extension.replace(/[^a-zA-Z0-9.]/g, "");
+
+  return sanitizedBaseName + sanitizedExtension;
 }
