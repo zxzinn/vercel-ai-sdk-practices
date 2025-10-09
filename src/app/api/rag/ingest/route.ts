@@ -63,9 +63,14 @@ export async function POST(req: Request) {
     // Download files from Supabase and prepare for RAG indexing
     for (const fileMetadata of files) {
       try {
+        // Reconstruct file path from trusted data to prevent path traversal attacks
+        // Never trust client-provided filePath directly
+        const sanitizedFileName = sanitizeFileName(fileMetadata.fileName);
+        const trustedPath = `${userId}/${fileMetadata.documentId}/${sanitizedFileName}`;
+
         const { data, error } = await supabase.storage
           .from(STORAGE_BUCKET)
-          .download(fileMetadata.filePath);
+          .download(trustedPath);
 
         if (error) {
           console.error(`Failed to download ${fileMetadata.fileName}:`, error);
@@ -88,7 +93,7 @@ export async function POST(req: Request) {
             fileType: fileMetadata.type || "text/plain",
             uploadedAt: new Date(),
             size: fileMetadata.size,
-            storageUrl: fileMetadata.filePath,
+            storageUrl: trustedPath,
           },
         });
       } catch (error) {
@@ -122,4 +127,16 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+}
+
+function sanitizeFileName(fileName: string): string {
+  const lastDotIndex = fileName.lastIndexOf(".");
+  const extension = lastDotIndex > 0 ? fileName.slice(lastDotIndex) : "";
+  const baseName =
+    lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
+
+  const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const sanitizedExtension = extension.replace(/[^a-zA-Z0-9.]/g, "");
+
+  return sanitizedBaseName + sanitizedExtension;
 }
