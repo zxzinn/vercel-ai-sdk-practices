@@ -111,21 +111,78 @@ const TOOL_CONFIG = {
 } as const;
 // Helper function for file upload to RAG
 async function uploadFilesToRAG(files: File[]) {
-  const formData = new FormData();
-  files.forEach((file) => {
-    formData.append("files", file);
-  });
-
-  const response = await fetch("/api/rag/ingest", {
+  // Step 1: Get presigned upload URLs
+  const uploadUrlResponse = await fetch("/api/rag/upload-url", {
     method: "POST",
-    body: formData,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      files: files.map((f) => ({
+        name: f.name,
+        size: f.size,
+        type: f.type,
+      })),
+    }),
   });
 
-  if (!response.ok) {
-    throw new Error("Upload failed");
+  if (!uploadUrlResponse.ok) {
+    const error = await uploadUrlResponse.json();
+    throw new Error(error.error || "Failed to get upload URLs");
   }
 
-  return response.json();
+  const { uploadUrls } = await uploadUrlResponse.json();
+
+  // Step 2: Upload files directly to Supabase using presigned URLs
+  const uploadPromises = uploadUrls.map(
+    async (
+      urlData: {
+        documentId: string;
+        fileName: string;
+        filePath: string;
+        signedUrl: string;
+      },
+      index: number,
+    ) => {
+      const file = files[index];
+      const response = await fetch(urlData.signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "content-type": file.type || "application/octet-stream",
+          "x-upsert": "false",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to upload ${file.name}`);
+      }
+
+      return {
+        documentId: urlData.documentId,
+        fileName: urlData.fileName,
+        filePath: urlData.filePath,
+        size: file.size,
+        type: file.type,
+      };
+    },
+  );
+
+  const uploadedFiles = await Promise.all(uploadPromises);
+
+  // Step 3: Trigger RAG indexing with uploaded file metadata
+  const ingestResponse = await fetch("/api/rag/ingest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      files: uploadedFiles,
+    }),
+  });
+
+  if (!ingestResponse.ok) {
+    const error = await ingestResponse.json();
+    throw new Error(error.error || "Failed to ingest documents");
+  }
+
+  return ingestResponse.json();
 }
 const searchProviderOptions = [
   { id: "tavily" as const, label: "Tavily Search" },
