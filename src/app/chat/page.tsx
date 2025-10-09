@@ -258,6 +258,7 @@ export default function AIElementsChatShowcase() {
                   size="sm"
                   className="h-8 px-2 shrink-0"
                   onClick={clearError}
+                  aria-label="Dismiss error"
                 >
                   <XIcon className="size-4" />
                 </Button>

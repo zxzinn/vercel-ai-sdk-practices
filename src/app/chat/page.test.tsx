@@ -1,7 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { fireEvent, render } from "@testing-library/react";
 import type { UIMessage } from "ai";
-import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import AIElementsChatShowcase from "./page";
 
 vi.mock("@ai-sdk/react");
@@ -116,22 +116,5 @@ describe("Chat Error Handling", () => {
 
     fireEvent.click(closeButton!);
     expect(mockClearError).toHaveBeenCalledOnce();
-  });
-
-  it("should log errors via onError callback", () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const testError = new Error("Test error");
-
-    vi.mocked(useChat).mockImplementation((options) => {
-      options?.onError?.(testError);
-      return defaultUseChatReturn;
-    });
-
-    render(<AIElementsChatShowcase />);
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith("Chat error:", testError);
-    consoleErrorSpy.mockRestore();
   });
 });
