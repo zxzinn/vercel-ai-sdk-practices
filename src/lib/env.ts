@@ -28,6 +28,10 @@ const envSchema = z
 
     // Vercel environment
     VERCEL_ENV: z.enum(["development", "preview", "production"]).optional(),
+
+    // MCP (Model Context Protocol) - Redis for connection persistence
+    UPSTASH_REDIS_REST_URL: z.string().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   })
   .refine(
     (data) => {

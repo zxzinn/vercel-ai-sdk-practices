@@ -1,5 +1,13 @@
+import type { Tool } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
+import {
+  cleanupMCPClient,
+  createMCPClient,
+  discoverMCPTools,
+  type MCPClientWithTransport,
+} from "@/lib/mcp/client";
+import { getMCPConnection } from "@/lib/mcp/redis";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
 import { ragQuery } from "@/lib/tools/rag/query";
@@ -42,28 +50,71 @@ const MessageSchema = z
     parts: m.parts || [],
   }));
 
-const RequestBodySchema = z.object({
-  messages: z.array(MessageSchema).min(1, "At least one message is required"),
-  model: z.string().min(1, "Model is required"),
-  webSearch: z.boolean().optional().default(false),
-  searchProviders: z
-    .array(z.enum(["tavily", "exa", "perplexity"]))
-    .optional()
-    .default([])
-    .transform((arr) => Array.from(new Set(arr))),
-  rag: z.boolean().optional().default(false),
-  reasoning: z.boolean().optional().default(false),
-  reasoningBudget: z
-    .enum(["low", "medium", "high"])
-    .optional()
-    .default("medium"),
-});
+const RequestBodySchema = z
+  .object({
+    messages: z.array(MessageSchema).min(1, "At least one message is required"),
+    model: z.string().min(1, "Model is required"),
+    webSearch: z.boolean().optional().default(false),
+    searchProviders: z
+      .array(z.enum(["tavily", "exa", "perplexity"]))
+      .optional()
+      .default([])
+      .transform((arr) => Array.from(new Set(arr))),
+    rag: z.boolean().optional().default(false),
+    reasoning: z.boolean().optional().default(false),
+    reasoningBudget: z
+      .enum(["low", "medium", "high"])
+      .optional()
+      .default("medium"),
+    mcpConnectionIds: z.array(z.string()).optional().default([]),
+    sessionId: z.string().optional(),
+  })
+  .refine((data) => data.mcpConnectionIds.length === 0 || data.sessionId, {
+    message: "sessionId is required when mcpConnectionIds is provided",
+    path: ["sessionId"],
+  });
 
 export async function POST(req: Request) {
+  // Track MCP clients for cleanup - must be outside try block
+  const mcpClients: Array<MCPClientWithTransport> = [];
+
+  const cleanupClients = async () => {
+    if (mcpClients.length > 0) {
+      await Promise.allSettled(
+        mcpClients.map((clientWithTransport) =>
+          cleanupMCPClient(clientWithTransport).catch((error) => {
+            console.error("Failed to cleanup MCP client:", error);
+          }),
+        ),
+      );
+    }
+  };
+
+  // KNOWN LIMITATION: Stream interruption cleanup
+  // If the client disconnects (closes browser tab, navigates away, network timeout)
+  // before the stream completes, the cleanup may not be triggered because:
+  // 1. onFinish callback only fires when stream completes successfully
+  // 2. ReadableStream.cancel() is not reliably called on client disconnect
+  //    (behavior varies by runtime: Node.js, Bun, Cloudflare Workers, etc.)
+  // 3. No error is thrown, so catch block won't execute
+  //
+  // This is a known limitation of the streaming response architecture.
+  // Potential mitigations (not implemented due to trade-offs):
+  // - Timeout-based cleanup: Risk of cleaning up active streams
+  // - AbortSignal: Not consistently available in Next.js Request
+  // - Connection tracking: Adds significant complexity
+  //
+  // In practice, MCP servers should implement their own session timeouts
+  // and the Streamable HTTP protocol's terminateSession() helps minimize
+  // resource leakage compared to the older SSE approach.
+
   try {
     const body = await req.json();
     const validation = RequestBodySchema.safeParse(body);
 
+    // Early return without cleanup is safe here:
+    // If validation fails, no MCP clients have been created yet,
+    // so mcpClients array is empty and cleanup is unnecessary
     if (!validation.success) {
       return new Response(
         JSON.stringify({
@@ -85,19 +136,15 @@ export async function POST(req: Request) {
       rag,
       reasoning,
       reasoningBudget,
+      mcpConnectionIds,
+      sessionId,
     } = validation.data;
 
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
 
     // Determine available tools based on webSearch and rag flags
-    const availableTools: Record<
-      string,
-      | typeof tavilySearch
-      | typeof exaSearch
-      | typeof perplexitySearch
-      | typeof ragQuery
-    > = {};
+    const availableTools: Record<string, Tool> = {};
 
     if (webSearch) {
       const providers =
@@ -116,6 +163,49 @@ export async function POST(req: Request) {
 
     if (rag) {
       availableTools.ragQuery = ragQuery;
+    }
+
+    // Add MCP tools if connections are provided
+    if (mcpConnectionIds.length > 0 && sessionId) {
+      try {
+        const connections = await Promise.all(
+          mcpConnectionIds.map((id) => getMCPConnection(sessionId, id)),
+        );
+
+        for (const connection of connections) {
+          if (!connection) continue;
+
+          try {
+            const clientWithTransport = await createMCPClient({
+              endpoint: connection.endpoint,
+              accessToken: connection.accessToken,
+              sessionId: sessionId,
+            });
+
+            // Track client for cleanup
+            mcpClients.push(clientWithTransport);
+
+            const mcpTools = await discoverMCPTools(clientWithTransport);
+
+            // Prefix tools with server name for identification
+            // Format: serverName__toolName
+            Object.entries(mcpTools).forEach(([toolName, tool]) => {
+              const safeName = connection.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+              const prefixedName = `${safeName}__${toolName}`;
+              availableTools[prefixedName] = tool;
+            });
+          } catch (error) {
+            console.error(
+              `Failed to load tools from MCP server ${connection.name}:`,
+              error,
+            );
+            // Continue with other connections even if one fails
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load MCP tools:", error);
+        // Continue without MCP tools
+      }
     }
 
     const hasTools = Object.keys(availableTools).length > 0;
@@ -187,6 +277,8 @@ export async function POST(req: Request) {
       ...(reasoningProviderOptions && {
         providerOptions: reasoningProviderOptions,
       }),
+      // Cleanup MCP clients when stream finishes successfully
+      onFinish: cleanupClients,
     });
 
     // Return UI message stream with reasoning summaries based on user preference
@@ -196,6 +288,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Error in chat API:", error);
+
+    // Cleanup MCP clients on error
+    await cleanupClients();
+
     return new Response(
       JSON.stringify({
         error: "Internal server error",
