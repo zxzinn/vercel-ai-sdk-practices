@@ -132,17 +132,20 @@ async function uploadFilesToRAG(files: File[]) {
   const { uploadUrls } = await uploadUrlResponse.json();
 
   // Step 2: Upload files directly to Supabase using presigned URLs
+  // Match files by name rather than relying on array order for robustness
   const uploadPromises = uploadUrls.map(
-    async (
-      urlData: {
-        documentId: string;
-        fileName: string;
-        filePath: string;
-        signedUrl: string;
-      },
-      index: number,
-    ) => {
-      const file = files[index];
+    async (urlData: {
+      documentId: string;
+      fileName: string;
+      filePath: string;
+      signedUrl: string;
+    }) => {
+      // Find the corresponding file by name instead of using index
+      const file = files.find((f) => f.name === urlData.fileName);
+      if (!file) {
+        throw new Error(`File not found for upload URL: ${urlData.fileName}`);
+      }
+
       const response = await fetch(urlData.signedUrl, {
         method: "PUT",
         body: file,
