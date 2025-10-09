@@ -8,7 +8,6 @@ export const maxDuration = 60;
 
 const STORAGE_BUCKET = "documents";
 const MAX_FILES = 20;
-const MAX_TOTAL_MB = 100;
 
 interface IngestRequest {
   files: Array<{
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    // DoS prevention: check file count
+    // DoS prevention: limit number of files to prevent timeout
     if (files.length > MAX_FILES) {
       return NextResponse.json(
         {
@@ -54,20 +53,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // DoS prevention: check total size
-    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-    const totalMB = totalSize / 1024 / 1024;
-    if (totalMB > MAX_TOTAL_MB) {
-      return NextResponse.json(
-        {
-          error: `Total file size exceeds ${MAX_TOTAL_MB} MB limit`,
-          limit: `${MAX_TOTAL_MB} MB`,
-          totalSize: `${totalMB.toFixed(2)} MB`,
-          fileCount: files.length,
-        },
-        { status: 413 },
-      );
-    }
+    // Note: File size limits are enforced by Supabase Storage during upload.
+    // We don't validate sizes here since they could be client-controlled.
+    // Supabase Free Plan enforces a 50 MB per file limit.
 
     const supabase = await createClient();
     const documents: RAGDocument[] = [];
