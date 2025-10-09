@@ -1,5 +1,5 @@
 import { useChat } from "@ai-sdk/react";
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AIElementsChatShowcase from "./page";
@@ -109,12 +109,11 @@ describe("Chat Error Handling", () => {
       error: new Error("Test error"),
     });
 
-    const { container } = render(<AIElementsChatShowcase />);
+    render(<AIElementsChatShowcase />);
 
-    const closeButton = container.querySelector("button");
-    expect(closeButton).toBeTruthy();
+    const closeButton = screen.getByRole("button", { name: "Dismiss error" });
+    fireEvent.click(closeButton);
 
-    fireEvent.click(closeButton!);
     expect(mockClearError).toHaveBeenCalledOnce();
   });
 });
