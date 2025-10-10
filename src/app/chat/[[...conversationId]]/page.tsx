@@ -274,7 +274,6 @@ function ChatContent() {
               role: msg.role as "user" | "assistant",
               content: msg.content,
               parts: [{ type: "text" as const, text: msg.content }],
-              createdAt: new Date(),
             }),
           );
           setMessages(historyMessages);
