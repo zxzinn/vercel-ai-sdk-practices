@@ -3,20 +3,20 @@ import { createClient } from "@supabase/supabase-js";
 import { experimental_generateImage as generateImage } from "ai";
 import { z } from "zod";
 
-// Use Supabase client with public environment variables
-// These should be set in .env.local with NEXT_PUBLIC_ prefix
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set for image generation",
-  );
-}
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 const BUCKET_NAME = "generated-images";
+
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set for image generation",
+    );
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 export const generateImageTool = {
   description:
@@ -48,6 +48,9 @@ export const generateImageTool = {
     quality?: "standard" | "hd";
   }) => {
     try {
+      // Get Supabase client (lazy initialization)
+      const supabase = getSupabaseClient();
+
       // Generate image using DALL-E 3
       const { image } = await generateImage({
         model: openai.image("dall-e-3"),
