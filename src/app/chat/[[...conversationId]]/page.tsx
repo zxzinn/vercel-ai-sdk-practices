@@ -13,6 +13,7 @@ import {
   RefreshCcwIcon,
   XIcon,
 } from "lucide-react";
+import { nanoid } from "nanoid";
 import { useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
@@ -247,10 +248,9 @@ function ChatContent() {
         if (response.ok) {
           const data = await response.json();
           const historyMessages = data.conversation.messages.map(
-            (msg: { role: string; content: string }, idx: number) => ({
-              id: `msg-${idx}`,
+            (msg: { role: string; content: string }) => ({
+              id: nanoid(),
               role: msg.role as "user" | "assistant",
-              content: msg.content,
               parts: [{ type: "text" as const, text: msg.content }],
             }),
           );
