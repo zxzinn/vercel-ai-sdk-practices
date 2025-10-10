@@ -1,9 +1,9 @@
-import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
   try {
@@ -35,14 +35,33 @@ export async function GET(
   }
 }
 
+const UpdateConversationSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title cannot be empty")
+    .max(200, "Title is too long"),
+});
+
 export async function PATCH(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
   try {
     const { conversationId } = await params;
     const body = await request.json();
-    const { title } = body;
+
+    const validation = UpdateConversationSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid request body",
+          details: validation.error.issues,
+        },
+        { status: 400 },
+      );
+    }
+
+    const { title } = validation.data;
 
     const conversation = await prisma.conversation.update({
       where: { id: conversationId },
@@ -60,7 +79,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ conversationId: string }> },
 ) {
   try {

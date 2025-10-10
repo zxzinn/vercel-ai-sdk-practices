@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageSquareIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,8 @@ type Conversation = {
 export function ChatSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeConversationId = searchParams.get("id");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function ChatSidebar() {
 
       if (response.ok) {
         setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-        if (pathname === `/chat/${conversationId}`) {
+        if (activeConversationId === conversationId) {
           router.push("/chat");
         }
       }
@@ -143,7 +145,7 @@ export function ChatSidebar() {
                         onClick={() =>
                           router.push(`/chat?id=${conversation.id}`)
                         }
-                        isActive={pathname.includes(conversation.id)}
+                        isActive={activeConversationId === conversation.id}
                         className="flex-1"
                       >
                         <MessageSquareIcon className="size-4" />

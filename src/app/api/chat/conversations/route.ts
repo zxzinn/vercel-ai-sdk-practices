@@ -5,7 +5,10 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-    const limit = Number.parseInt(searchParams.get("limit") || "50", 10);
+    const limit = Math.min(
+      Number.parseInt(searchParams.get("limit") || "50", 10),
+      100, // Maximum limit to prevent performance issues
+    );
 
     const conversations = await prisma.conversation.findMany({
       where: userId ? { userId } : {},

@@ -299,27 +299,18 @@ export async function POST(req: Request) {
                 .join("\n") ||
               "";
 
-            // Save or update conversation title based on first message
-            const conversation = await prisma.conversation.findUnique({
+            // Atomically create or update conversation (prevents race condition)
+            const title = userContent.slice(0, 100) || "New Conversation";
+            await prisma.conversation.upsert({
               where: { id: conversationId },
+              create: {
+                id: conversationId,
+                title,
+              },
+              update: {
+                updatedAt: new Date(),
+              },
             });
-
-            if (!conversation) {
-              // Create new conversation with title from first message
-              const title = userContent.slice(0, 100) || "New Conversation";
-              await prisma.conversation.create({
-                data: {
-                  id: conversationId,
-                  title,
-                },
-              });
-            } else {
-              // Update conversation timestamp
-              await prisma.conversation.update({
-                where: { id: conversationId },
-                data: { updatedAt: new Date() },
-              });
-            }
 
             // Save user message
             await prisma.conversationMessage.create({
