@@ -292,9 +292,90 @@ export async function POST(req: Request) {
         if (conversationId) {
           try {
             const userMessage = messages[messages.length - 1];
-            const assistantContent = event.text;
 
-            // Extract text content from user message
+            // Build assistant message with all parts (text, tool calls, tool results)
+            const assistantMessage: any = {
+              role: "assistant",
+              parts: [],
+            };
+
+            // When using stopWhen with multi-step execution, tool calls and results
+            // are in earlier steps, not the final step. We need to collect from ALL steps.
+            const allToolCalls: typeof event.toolCalls = [];
+            const allToolResults: typeof event.toolResults = [];
+
+            if (event.steps) {
+              for (const step of event.steps) {
+                if (step.toolCalls) {
+                  allToolCalls.push(...step.toolCalls);
+                }
+                if (step.toolResults) {
+                  allToolResults.push(...step.toolResults);
+                }
+              }
+            }
+
+            // Combine tool calls and results into the format expected by frontend
+            // Frontend expects: { type: "tool-{toolName}", state, input, output }
+            if (allToolCalls.length > 0) {
+              // Create a map of toolCallId -> toolResult for quick lookup
+              const resultsByCallId = new Map(
+                allToolResults.map((r) => [r.toolCallId, r]),
+              );
+
+              for (const toolCall of allToolCalls) {
+                const result = resultsByCallId.get(toolCall.toolCallId);
+
+                // Determine state based on result
+                let state: "output-available" | "output-error";
+                if (!result) {
+                  // This should not happen in onFinish since all execution is complete
+                  console.error(
+                    `Missing result for tool call ${toolCall.toolCallId} (${toolCall.toolName})`,
+                  );
+                  state = "output-error";
+                } else if (
+                  result.output.type === "error-text" ||
+                  result.output.type === "error-json"
+                ) {
+                  state = "output-error";
+                } else {
+                  state = "output-available";
+                }
+
+                // Determine if this is a dynamic tool (MCP) or static tool
+                const isDynamicTool = toolCall.toolName.includes("__");
+
+                if (isDynamicTool) {
+                  // MCP tools use "dynamic-tool" type
+                  assistantMessage.parts.push({
+                    type: "dynamic-tool",
+                    toolName: toolCall.toolName,
+                    input: toolCall.input,
+                    output: result?.output,
+                    state,
+                  });
+                } else {
+                  // Static tools use "tool-{toolName}" type
+                  assistantMessage.parts.push({
+                    type: `tool-${toolCall.toolName}`,
+                    input: toolCall.input,
+                    output: result?.output,
+                    state,
+                  });
+                }
+              }
+            }
+
+            // Add final text response (from the last step)
+            if (event.text) {
+              assistantMessage.parts.push({
+                type: "text",
+                text: event.text,
+              });
+            }
+
+            // Extract text content from user message for title
             const userContent =
               userMessage.content ||
               userMessage.parts
@@ -304,7 +385,6 @@ export async function POST(req: Request) {
               "";
 
             // Atomically save conversation and messages in a transaction
-            // This prevents partial writes if any operation fails
             const title = userContent.slice(0, 100) || "New Conversation";
             await prisma.$transaction([
               prisma.conversation.upsert({
@@ -321,14 +401,14 @@ export async function POST(req: Request) {
                 data: {
                   conversationId,
                   role: "user",
-                  content: userContent,
+                  content: userMessage as any, // Store complete UIMessage
                 },
               }),
               prisma.conversationMessage.create({
                 data: {
                   conversationId,
                   role: "assistant",
-                  content: assistantContent,
+                  content: assistantMessage, // Store complete UIMessage with all parts
                 },
               }),
             ]);

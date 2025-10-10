@@ -32,7 +32,7 @@ model ConversationMessage {
   id             String   @id @default(cuid())
   conversationId String
   role           String
-  content        String   @db.Text
+  content        Json     @db.JsonB
   createdAt      DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
