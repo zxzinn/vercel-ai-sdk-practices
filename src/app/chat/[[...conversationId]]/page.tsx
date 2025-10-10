@@ -250,17 +250,12 @@ function ChatContent() {
           const data = await response.json();
           const historyMessages = data.conversation.messages.map(
             (msg: { role: string; content: any }) => {
-              // content is now a complete UIMessage object
+              // Content is stored as complete UIMessage object
               const message = msg.content;
 
-              // Ensure it has an id
+              // Add id if missing
               if (!message.id) {
                 message.id = nanoid();
-              }
-
-              // Ensure it has parts array (for backward compatibility)
-              if (!message.parts) {
-                message.parts = [];
               }
 
               return message;
