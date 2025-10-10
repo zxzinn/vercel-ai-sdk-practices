@@ -21,6 +21,10 @@ const envSchema = z
     DATABASE_URL: z.string().optional(),
     DIRECT_URL: z.string().optional(),
 
+    // Supabase Storage (public - accessible from client)
+    NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
+
     // Node environment
     NODE_ENV: z
       .enum(["development", "production", "test"])
