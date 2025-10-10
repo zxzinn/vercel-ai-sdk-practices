@@ -248,8 +248,14 @@ function ChatContent() {
         );
         if (response.ok) {
           const data = await response.json();
-          const historyMessages = data.conversation.messages.map(
-            (msg: { role: string; content: any }) => {
+          const historyMessages = data.conversation.messages
+            .map((msg: { role: string; content: any }) => {
+              // Defensive: ensure content exists and is an object
+              if (!msg.content || typeof msg.content !== "object") {
+                console.warn("Invalid message content:", msg);
+                return null;
+              }
+
               // Content is stored as complete UIMessage object
               const message = msg.content;
 
@@ -258,9 +264,14 @@ function ChatContent() {
                 message.id = nanoid();
               }
 
+              // Ensure parts array exists
+              if (!Array.isArray(message.parts)) {
+                message.parts = [];
+              }
+
               return message;
-            },
-          );
+            })
+            .filter((msg: any): msg is NonNullable<typeof msg> => msg !== null);
           setMessages(historyMessages);
         }
       } catch (error) {

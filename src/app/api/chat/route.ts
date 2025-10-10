@@ -293,42 +293,69 @@ export async function POST(req: Request) {
           try {
             const userMessage = messages[messages.length - 1];
 
-            // Build assistant message with all parts (text, tool calls, tool results, sources)
+            // Build assistant message with all parts (text, tool calls, tool results)
             const assistantMessage: any = {
               role: "assistant",
               parts: [],
             };
 
-            // Add text part if present
+            // When using stopWhen with multi-step execution, tool calls and results
+            // are in earlier steps, not the final step. We need to collect from ALL steps.
+            const allToolCalls: typeof event.toolCalls = [];
+            const allToolResults: typeof event.toolResults = [];
+
+            if (event.steps) {
+              for (const step of event.steps) {
+                if (step.toolCalls) {
+                  allToolCalls.push(...step.toolCalls);
+                }
+                if (step.toolResults) {
+                  allToolResults.push(...step.toolResults);
+                }
+              }
+            }
+
+            // Combine tool calls and results into the format expected by frontend
+            // Frontend expects: { type: "tool-{toolName}", state, input, output }
+            if (allToolCalls.length > 0) {
+              // Create a map of toolCallId -> toolResult for quick lookup
+              const resultsByCallId = new Map(
+                allToolResults.map((r) => [r.toolCallId, r]),
+              );
+
+              for (const toolCall of allToolCalls) {
+                const result = resultsByCallId.get(toolCall.toolCallId);
+
+                // Determine if this is a dynamic tool (MCP) or static tool
+                const isDynamicTool = toolCall.toolName.includes("__");
+
+                if (isDynamicTool) {
+                  // MCP tools use "dynamic-tool" type
+                  assistantMessage.parts.push({
+                    type: "dynamic-tool",
+                    toolName: toolCall.toolName,
+                    input: toolCall.input,
+                    output: result?.output,
+                    state: result ? "output-available" : "executing",
+                  });
+                } else {
+                  // Static tools use "tool-{toolName}" type
+                  assistantMessage.parts.push({
+                    type: `tool-${toolCall.toolName}`,
+                    input: toolCall.input,
+                    output: result?.output,
+                    state: result ? "output-available" : "executing",
+                  });
+                }
+              }
+            }
+
+            // Add final text response (from the last step)
             if (event.text) {
               assistantMessage.parts.push({
                 type: "text",
                 text: event.text,
               });
-            }
-
-            // Add tool calls and results
-            if (event.toolCalls) {
-              for (const toolCall of event.toolCalls) {
-                assistantMessage.parts.push({
-                  type: "tool-invocation",
-                  toolCallId: toolCall.toolCallId,
-                  toolName: toolCall.toolName,
-                  input: toolCall.input,
-                  state: "output-available",
-                });
-              }
-            }
-
-            if (event.toolResults) {
-              for (const toolResult of event.toolResults) {
-                assistantMessage.parts.push({
-                  type: "tool-result",
-                  toolCallId: toolResult.toolCallId,
-                  toolName: toolResult.toolName,
-                  output: toolResult.output,
-                });
-              }
             }
 
             // Extract text content from user message for title
