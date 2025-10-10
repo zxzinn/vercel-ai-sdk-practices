@@ -249,11 +249,22 @@ function ChatContent() {
         if (response.ok) {
           const data = await response.json();
           const historyMessages = data.conversation.messages.map(
-            (msg: { role: string; content: string }) => ({
-              id: nanoid(),
-              role: msg.role as "user" | "assistant",
-              parts: [{ type: "text" as const, text: msg.content }],
-            }),
+            (msg: { role: string; content: any }) => {
+              // content is now a complete UIMessage object
+              const message = msg.content;
+
+              // Ensure it has an id
+              if (!message.id) {
+                message.id = nanoid();
+              }
+
+              // Ensure it has parts array (for backward compatibility)
+              if (!message.parts) {
+                message.parts = [];
+              }
+
+              return message;
+            },
           );
           setMessages(historyMessages);
         }

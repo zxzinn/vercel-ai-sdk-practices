@@ -292,9 +292,46 @@ export async function POST(req: Request) {
         if (conversationId) {
           try {
             const userMessage = messages[messages.length - 1];
-            const assistantContent = event.text;
 
-            // Extract text content from user message
+            // Build assistant message with all parts (text, tool calls, tool results, sources)
+            const assistantMessage: any = {
+              role: "assistant",
+              parts: [],
+            };
+
+            // Add text part if present
+            if (event.text) {
+              assistantMessage.parts.push({
+                type: "text",
+                text: event.text,
+              });
+            }
+
+            // Add tool calls and results
+            if (event.toolCalls) {
+              for (const toolCall of event.toolCalls) {
+                assistantMessage.parts.push({
+                  type: "tool-invocation",
+                  toolCallId: toolCall.toolCallId,
+                  toolName: toolCall.toolName,
+                  input: toolCall.input,
+                  state: "output-available",
+                });
+              }
+            }
+
+            if (event.toolResults) {
+              for (const toolResult of event.toolResults) {
+                assistantMessage.parts.push({
+                  type: "tool-result",
+                  toolCallId: toolResult.toolCallId,
+                  toolName: toolResult.toolName,
+                  output: toolResult.output,
+                });
+              }
+            }
+
+            // Extract text content from user message for title
             const userContent =
               userMessage.content ||
               userMessage.parts
@@ -304,7 +341,6 @@ export async function POST(req: Request) {
               "";
 
             // Atomically save conversation and messages in a transaction
-            // This prevents partial writes if any operation fails
             const title = userContent.slice(0, 100) || "New Conversation";
             await prisma.$transaction([
               prisma.conversation.upsert({
@@ -321,14 +357,14 @@ export async function POST(req: Request) {
                 data: {
                   conversationId,
                   role: "user",
-                  content: userContent,
+                  content: userMessage as any, // Store complete UIMessage
                 },
               }),
               prisma.conversationMessage.create({
                 data: {
                   conversationId,
                   role: "assistant",
-                  content: assistantContent,
+                  content: assistantMessage, // Store complete UIMessage with all parts
                 },
               }),
             ]);
