@@ -13,7 +13,8 @@ import {
   RefreshCcwIcon,
   XIcon,
 } from "lucide-react";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
   Conversation,
@@ -74,6 +75,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
 
@@ -194,20 +196,33 @@ const searchProviderOptions = [
   { id: "bing" as const, label: "Bing Search (Coming Soon)", disabled: true },
 ];
 
-export default function AIElementsChatShowcase() {
+function ChatContent() {
+  const searchParams = useSearchParams();
+  const urlConversationId = searchParams.get("id");
+
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
   const [uploading, setUploading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [conversationId, setConversationId] = useState<string>("");
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [mcpConnections, setMcpConnections] = useState<
     Array<{ id: string; name: string }>
   >([]);
 
   useEffect(() => {
     setSessionId(getSessionId());
-  }, []);
+    // Use URL conversationId or generate new one
+    if (urlConversationId) {
+      setConversationId(urlConversationId);
+    } else {
+      setConversationId(
+        `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      );
+    }
+  }, [urlConversationId]);
 
   const handleMcpConnectionsChange = useCallback(
     (connections: Array<{ id: string; name: string; status: string }>) => {
@@ -231,11 +246,47 @@ export default function AIElementsChatShowcase() {
     error,
     clearError,
     regenerate: originalRegenerate,
+    setMessages,
   } = useChat({
     onError: (err) => {
       console.error("Chat error:", err);
     },
   });
+
+  // Load conversation history if conversationId is provided
+  useEffect(() => {
+    async function loadConversation() {
+      if (!urlConversationId) return;
+
+      // Clear messages first when switching conversations
+      setMessages([]);
+      setLoadingHistory(true);
+
+      try {
+        const response = await fetch(
+          `/api/chat/conversations/${urlConversationId}`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const historyMessages = data.conversation.messages.map(
+            (msg: { role: string; content: string }, idx: number) => ({
+              id: `msg-${idx}`,
+              role: msg.role as "user" | "assistant",
+              content: msg.content,
+              parts: [{ type: "text" as const, text: msg.content }],
+            }),
+          );
+          setMessages(historyMessages);
+        }
+      } catch (error) {
+        console.error("Failed to load conversation:", error);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+
+    loadConversation();
+  }, [urlConversationId, setMessages]);
 
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {
@@ -248,6 +299,7 @@ export default function AIElementsChatShowcase() {
         reasoning: reasoningEnabled,
         mcpConnectionIds: mcpConnections.map((c) => c.id),
         sessionId,
+        conversationId,
       },
     });
   };
@@ -282,6 +334,7 @@ export default function AIElementsChatShowcase() {
           reasoning: reasoningEnabled,
           mcpConnectionIds: mcpConnections.map((c) => c.id),
           sessionId,
+          conversationId,
         },
       },
     );
@@ -292,12 +345,15 @@ export default function AIElementsChatShowcase() {
       <div className="container mx-auto p-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">AI Elements Chat</h1>
-            <p className="text-muted-foreground">
-              Enhanced chat interface with file attachments, model selection,
-              and web search
-            </p>
+          <div className="mb-8 flex items-start gap-4">
+            <SidebarTrigger className="mt-2" />
+            <div>
+              <h1 className="text-3xl font-bold mb-2">AI Elements Chat</h1>
+              <p className="text-muted-foreground">
+                Enhanced chat interface with file attachments, model selection,
+                and web search
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col h-[calc(100vh-200px)]">
@@ -614,6 +670,11 @@ export default function AIElementsChatShowcase() {
                     })()}
                   </div>
                 ))}
+                {loadingHistory && (
+                  <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+                    Loading conversation history...
+                  </div>
+                )}
                 {status === "submitted" && <Loader />}
               </ConversationContent>
               <ConversationScrollButton />
@@ -831,5 +892,21 @@ export default function AIElementsChatShowcase() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AIElementsChatShowcase() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <p className="text-lg text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <ChatContent />
+    </Suspense>
   );
 }

@@ -8,6 +8,7 @@ import {
   type MCPClientWithTransport,
 } from "@/lib/mcp/client";
 import { getMCPConnection } from "@/lib/mcp/redis";
+import { prisma } from "@/lib/prisma";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
 import { ragQuery } from "@/lib/tools/rag/query";
@@ -68,6 +69,7 @@ const RequestBodySchema = z
       .default("medium"),
     mcpConnectionIds: z.array(z.string()).optional().default([]),
     sessionId: z.string().optional(),
+    conversationId: z.string().optional(),
   })
   .refine((data) => data.mcpConnectionIds.length === 0 || data.sessionId, {
     message: "sessionId is required when mcpConnectionIds is provided",
@@ -138,6 +140,7 @@ export async function POST(req: Request) {
       reasoningBudget,
       mcpConnectionIds,
       sessionId,
+      conversationId,
     } = validation.data;
 
     // Convert UI messages to model messages
@@ -277,8 +280,60 @@ export async function POST(req: Request) {
       ...(reasoningProviderOptions && {
         providerOptions: reasoningProviderOptions,
       }),
-      // Cleanup MCP clients when stream finishes successfully
-      onFinish: cleanupClients,
+      // Cleanup MCP clients and save messages when stream finishes successfully
+      onFinish: async (event) => {
+        await cleanupClients();
+
+        // Save conversation and messages to database
+        if (conversationId) {
+          try {
+            const userMessage = messages[messages.length - 1];
+            const assistantContent = event.text;
+
+            // Extract text content from user message
+            const userContent =
+              userMessage.content ||
+              userMessage.parts
+                ?.filter((p: { type: string }) => p.type === "text")
+                .map((p: { text: string }) => p.text)
+                .join("\n") ||
+              "";
+
+            // Atomically save conversation and messages in a transaction
+            // This prevents partial writes if any operation fails
+            const title = userContent.slice(0, 100) || "New Conversation";
+            await prisma.$transaction([
+              prisma.conversation.upsert({
+                where: { id: conversationId },
+                create: {
+                  id: conversationId,
+                  title,
+                },
+                update: {
+                  updatedAt: new Date(),
+                },
+              }),
+              prisma.conversationMessage.create({
+                data: {
+                  conversationId,
+                  role: "user",
+                  content: userContent,
+                },
+              }),
+              prisma.conversationMessage.create({
+                data: {
+                  conversationId,
+                  role: "assistant",
+                  content: assistantContent,
+                },
+              }),
+            ]);
+          } catch (error) {
+            console.error("Failed to save conversation:", error);
+            // Don't throw - we don't want to fail the response if DB save fails
+          }
+        }
+      },
     });
 
     // Return UI message stream with reasoning summaries based on user preference
