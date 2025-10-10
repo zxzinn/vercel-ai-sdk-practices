@@ -326,6 +326,23 @@ export async function POST(req: Request) {
               for (const toolCall of allToolCalls) {
                 const result = resultsByCallId.get(toolCall.toolCallId);
 
+                // Determine state based on result
+                let state: "output-available" | "output-error";
+                if (!result) {
+                  // This should not happen in onFinish since all execution is complete
+                  console.error(
+                    `Missing result for tool call ${toolCall.toolCallId} (${toolCall.toolName})`,
+                  );
+                  state = "output-error";
+                } else if (
+                  result.output.type === "error-text" ||
+                  result.output.type === "error-json"
+                ) {
+                  state = "output-error";
+                } else {
+                  state = "output-available";
+                }
+
                 // Determine if this is a dynamic tool (MCP) or static tool
                 const isDynamicTool = toolCall.toolName.includes("__");
 
@@ -336,7 +353,7 @@ export async function POST(req: Request) {
                     toolName: toolCall.toolName,
                     input: toolCall.input,
                     output: result?.output,
-                    state: result ? "output-available" : "executing",
+                    state,
                   });
                 } else {
                   // Static tools use "tool-{toolName}" type
@@ -344,7 +361,7 @@ export async function POST(req: Request) {
                     type: `tool-${toolCall.toolName}`,
                     input: toolCall.input,
                     output: result?.output,
-                    state: result ? "output-available" : "executing",
+                    state,
                   });
                 }
               }
