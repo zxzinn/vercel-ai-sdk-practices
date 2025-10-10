@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-    const limit = Math.min(
-      Number.parseInt(searchParams.get("limit") || "50", 10),
-      100, // Maximum limit to prevent performance issues
-    );
+
+    // Parse and validate limit parameter
+    const parsedLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
+    const limit =
+      Number.isNaN(parsedLimit) || parsedLimit < 1
+        ? 50 // Default to 50 if invalid
+        : Math.min(parsedLimit, 100); // Cap at 100 to prevent performance issues
 
     const conversations = await prisma.conversation.findMany({
       where: userId ? { userId } : {},
@@ -31,14 +35,31 @@ export async function GET(request: Request) {
   }
 }
 
+const CreateConversationSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title cannot be empty")
+    .max(200, "Title is too long")
+    .trim(),
+  userId: z.string().optional(),
+});
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, userId } = body;
 
-    if (!title) {
-      return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    const validation = CreateConversationSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid request body",
+          details: validation.error.issues,
+        },
+        { status: 400 },
+      );
     }
+
+    const { title, userId } = validation.data;
 
     const conversation = await prisma.conversation.create({
       data: {

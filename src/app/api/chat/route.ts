@@ -299,36 +299,35 @@ export async function POST(req: Request) {
                 .join("\n") ||
               "";
 
-            // Atomically create or update conversation (prevents race condition)
+            // Atomically save conversation and messages in a transaction
+            // This prevents partial writes if any operation fails
             const title = userContent.slice(0, 100) || "New Conversation";
-            await prisma.conversation.upsert({
-              where: { id: conversationId },
-              create: {
-                id: conversationId,
-                title,
-              },
-              update: {
-                updatedAt: new Date(),
-              },
-            });
-
-            // Save user message
-            await prisma.conversationMessage.create({
-              data: {
-                conversationId,
-                role: "user",
-                content: userContent,
-              },
-            });
-
-            // Save assistant message
-            await prisma.conversationMessage.create({
-              data: {
-                conversationId,
-                role: "assistant",
-                content: assistantContent,
-              },
-            });
+            await prisma.$transaction([
+              prisma.conversation.upsert({
+                where: { id: conversationId },
+                create: {
+                  id: conversationId,
+                  title,
+                },
+                update: {
+                  updatedAt: new Date(),
+                },
+              }),
+              prisma.conversationMessage.create({
+                data: {
+                  conversationId,
+                  role: "user",
+                  content: userContent,
+                },
+              }),
+              prisma.conversationMessage.create({
+                data: {
+                  conversationId,
+                  role: "assistant",
+                  content: assistantContent,
+                },
+              }),
+            ]);
           } catch (error) {
             console.error("Failed to save conversation:", error);
             // Don't throw - we don't want to fail the response if DB save fails
