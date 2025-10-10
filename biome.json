@@ -10,20 +10,20 @@
   },
   "overrides": [
     {
-      "includes": ["src/components/ui/**", "src/hooks/use-mobile.ts"],
+      "includes": [
+        "src/components/ui/**",
+        "src/components/ai-elements/**",
+        "src/hooks/use-mobile.ts",
+        "scripts/**",
+        "src/generated/**"
+      ],
       "linter": {
         "enabled": false
       },
       "formatter": {
         "enabled": false
-      }
-    },
-    {
-      "includes": ["src/components/ai-elements/**"],
-      "linter": {
-        "enabled": false
       },
-      "formatter": {
+      "assist": {
         "enabled": false
       }
     }
