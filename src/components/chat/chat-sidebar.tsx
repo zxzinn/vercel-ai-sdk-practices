@@ -53,10 +53,7 @@ export function ChatSidebar() {
 
   const handleNewChat = () => {
     router.push("/chat");
-    // Refresh conversations list after a short delay to allow new conversation to be created
-    setTimeout(() => {
-      fetchConversations();
-    }, 1000);
+    // Note: New conversations are created when user sends first message
   };
 
   const handleDeleteConversation = async (
