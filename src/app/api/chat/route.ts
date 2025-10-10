@@ -11,6 +11,7 @@ import { getMCPConnection } from "@/lib/mcp/redis";
 import { prisma } from "@/lib/prisma";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
+import { generateImageTool } from "@/lib/tools/image/generate-image";
 import { ragQuery } from "@/lib/tools/rag/query";
 import { exaSearch } from "@/lib/tools/websearch/exa-search";
 import { perplexitySearch } from "@/lib/tools/websearch/perplexity-search";
@@ -167,6 +168,9 @@ export async function POST(req: Request) {
     if (rag) {
       availableTools.ragQuery = ragQuery;
     }
+
+    // Always add image generation tool
+    availableTools.generateImage = generateImageTool;
 
     // Add MCP tools if connections are provided
     if (mcpConnectionIds.length > 0 && sessionId) {

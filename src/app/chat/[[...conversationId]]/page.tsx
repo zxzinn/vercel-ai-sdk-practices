@@ -89,6 +89,7 @@ const TOOL_CONFIG: Record<string, { title: string }> = {
   exaSearch: { title: "Web Search (Exa)" },
   perplexitySearch: { title: "Web Search (Perplexity)" },
   ragQuery: { title: "Document Search (RAG)" },
+  generateImage: { title: "Image Generation" },
 };
 // Helper function for file upload to RAG
 async function uploadFilesToRAG(files: File[]) {
@@ -555,7 +556,7 @@ function ChatContent() {
                               }
 
                               default: {
-                                // Handle static tools (tavily, exa, rag...)
+                                // Handle static tools (tavily, exa, rag, generateImage...)
                                 if (
                                   part.type.startsWith("tool-") &&
                                   "state" in part
@@ -566,6 +567,100 @@ function ChatContent() {
                                   );
                                   const config = TOOL_CONFIG[toolName];
 
+                                  // Special handling for generateImage tool
+                                  if (
+                                    toolName === "generateImage" &&
+                                    part.state === "output-available"
+                                  ) {
+                                    return (
+                                      <div
+                                        key={`${message.id}-${i}`}
+                                        className="my-4"
+                                      >
+                                        <Tool defaultOpen={true}>
+                                          <ToolHeader
+                                            title={config?.title || toolName}
+                                            type={part.type}
+                                            state={part.state}
+                                          />
+                                          <ToolContent>
+                                            {part.input &&
+                                            typeof part.input === "object" &&
+                                            part.input !== null &&
+                                            "prompt" in part.input ? (
+                                              <div className="space-y-2 p-4">
+                                                <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+                                                  Prompt
+                                                </h4>
+                                                <p className="text-sm">
+                                                  {
+                                                    (
+                                                      part.input as {
+                                                        prompt: string;
+                                                      }
+                                                    ).prompt
+                                                  }
+                                                </p>
+                                              </div>
+                                            ) : null}
+                                            {part.output &&
+                                            typeof part.output === "object" &&
+                                            "url" in part.output ? (
+                                              <div className="p-4">
+                                                {/* biome-ignore lint/a11y/useAltText: Generated image, prompt is shown separately */}
+                                                <img
+                                                  src={
+                                                    (
+                                                      part.output as {
+                                                        url: string;
+                                                        size?: string;
+                                                        quality?: string;
+                                                      }
+                                                    ).url
+                                                  }
+                                                  className="max-w-full rounded-lg border"
+                                                  loading="lazy"
+                                                />
+                                                <p className="text-muted-foreground text-xs mt-2">
+                                                  Size:{" "}
+                                                  {
+                                                    (
+                                                      part.output as {
+                                                        size?: string;
+                                                      }
+                                                    ).size
+                                                  }{" "}
+                                                  • Quality:{" "}
+                                                  {
+                                                    (
+                                                      part.output as {
+                                                        quality?: string;
+                                                      }
+                                                    ).quality
+                                                  }
+                                                </p>
+                                              </div>
+                                            ) : null}
+                                            {"errorText" in part &&
+                                            part.errorText ? (
+                                              <ToolOutput
+                                                output={undefined}
+                                                errorText={
+                                                  (
+                                                    part as {
+                                                      errorText: string;
+                                                    }
+                                                  ).errorText
+                                                }
+                                              />
+                                            ) : null}
+                                          </ToolContent>
+                                        </Tool>
+                                      </div>
+                                    );
+                                  }
+
+                                  // Default tool rendering
                                   return (
                                     <Tool
                                       key={`${message.id}-${i}`}
