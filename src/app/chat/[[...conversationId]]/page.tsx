@@ -79,38 +79,16 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
 
-// Generic tool part type
-type ToolPart<TName extends string, TInput = unknown> = {
-  type: `tool-${TName}`;
-  state:
-    | "input-streaming"
-    | "input-available"
-    | "output-available"
-    | "output-error";
-  input?: TInput;
-  output?: unknown;
-  errorText?: string;
-};
-
-// Tool part types
-type TavilySearchToolPart = ToolPart<"tavilySearch", { query: string }>;
-type ExaSearchToolPart = ToolPart<"exaSearch", { query: string }>;
-type PerplexitySearchToolPart = ToolPart<"perplexitySearch", { query: string }>;
-type RAGQueryToolPart = ToolPart<
-  "ragQuery",
-  { query: string; topK?: number; collectionName?: string }
->;
-
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
 // Tool rendering configuration
-const TOOL_CONFIG = {
-  "tool-tavilySearch": { title: "Web Search (Tavily)" },
-  "tool-exaSearch": { title: "Web Search (Exa)" },
-  "tool-perplexitySearch": { title: "Web Search (Perplexity)" },
-  "tool-ragQuery": { title: "Document Search (RAG)" },
-} as const;
+const TOOL_CONFIG: Record<string, { title: string }> = {
+  tavilySearch: { title: "Web Search (Tavily)" },
+  exaSearch: { title: "Web Search (Exa)" },
+  perplexitySearch: { title: "Web Search (Perplexity)" },
+  ragQuery: { title: "Document Search (RAG)" },
+};
 // Helper function for file upload to RAG
 async function uploadFilesToRAG(files: File[]) {
   // Step 1: Get presigned upload URLs
@@ -540,65 +518,35 @@ function ChatContent() {
                                 return null;
 
                               case "dynamic-tool": {
-                                // Handle dynamic tools (including MCP tools)
-                                // Dynamic tools have type: 'dynamic-tool' with toolName property
-                                const dynamicToolPart = part as {
-                                  type: string;
-                                  toolName?: string;
-                                  state?:
-                                    | "input-streaming"
-                                    | "input-available"
-                                    | "output-available"
-                                    | "output-error";
-                                  result?: unknown;
-                                  input?: unknown;
-                                  output?: unknown;
-                                  errorText?: string;
-                                };
-                                const toolName = dynamicToolPart.toolName || "";
+                                // Handle MCP dynamic tools
+                                const toolName = part.toolName;
 
-                                // Parse tool name for MCP tools
-                                // Dynamic tools from MCP servers use format: serverName__toolName
-                                // (e.g., 'localhost__add' becomes 'localhost: add')
-                                // This naming convention is specific to dynamic tools created via
-                                // experimental_createMCPClient in src/app/api/chat/route.ts
-                                // Static tools (tavily, exa, etc.) don't use this format
+                                // Parse MCP tool names (format: serverName__toolName)
                                 let displayTitle = toolName;
                                 if (toolName.includes("__")) {
-                                  const parts = toolName.split("__");
-                                  const serverName = parts[0];
-                                  const actualToolName = parts
-                                    .slice(1)
-                                    .join("__");
-                                  displayTitle = `${serverName}: ${actualToolName}`;
+                                  const [serverName, ...rest] =
+                                    toolName.split("__");
+                                  displayTitle = `${serverName}: ${rest.join("__")}`;
                                 }
 
                                 return (
                                   <Tool
                                     key={`${message.id}-${i}`}
-                                    defaultOpen={
-                                      dynamicToolPart.state === "output-error"
-                                    }
+                                    defaultOpen={part.state === "output-error"}
                                   >
                                     <ToolHeader
                                       title={displayTitle}
-                                      type={`tool-${toolName}`}
-                                      state={
-                                        dynamicToolPart.state ||
-                                        "output-available"
-                                      }
+                                      type={`tool-${toolName}` as const}
+                                      state={part.state}
                                     />
                                     <ToolContent>
-                                      {dynamicToolPart.input ? (
-                                        <ToolInput
-                                          input={dynamicToolPart.input}
-                                        />
+                                      {part.input ? (
+                                        <ToolInput input={part.input} />
                                       ) : null}
-                                      {dynamicToolPart.output ||
-                                      dynamicToolPart.errorText ? (
+                                      {part.output || part.errorText ? (
                                         <ToolOutput
-                                          output={dynamicToolPart.output}
-                                          errorText={dynamicToolPart.errorText}
+                                          output={part.output}
+                                          errorText={part.errorText}
                                         />
                                       ) : null}
                                     </ToolContent>
@@ -606,47 +554,45 @@ function ChatContent() {
                                 );
                               }
 
-                              case "tool-tavilySearch":
-                              case "tool-exaSearch":
-                              case "tool-perplexitySearch":
-                              case "tool-ragQuery": {
-                                const config =
-                                  TOOL_CONFIG[
-                                    part.type as keyof typeof TOOL_CONFIG
-                                  ];
-                                if (!config) return null;
+                              default: {
+                                // Handle static tools (tavily, exa, rag...)
+                                if (
+                                  part.type.startsWith("tool-") &&
+                                  "state" in part
+                                ) {
+                                  const toolName = part.type.replace(
+                                    "tool-",
+                                    "",
+                                  );
+                                  const config = TOOL_CONFIG[toolName];
 
-                                const toolPart = part as unknown as
-                                  | TavilySearchToolPart
-                                  | ExaSearchToolPart
-                                  | PerplexitySearchToolPart
-                                  | RAGQueryToolPart;
-
-                                return (
-                                  <Tool
-                                    key={`${message.id}-${i}`}
-                                    defaultOpen={
-                                      toolPart.state === "output-error"
-                                    }
-                                  >
-                                    <ToolHeader
-                                      title={config.title}
-                                      type={toolPart.type}
-                                      state={toolPart.state}
-                                    />
-                                    <ToolContent>
-                                      {toolPart.input ? (
-                                        <ToolInput input={toolPart.input} />
-                                      ) : null}
-                                      {toolPart.output || toolPart.errorText ? (
-                                        <ToolOutput
-                                          output={toolPart.output}
-                                          errorText={toolPart.errorText}
-                                        />
-                                      ) : null}
-                                    </ToolContent>
-                                  </Tool>
-                                );
+                                  return (
+                                    <Tool
+                                      key={`${message.id}-${i}`}
+                                      defaultOpen={
+                                        part.state === "output-error"
+                                      }
+                                    >
+                                      <ToolHeader
+                                        title={config?.title || toolName}
+                                        type={part.type}
+                                        state={part.state}
+                                      />
+                                      <ToolContent>
+                                        {part.input ? (
+                                          <ToolInput input={part.input} />
+                                        ) : null}
+                                        {part.output || part.errorText ? (
+                                          <ToolOutput
+                                            output={part.output}
+                                            errorText={part.errorText}
+                                          />
+                                        ) : null}
+                                      </ToolContent>
+                                    </Tool>
+                                  );
+                                }
+                                return null;
                               }
 
                               case "step-start":
@@ -659,10 +605,6 @@ function ChatContent() {
                                     <hr className="my-2 border-gray-300" />
                                   </div>
                                 ) : null;
-
-                              default:
-                                // Unknown part type - ignore
-                                return null;
                             }
                           })}
                         </Fragment>
