@@ -126,6 +126,18 @@ export interface UploadGeneratedImageResult {
   filename: string;
 }
 
+function getFileExtensionFromMediaType(mediaType: string): string {
+  const mediaTypeMap: Record<string, string> = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+  };
+
+  return mediaTypeMap[mediaType.toLowerCase()] || ".png";
+}
+
 export async function uploadGeneratedImage({
   userId,
   imageBuffer,
@@ -139,7 +151,8 @@ export async function uploadGeneratedImage({
     .slice(0, 50)
     .replace(/[^a-z0-9]/gi, "_")
     .toLowerCase();
-  const filename = `${timestamp}_${sanitizedPrompt}.png`;
+  const extension = getFileExtensionFromMediaType(mediaType);
+  const filename = `${timestamp}_${sanitizedPrompt}${extension}`;
   const filePath = `${userId}/${filename}`;
 
   const { error: uploadError } = await supabase.storage
