@@ -1,22 +1,8 @@
 import { openai } from "@ai-sdk/openai";
-import { createClient } from "@supabase/supabase-js";
 import { experimental_generateImage as generateImage } from "ai";
 import { z } from "zod";
-
-const BUCKET_NAME = "generated-images";
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set for image generation",
-    );
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
+import { uploadGeneratedImage } from "@/lib/storage/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const generateImageTool = {
   description:
@@ -48,8 +34,16 @@ export const generateImageTool = {
     quality?: "standard" | "hd";
   }) => {
     try {
-      // Get Supabase client (lazy initialization)
-      const supabase = getSupabaseClient();
+      // Get authenticated user
+      const supabase = await createClient();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error("Authentication required to generate images");
+      }
 
       // Generate image using DALL-E 3
       const { image } = await generateImage({
@@ -59,7 +53,7 @@ export const generateImageTool = {
         providerOptions: {
           openai: {
             quality,
-            style: "vivid", // 'vivid' for more dramatic, 'natural' for more realistic
+            style: "vivid",
           },
         },
       });
@@ -67,44 +61,16 @@ export const generateImageTool = {
       // Convert base64 to buffer
       const imageBuffer = Buffer.from(image.base64, "base64");
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const sanitizedPrompt = prompt
-        .slice(0, 50)
-        .replace(/[^a-z0-9]/gi, "_")
-        .toLowerCase();
-      const filename = `${timestamp}_${sanitizedPrompt}.png`;
-
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(filename, imageBuffer, {
-          contentType: image.mediaType,
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error("Failed to upload image to Supabase:", uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-
-      // Get signed URL (valid for 1 hour)
-      // This works even if bucket is private
-      const { data: signedUrlData, error: signedUrlError } =
-        await supabase.storage
-          .from(BUCKET_NAME)
-          .createSignedUrl(filename, 3600); // 3600 seconds = 1 hour
-
-      if (signedUrlError || !signedUrlData) {
-        console.error("Failed to create signed URL:", signedUrlError);
-        throw new Error(
-          `Signed URL creation failed: ${signedUrlError?.message}`,
-        );
-      }
+      // Upload to Supabase Storage with authentication
+      const { signedUrl, filename } = await uploadGeneratedImage({
+        userId: user.id,
+        imageBuffer,
+        mediaType: image.mediaType,
+        prompt,
+      });
 
       return {
-        url: signedUrlData.signedUrl,
+        url: signedUrl,
         prompt,
         size,
         quality,

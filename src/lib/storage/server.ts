@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 const STORAGE_BUCKET = "documents";
+const GENERATED_IMAGES_BUCKET = "generated-images";
 
 export interface UploadFileOptions {
   userId: string;
@@ -111,4 +112,60 @@ export async function deleteFolder(
       throw new Error(`Failed to delete files: ${deleteError.message}`);
     }
   }
+}
+
+export interface UploadGeneratedImageOptions {
+  userId: string;
+  imageBuffer: Buffer;
+  mediaType: string;
+  prompt: string;
+}
+
+export interface UploadGeneratedImageResult {
+  signedUrl: string;
+  filename: string;
+}
+
+export async function uploadGeneratedImage({
+  userId,
+  imageBuffer,
+  mediaType,
+  prompt,
+}: UploadGeneratedImageOptions): Promise<UploadGeneratedImageResult> {
+  const supabase = await createClient();
+
+  const timestamp = Date.now();
+  const sanitizedPrompt = prompt
+    .slice(0, 50)
+    .replace(/[^a-z0-9]/gi, "_")
+    .toLowerCase();
+  const filename = `${timestamp}_${sanitizedPrompt}.png`;
+  const filePath = `${userId}/${filename}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(GENERATED_IMAGES_BUCKET)
+    .upload(filePath, imageBuffer, {
+      contentType: mediaType,
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error("Failed to upload image:", uploadError);
+    throw new Error(`Upload failed: ${uploadError.message}`);
+  }
+
+  const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+    .from(GENERATED_IMAGES_BUCKET)
+    .createSignedUrl(filePath, 3600);
+
+  if (signedUrlError || !signedUrlData) {
+    console.error("Failed to create signed URL:", signedUrlError);
+    throw new Error(`Signed URL creation failed: ${signedUrlError?.message}`);
+  }
+
+  return {
+    signedUrl: signedUrlData.signedUrl,
+    filename,
+  };
 }
