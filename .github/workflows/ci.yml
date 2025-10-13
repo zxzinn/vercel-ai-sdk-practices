@@ -8,7 +8,7 @@ on:
 
 jobs:
   ci:
-    runs-on: self-hosted
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
 
     steps:
       - name: Checkout code
