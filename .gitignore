@@ -44,3 +44,5 @@ CLAUDE.md
 /src/generated/prisma
 playwright-report
 test-results
+# Turborepo
+.turbo

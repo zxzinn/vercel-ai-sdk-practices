@@ -40,10 +40,12 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build project
+      - name: Build project with Turbo
         env:
           SKIP_ENV_VALIDATION: "1"
-        run: npm run build
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+        run: npx turbo build
 
   e2e:
     runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
@@ -84,12 +86,14 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install
 
-      - name: Build project
+      - name: Build project with Turbo
         env:
           SKIP_ENV_VALIDATION: "1"
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        run: npm run build
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+        run: npx turbo build
 
       - name: Run Playwright tests
         env:
