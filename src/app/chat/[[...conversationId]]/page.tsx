@@ -15,7 +15,14 @@ import {
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
   Conversation,
@@ -193,7 +200,8 @@ function ChatContent() {
     Array<{ id: string; name: string }>
   >([]);
   const [hasUpdatedUrl, setHasUpdatedUrl] = useState(false);
-  const [isNewConversation, setIsNewConversation] = useState(false);
+  // Use ref instead of state to avoid triggering useEffect when value changes
+  const isNewConversationRef = useRef(false);
 
   useEffect(() => {
     setSessionId(getSessionId());
@@ -201,13 +209,13 @@ function ChatContent() {
     if (urlConversationId) {
       setConversationId(urlConversationId);
       setHasUpdatedUrl(true); // URL already has conversationId
-      setIsNewConversation(false); // Existing conversation from URL
+      // Don't set isNewConversationRef here - let loadConversation handle it
     } else {
       setConversationId(
         `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       );
       setHasUpdatedUrl(false); // New conversation, need to update URL later
-      setIsNewConversation(true); // New conversation
+      isNewConversationRef.current = true; // New conversation
     }
   }, [urlConversationId]);
 
@@ -254,8 +262,8 @@ function ChatContent() {
 
       // Skip loading history for new conversations (created by optimistic update)
       // to prevent clearing user's first message
-      if (isNewConversation) {
-        setIsNewConversation(false); // Reset flag after first check
+      if (isNewConversationRef.current) {
+        isNewConversationRef.current = false; // Reset flag after first check
         return;
       }
 
@@ -307,7 +315,7 @@ function ChatContent() {
     }
 
     loadConversation();
-  }, [urlConversationId, setMessages, isNewConversation]);
+  }, [urlConversationId, setMessages]);
 
   // Custom regenerate function that includes our body parameters
   const regenerate = () => {

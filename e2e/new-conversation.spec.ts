@@ -23,12 +23,16 @@ test.describe("New Conversation Flow", () => {
       timeout: 5000,
     });
 
-    // Verify message appears and doesn't disappear
-    await expect(page.getByText("Test message for URL update")).toBeVisible();
+    // Verify message appears in chat area (not sidebar) and doesn't disappear
+    await expect(
+      page.getByRole("log").getByText("Test message for URL update"),
+    ).toBeVisible({ timeout: 10000 });
 
     // Wait a bit to ensure message doesn't disappear
     await page.waitForTimeout(1000);
-    await expect(page.getByText("Test message for URL update")).toBeVisible();
+    await expect(
+      page.getByRole("log").getByText("Test message for URL update"),
+    ).toBeVisible();
   });
 
   test("should clear chat when clicking New Chat button", async ({ page }) => {
@@ -45,8 +49,10 @@ test.describe("New Conversation Flow", () => {
       timeout: 5000,
     });
 
-    // Verify message is visible
-    await expect(page.getByText("Message to be cleared")).toBeVisible();
+    // Verify message is visible in chat area
+    await expect(
+      page.getByRole("log").getByText("Message to be cleared"),
+    ).toBeVisible({ timeout: 10000 });
 
     // Click "New Chat" button
     await page.getByRole("button", { name: "New chat" }).click();
@@ -54,8 +60,10 @@ test.describe("New Conversation Flow", () => {
     // Verify URL changes back to /chat
     await expect(page).toHaveURL(/\/chat$/);
 
-    // Verify message is cleared (should not be visible anymore)
-    await expect(page.getByText("Message to be cleared")).not.toBeVisible();
+    // Verify message is cleared in chat area (should not be visible anymore)
+    await expect(
+      page.getByRole("log").getByText("Message to be cleared"),
+    ).not.toBeVisible();
 
     // Verify input is ready for new message
     await expect(messageInput).toBeVisible();
@@ -78,15 +86,17 @@ test.describe("New Conversation Flow", () => {
       timeout: 5000,
     });
 
-    // Verify user message is visible
-    await expect(page.getByText(testMessage)).toBeVisible();
+    // Verify user message is visible in chat area
+    await expect(page.getByRole("log").getByText(testMessage)).toBeVisible({
+      timeout: 10000,
+    });
 
     // Wait for AI response to start (look for thinking/loader indicator)
     // This ensures we're testing the message persistence during AI response
     await page.waitForTimeout(2000);
 
     // Verify user message is still visible after AI starts responding
-    await expect(page.getByText(testMessage)).toBeVisible();
+    await expect(page.getByRole("log").getByText(testMessage)).toBeVisible();
   });
 
   test("complete workflow: new chat -> send message -> new chat again", async ({
@@ -106,14 +116,16 @@ test.describe("New Conversation Flow", () => {
     });
     const firstConversationUrl = page.url();
 
-    // Verify first message is visible
-    await expect(page.getByText("First conversation message")).toBeVisible();
+    // Verify first message is visible in chat area
+    await expect(
+      page.getByRole("log").getByText("First conversation message"),
+    ).toBeVisible({ timeout: 10000 });
 
     // Click New Chat
     await page.getByRole("button", { name: "New chat" }).click();
     await expect(page).toHaveURL(/\/chat$/);
     await expect(
-      page.getByText("First conversation message"),
+      page.getByRole("log").getByText("First conversation message"),
     ).not.toBeVisible();
 
     // Send second message in new conversation
@@ -129,10 +141,12 @@ test.describe("New Conversation Flow", () => {
     // Verify we have a different conversation
     expect(firstConversationUrl).not.toBe(secondConversationUrl);
 
-    // Verify second message is visible and first is not
-    await expect(page.getByText("Second conversation message")).toBeVisible();
+    // Verify second message is visible in chat area and first is not
     await expect(
-      page.getByText("First conversation message"),
+      page.getByRole("log").getByText("Second conversation message"),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole("log").getByText("First conversation message"),
     ).not.toBeVisible();
   });
 });
