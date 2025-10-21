@@ -292,7 +292,11 @@ function ChatContent() {
 
               return message;
             })
-            .filter((msg): msg is NonNullable<typeof msg> => msg !== null);
+            .filter(
+              (
+                msg: Record<string, unknown> | null,
+              ): msg is Record<string, unknown> => msg !== null,
+            );
           setMessages(historyMessages);
         }
       } catch (error) {
