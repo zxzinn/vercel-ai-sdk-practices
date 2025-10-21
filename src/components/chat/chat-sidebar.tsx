@@ -51,9 +51,24 @@ export function ChatSidebar() {
     fetchConversations();
   }, [fetchConversations]);
 
+  // Refresh conversations when URL changes (new conversation created)
+  useEffect(() => {
+    const conversationId = searchParams.get("id");
+    if (conversationId) {
+      // New conversation was created, refresh the list
+      fetchConversations();
+    }
+  }, [searchParams, fetchConversations]);
+
   const handleNewChat = () => {
-    router.push("/chat");
-    // Note: New conversations are created when user sends first message
+    // Force navigation to /chat without query params to start a new conversation
+    // Using router.replace to avoid adding to history stack
+    router.replace("/chat");
+    // Refresh the page to reset component state
+    if (pathname === "/chat" && !searchParams.get("id")) {
+      // Already on new chat page, force refresh
+      router.refresh();
+    }
   };
 
   const handleDeleteConversation = async (
