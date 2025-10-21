@@ -248,17 +248,14 @@ function ChatContent() {
     },
   });
 
-  // Clear messages when starting a new conversation (when URL has no conversationId)
-  useEffect(() => {
-    if (!urlConversationId) {
-      setMessages([]);
-    }
-  }, [urlConversationId, setMessages]);
-
-  // Load conversation history if conversationId is provided
+  // Manage conversation messages: clear when no ID, load when ID provided
   useEffect(() => {
     async function loadConversation() {
-      if (!urlConversationId) return;
+      // Clear messages when starting a new conversation (no conversationId in URL)
+      if (!urlConversationId) {
+        setMessages([]);
+        return;
+      }
 
       // Skip loading history for new conversations (created by optimistic update)
       // to prevent clearing user's first message
@@ -267,7 +264,7 @@ function ChatContent() {
         return;
       }
 
-      // Clear messages first when switching conversations
+      // Clear messages first when switching to a different existing conversation
       setMessages([]);
       setLoadingHistory(true);
 
