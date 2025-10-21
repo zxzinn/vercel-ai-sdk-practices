@@ -1,8 +1,8 @@
 "use client";
 
 import { MessageSquareIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -25,13 +25,14 @@ type Conversation = {
 };
 
 export function ChatSidebar() {
-  const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeConversationId = searchParams.get("id");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  // Track previous conversation ID to avoid refetching when switching between existing conversations
+  const prevConversationIdRef = useRef<string | null>(null);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -51,9 +52,21 @@ export function ChatSidebar() {
     fetchConversations();
   }, [fetchConversations]);
 
+  // Refresh conversations only when a NEW conversation is created (ID changes)
+  useEffect(() => {
+    const conversationId = searchParams.get("id");
+    if (conversationId && conversationId !== prevConversationIdRef.current) {
+      // New conversation was created, refresh the list
+      fetchConversations();
+      prevConversationIdRef.current = conversationId;
+    }
+  }, [searchParams, fetchConversations]);
+
   const handleNewChat = () => {
-    router.push("/chat");
-    // Note: New conversations are created when user sends first message
+    // Force navigation to /chat without query params to start a new conversation
+    // Using router.replace to avoid adding to history stack
+    router.replace("/chat");
+    // Note: State clearing is handled by useEffect in page.tsx (lines 251-256)
   };
 
   const handleDeleteConversation = async (

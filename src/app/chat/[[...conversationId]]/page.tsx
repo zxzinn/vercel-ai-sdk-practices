@@ -14,8 +14,15 @@ import {
   XIcon,
 } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useSearchParams } from "next/navigation";
-import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
   Conversation,
@@ -178,6 +185,7 @@ const searchProviderOptions = [
 
 function ChatContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const urlConversationId = searchParams.get("id");
 
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
@@ -191,16 +199,23 @@ function ChatContent() {
   const [mcpConnections, setMcpConnections] = useState<
     Array<{ id: string; name: string }>
   >([]);
+  const [hasUpdatedUrl, setHasUpdatedUrl] = useState(false);
+  // Use ref instead of state to avoid triggering useEffect when value changes
+  const isNewConversationRef = useRef(false);
 
   useEffect(() => {
     setSessionId(getSessionId());
     // Use URL conversationId or generate new one
     if (urlConversationId) {
       setConversationId(urlConversationId);
+      setHasUpdatedUrl(true); // URL already has conversationId
+      // Don't set isNewConversationRef here - let loadConversation handle it
     } else {
       setConversationId(
         `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       );
+      setHasUpdatedUrl(false); // New conversation, need to update URL later
+      isNewConversationRef.current = true; // New conversation
     }
   }, [urlConversationId]);
 
@@ -233,12 +248,23 @@ function ChatContent() {
     },
   });
 
-  // Load conversation history if conversationId is provided
+  // Manage conversation messages: clear when no ID, load when ID provided
   useEffect(() => {
     async function loadConversation() {
-      if (!urlConversationId) return;
+      // Clear messages when starting a new conversation (no conversationId in URL)
+      if (!urlConversationId) {
+        setMessages([]);
+        return;
+      }
 
-      // Clear messages first when switching conversations
+      // Skip loading history for new conversations (created by optimistic update)
+      // to prevent clearing user's first message
+      if (isNewConversationRef.current) {
+        isNewConversationRef.current = false; // Reset flag after first check
+        return;
+      }
+
+      // Clear messages first when switching to a different existing conversation
       setMessages([]);
       setLoadingHistory(true);
 
@@ -249,7 +275,7 @@ function ChatContent() {
         if (response.ok) {
           const data = await response.json();
           const historyMessages = data.conversation.messages
-            .map((msg: { role: string; content: any }) => {
+            .map((msg: { role: string; content: unknown }) => {
               // Defensive: ensure content exists and is an object
               if (!msg.content || typeof msg.content !== "object") {
                 console.warn("Invalid message content:", msg);
@@ -257,7 +283,7 @@ function ChatContent() {
               }
 
               // Content is stored as complete UIMessage object
-              const message = msg.content;
+              const message = msg.content as Record<string, unknown>;
 
               // Add id if missing
               if (!message.id) {
@@ -271,7 +297,11 @@ function ChatContent() {
 
               return message;
             })
-            .filter((msg: any): msg is NonNullable<typeof msg> => msg !== null);
+            .filter(
+              (
+                msg: Record<string, unknown> | null,
+              ): msg is Record<string, unknown> => msg !== null,
+            );
           setMessages(historyMessages);
         }
       } catch (error) {
@@ -334,6 +364,13 @@ function ChatContent() {
         },
       },
     );
+
+    // Optimistic URL update: Update URL immediately after sending message
+    if (!urlConversationId && !hasUpdatedUrl) {
+      setHasUpdatedUrl(true);
+      // Keep isNewConversation flag true so history loading is skipped
+      router.push(`/chat?id=${conversationId}`, { scroll: false });
+    }
   };
 
   return (
@@ -572,6 +609,17 @@ function ChatContent() {
                                 );
                               }
 
+                              case "step-start":
+                                // Step boundary - render a separator
+                                return i > 0 ? (
+                                  <div
+                                    key={`${message.id}-${i}`}
+                                    className="text-gray-500"
+                                  >
+                                    <hr className="my-2 border-gray-300" />
+                                  </div>
+                                ) : null;
+
                               default: {
                                 // Handle static tools (tavily, exa, rag, generateImage...)
                                 if (
@@ -625,6 +673,7 @@ function ChatContent() {
                                             "url" in part.output ? (
                                               <div className="p-4">
                                                 {/* biome-ignore lint/a11y/useAltText: Generated image, prompt is shown separately */}
+                                                {/* biome-ignore lint/performance/noImgElement: Dynamic AI-generated URLs cannot use Next.js Image without runtime configuration */}
                                                 <img
                                                   src={
                                                     (
@@ -706,17 +755,6 @@ function ChatContent() {
                                 }
                                 return null;
                               }
-
-                              case "step-start":
-                                // Step boundary - render a separator
-                                return i > 0 ? (
-                                  <div
-                                    key={`${message.id}-${i}`}
-                                    className="text-gray-500"
-                                  >
-                                    <hr className="my-2 border-gray-300" />
-                                  </div>
-                                ) : null;
                             }
                           })}
                         </Fragment>
