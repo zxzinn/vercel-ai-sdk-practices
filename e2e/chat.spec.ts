@@ -14,8 +14,8 @@ test("send chat message", async ({ page }) => {
   await messageInput.fill("Hi");
   await messageInput.press("Enter");
 
-  // Verify the message appears on the page
-  await expect(page.getByText("Hi")).toBeVisible();
+  // Verify the message appears in the chat area (not sidebar)
+  await expect(page.getByRole("log").getByText("Hi")).toBeVisible();
 
   // Verify the input box is cleared
   await expect(messageInput).toHaveValue("");
