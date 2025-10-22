@@ -5,7 +5,6 @@ import {
   AlertCircleIcon,
   BrainIcon,
   CopyIcon,
-  DatabaseIcon,
   GlobeIcon,
   PaperclipIcon,
   PlugIcon,
@@ -105,9 +104,11 @@ function ChatContent() {
 
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
-  const [ragEnabled, setRagEnabled] = useState<boolean>(false);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
+
+  // Auto-enable RAG when a space is selected
+  const ragEnabled = Boolean(selectedSpaceId);
   const [sessionId, setSessionId] = useState<string>("");
   const [conversationId, setConversationId] = useState<string>("");
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -719,15 +720,6 @@ function ChatContent() {
                     selectedSpaceId={selectedSpaceId}
                     onSpaceChange={setSelectedSpaceId}
                   />
-                  <Button
-                    variant={ragEnabled ? "default" : "ghost"}
-                    size="sm"
-                    className="h-8"
-                    onClick={() => setRagEnabled(!ragEnabled)}
-                  >
-                    <DatabaseIcon size={16} />
-                    <span>RAG {ragEnabled ? "ON" : "OFF"}</span>
-                  </Button>
                   <Button
                     variant={reasoningEnabled ? "default" : "ghost"}
                     size="sm"
