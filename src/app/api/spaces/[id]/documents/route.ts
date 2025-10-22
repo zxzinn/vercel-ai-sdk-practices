@@ -3,7 +3,7 @@ import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {

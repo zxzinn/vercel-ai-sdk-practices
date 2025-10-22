@@ -56,7 +56,7 @@ describe("sanitizeFileName", () => {
   });
 
   it("should handle very long filenames", () => {
-    const longName = "a".repeat(100) + ".txt";
+    const longName = `${"a".repeat(100)}.txt`;
     const result = sanitizeFileName(longName);
     expect(result).toBe(longName);
     expect(result.endsWith(".txt")).toBe(true);

@@ -13,6 +13,10 @@ export const ragQuery = {
       .optional()
       .default(5)
       .describe("Number of results to return (default: 5)"),
+    spaceId: z
+      .string()
+      .optional()
+      .describe("Specific Space ID to search in (optional)"),
     collectionName: z
       .string()
       .optional()
@@ -21,16 +25,24 @@ export const ragQuery = {
   execute: async ({
     query,
     topK,
+    spaceId,
     collectionName,
   }: {
     query: string;
     topK?: number;
+    spaceId?: string;
     collectionName?: string;
   }) => {
     try {
+      let finalCollectionName = collectionName;
+
+      if (spaceId) {
+        finalCollectionName = `space_${spaceId}`;
+      }
+
       const result = await ragService.query(query, {
         topK,
-        collectionName,
+        collectionName: finalCollectionName,
         scoreThreshold: 0.3,
       });
 

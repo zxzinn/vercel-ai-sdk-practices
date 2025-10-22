@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 const STORAGE_BUCKET = "documents";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
   try {
@@ -66,7 +66,7 @@ export async function GET(
 }
 
 export async function DELETE(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
   try {
