@@ -68,9 +68,3 @@ export function createRagQueryTool(boundSpaceId: string) {
     },
   };
 }
-
-/**
- * Legacy export for backward compatibility
- * @deprecated Use createRagQueryTool() with a spaceId instead
- */
-export const ragQuery = createRagQueryTool("");
