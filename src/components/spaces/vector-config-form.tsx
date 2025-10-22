@@ -2,6 +2,7 @@
 
 import { AlertCircle, Database, Settings2 } from "lucide-react";
 import { useState } from "react";
+import { EmbeddingModelSelector } from "@/components/embedding-model-selector";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +21,8 @@ interface VectorConfigFormProps {
   onProviderChange: (provider: VectorProviderType) => void;
   config: Record<string, unknown>;
   onConfigChange: (config: Record<string, unknown>) => void;
-  embeddingModel: string;
-  onEmbeddingModelChange: (model: string) => void;
+  embeddingModelId: string;
+  onEmbeddingModelIdChange: (modelId: string) => void;
   embeddingDim: number;
   onEmbeddingDimChange: (dim: number) => void;
 }
@@ -38,26 +39,13 @@ const AVAILABLE_PROVIDERS: Array<{
   { value: "CHROMA", label: "ChromaDB", available: false },
 ];
 
-const EMBEDDING_MODELS = [
-  { value: "cohere/embed-v4.0", label: "Cohere Embed v4.0 (Recommended)" },
-  { value: "openai/text-embedding-3-small", label: "OpenAI Small" },
-  { value: "openai/text-embedding-3-large", label: "OpenAI Large" },
-];
-
-const EMBEDDING_DIMENSIONS = [
-  { value: 256, label: "256" },
-  { value: 512, label: "512" },
-  { value: 1024, label: "1024" },
-  { value: 1536, label: "1536 (Recommended)" },
-];
-
 export function VectorConfigForm({
   provider,
   onProviderChange,
   config,
   onConfigChange,
-  embeddingModel,
-  onEmbeddingModelChange,
+  embeddingModelId,
+  onEmbeddingModelIdChange,
   embeddingDim,
   onEmbeddingDimChange,
 }: VectorConfigFormProps) {
@@ -207,46 +195,14 @@ export function VectorConfigForm({
         <h3 className="font-medium">Embedding Configuration</h3>
 
         <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="embedding-model">Embedding Model</Label>
-            <Select
-              value={embeddingModel}
-              onValueChange={onEmbeddingModelChange}
-            >
-              <SelectTrigger id="embedding-model">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {EMBEDDING_MODELS.map((model) => (
-                  <SelectItem key={model.value} value={model.value}>
-                    {model.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="embedding-dim">Vector Dimension</Label>
-            <Select
-              value={embeddingDim.toString()}
-              onValueChange={(value) => onEmbeddingDimChange(Number(value))}
-            >
-              <SelectTrigger id="embedding-dim">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {EMBEDDING_DIMENSIONS.map((dim) => (
-                  <SelectItem key={dim.value} value={dim.value.toString()}>
-                    {dim.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Higher dimensions = better accuracy but slower and more expensive
-            </p>
-          </div>
+          <EmbeddingModelSelector
+            value={embeddingModelId}
+            dimension={embeddingDim}
+            onValueChange={(modelId, defaultDim) => {
+              onEmbeddingModelIdChange(modelId);
+            }}
+            onDimensionChange={onEmbeddingDimChange}
+          />
         </div>
       </div>
 

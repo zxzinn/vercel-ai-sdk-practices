@@ -15,6 +15,25 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model EmbeddingModel {
+  id          String  @id
+  name        String
+  provider    String
+  dimensions  Int[]
+  defaultDim  Int
+  maxTokens   Int
+  costPer1M   Float?
+  description String?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  spaces Space[]
+
+  @@index([provider, isActive])
+  @@map("embedding_models")
+}
+
 model Conversation {
   id        String   @id @default(cuid())
   title     String
@@ -49,9 +68,12 @@ model Space {
 
   // Vector database configuration
   vectorProvider  VectorProvider @default(MILVUS)
-  vectorConfig    Json?          @db.JsonB // Provider-specific config
-  embeddingModel  String         @default("cohere/embed-v4.0")
-  embeddingDim    Int            @default(1536)
+  vectorConfig    Json?          @db.JsonB
+
+  // Embedding configuration (immutable after creation)
+  embeddingModelId String
+  embeddingModel   EmbeddingModel @relation(fields: [embeddingModelId], references: [id], onUpdate: Restrict)
+  embeddingDim     Int
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -61,6 +83,7 @@ model Space {
 
   @@index([userId, createdAt])
   @@index([vectorProvider])
+  @@index([embeddingModelId])
   @@map("spaces")
 }
 

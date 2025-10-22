@@ -66,13 +66,26 @@ export class RAGService {
       const provider = this.providerCache.get(spaceId)!;
       const space = await prisma.space.findUnique({
         where: { id: spaceId },
-        select: { embeddingModel: true, embeddingDim: true },
+        select: {
+          embeddingModel: {
+            select: { id: true, dimensions: true },
+          },
+          embeddingDim: true,
+        },
       });
       if (!space) throw new Error(`Space ${spaceId} not found`);
 
+      // Validate dimension is supported
+      if (!space.embeddingModel.dimensions.includes(space.embeddingDim)) {
+        throw new Error(
+          `Invalid dimension ${space.embeddingDim} for model ${space.embeddingModel.id}. ` +
+            `Supported: ${space.embeddingModel.dimensions.join(", ")}`,
+        );
+      }
+
       return {
         provider,
-        embeddingModel: space.embeddingModel,
+        embeddingModel: space.embeddingModel.id,
         embeddingDim: space.embeddingDim,
       };
     }
@@ -83,13 +96,28 @@ export class RAGService {
       select: {
         vectorProvider: true,
         vectorConfig: true,
-        embeddingModel: true,
+        embeddingModel: {
+          select: {
+            id: true,
+            name: true,
+            dimensions: true,
+            maxTokens: true,
+          },
+        },
         embeddingDim: true,
       },
     });
 
     if (!space) {
       throw new Error(`Space ${spaceId} not found`);
+    }
+
+    // Validate dimension is supported
+    if (!space.embeddingModel.dimensions.includes(space.embeddingDim)) {
+      throw new Error(
+        `Invalid dimension ${space.embeddingDim} for model ${space.embeddingModel.id}. ` +
+          `Supported: ${space.embeddingModel.dimensions.join(", ")}`,
+      );
     }
 
     // Create provider instance
@@ -103,7 +131,7 @@ export class RAGService {
 
     return {
       provider,
-      embeddingModel: space.embeddingModel,
+      embeddingModel: space.embeddingModel.id,
       embeddingDim: space.embeddingDim,
     };
   }

@@ -12,8 +12,8 @@ const CreateSpaceSchema = z.object({
   vectorConfig: z
     .record(z.string(), z.unknown())
     .describe("Vector database connection configuration (required)"),
-  embeddingModel: z.string().optional().default("cohere/embed-v4.0"),
-  embeddingDim: z.number().int().positive().optional().default(1536),
+  embeddingModelId: z.string().min(1, "Embedding model ID is required"),
+  embeddingDim: z.number().int().positive(),
 });
 
 export async function GET() {
@@ -82,9 +82,38 @@ export async function POST(req: Request) {
       description,
       vectorProvider,
       vectorConfig,
-      embeddingModel,
+      embeddingModelId,
       embeddingDim,
     } = validation.data;
+
+    // Validate embedding model exists
+    const embeddingModel = await prisma.embeddingModel.findUnique({
+      where: { id: embeddingModelId },
+    });
+
+    if (!embeddingModel) {
+      return NextResponse.json(
+        {
+          error: "Invalid embedding model",
+          details: [`Embedding model '${embeddingModelId}' not found`],
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate dimension is supported by the model
+    if (!embeddingModel.dimensions.includes(embeddingDim)) {
+      return NextResponse.json(
+        {
+          error: "Invalid embedding dimension",
+          details: [
+            `Dimension ${embeddingDim} not supported by ${embeddingModel.name}. ` +
+              `Supported dimensions: ${embeddingModel.dimensions.join(", ")}`,
+          ],
+        },
+        { status: 400 },
+      );
+    }
 
     // Validate vector configuration (required for all providers)
     if (!vectorConfig) {
@@ -120,10 +149,11 @@ export async function POST(req: Request) {
         userId,
         vectorProvider,
         vectorConfig: (vectorConfig ?? null) as Prisma.InputJsonValue,
-        embeddingModel,
+        embeddingModelId,
         embeddingDim,
       },
       include: {
+        embeddingModel: true,
         _count: {
           select: {
             documents: true,

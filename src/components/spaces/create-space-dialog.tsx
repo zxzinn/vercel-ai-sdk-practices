@@ -41,7 +41,7 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
     M: 16,
     efConstruction: 200,
   });
-  const [embeddingModel, setEmbeddingModel] = useState("cohere/embed-v4.0");
+  const [embeddingModelId, setEmbeddingModelId] = useState("cohere/embed-v4.0");
   const [embeddingDim, setEmbeddingDim] = useState(1536);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,7 +58,7 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
           description,
           vectorProvider,
           vectorConfig,
-          embeddingModel,
+          embeddingModelId,
           embeddingDim,
         }),
       });
@@ -80,7 +80,7 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
         M: 16,
         efConstruction: 200,
       });
-      setEmbeddingModel("cohere/embed-v4.0");
+      setEmbeddingModelId("cohere/embed-v4.0");
       setEmbeddingDim(1536);
       router.push(`/spaces/${data.space.id}`);
       router.refresh();
@@ -147,8 +147,8 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
                 onProviderChange={setVectorProvider}
                 config={vectorConfig}
                 onConfigChange={setVectorConfig}
-                embeddingModel={embeddingModel}
-                onEmbeddingModelChange={setEmbeddingModel}
+                embeddingModelId={embeddingModelId}
+                onEmbeddingModelIdChange={setEmbeddingModelId}
                 embeddingDim={embeddingDim}
                 onEmbeddingDimChange={setEmbeddingDim}
               />
