@@ -139,9 +139,9 @@ export async function POST(req: Request) {
       chunkOverlap: 200,
     });
 
-    // Persist document records with transaction rollback support
+    // Persist document records with atomic transaction rollback support
     try {
-      await Promise.all(
+      await prisma.$transaction(
         files.map((file) => {
           const docChunks = result.documentsChunks.find(
             (dc) => dc.documentId === file.documentId,

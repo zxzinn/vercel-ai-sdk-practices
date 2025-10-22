@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { VectorProvider } from "@/generated/prisma";
+import { type Prisma, VectorProvider } from "@/generated/prisma";
 import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import { validateProviderConfig } from "@/lib/vector";
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
         description,
         userId,
         vectorProvider,
-        vectorConfig: vectorConfig as never,
+        vectorConfig: (vectorConfig ?? null) as Prisma.InputJsonValue,
         embeddingModel,
         embeddingDim,
       },

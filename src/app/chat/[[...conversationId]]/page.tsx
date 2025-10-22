@@ -66,6 +66,7 @@ import {
   ToolOutput,
 } from "@/components/ai-elements/tool";
 import { MCPConnector } from "@/components/mcp/mcp-connector";
+import { SpaceSelector } from "@/components/spaces/space-selector";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -93,7 +94,11 @@ import { TOOL_CONFIG } from "@/lib/tools/config";
 const providers = loadAllProviders();
 
 // Helper function for file upload to RAG
-async function uploadFilesToRAG(files: File[]) {
+async function uploadFilesToRAG(files: File[], spaceId?: string) {
+  if (!spaceId) {
+    throw new Error("Please select a space before uploading documents");
+  }
+
   // Step 1: Get presigned upload URLs
   const uploadUrlResponse = await fetch("/api/rag/upload-url", {
     method: "POST",
@@ -104,6 +109,7 @@ async function uploadFilesToRAG(files: File[]) {
         size: f.size,
         type: f.type,
       })),
+      spaceId,
     }),
   });
 
@@ -160,6 +166,7 @@ async function uploadFilesToRAG(files: File[]) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       files: uploadedFiles,
+      spaceId,
     }),
   });
 
@@ -185,6 +192,7 @@ function ChatContent() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
   const [uploading, setUploading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
@@ -316,6 +324,7 @@ function ChatContent() {
         webSearch: searchProviders.length > 0,
         searchProviders: searchProviders,
         rag: ragEnabled,
+        spaceId: selectedSpaceId,
         reasoning: reasoningEnabled,
         mcpConnectionIds: mcpConnections.map((c) => c.id),
         sessionId,
@@ -351,6 +360,7 @@ function ChatContent() {
           webSearch: searchProviders.length > 0,
           searchProviders: searchProviders,
           rag: ragEnabled,
+          spaceId: selectedSpaceId,
           reasoning: reasoningEnabled,
           mcpConnectionIds: mcpConnections.map((c) => c.id),
           sessionId,
@@ -791,13 +801,18 @@ function ChatContent() {
                       <PromptInputActionAddAttachments />
                     </PromptInputActionMenuContent>
                   </PromptInputActionMenu>
+                  {/* Space Selector for RAG */}
+                  <SpaceSelector
+                    selectedSpaceId={selectedSpaceId}
+                    onSpaceChange={setSelectedSpaceId}
+                  />
                   {/* RAG File Upload */}
                   <label>
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-8"
-                      disabled={uploading}
+                      disabled={uploading || !selectedSpaceId}
                       asChild
                     >
                       <span>
@@ -820,7 +835,10 @@ function ChatContent() {
                         setUploading(true);
 
                         try {
-                          const result = await uploadFilesToRAG(files);
+                          const result = await uploadFilesToRAG(
+                            files,
+                            selectedSpaceId,
+                          );
                           alert(
                             `✅ Success! Indexed ${result.totalChunks} chunks from ${files.length} file(s)`,
                           );
