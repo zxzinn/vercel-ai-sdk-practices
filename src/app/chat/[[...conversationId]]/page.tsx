@@ -623,7 +623,12 @@ function ChatContent() {
                                     "tool-",
                                     "",
                                   );
-                                  const config = TOOL_CONFIG[toolName];
+                                  const config =
+                                    toolName in TOOL_CONFIG
+                                      ? TOOL_CONFIG[
+                                          toolName as keyof typeof TOOL_CONFIG
+                                        ]
+                                      : undefined;
 
                                   // Special handling for generateImage tool
                                   if (
