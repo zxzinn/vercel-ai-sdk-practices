@@ -86,18 +86,11 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
+import { TOOL_CONFIG } from "@/lib/tools/config";
 
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
-// Tool rendering configuration
-const TOOL_CONFIG: Record<string, { title: string }> = {
-  tavilySearch: { title: "Web Search (Tavily)" },
-  exaSearch: { title: "Web Search (Exa)" },
-  perplexitySearch: { title: "Web Search (Perplexity)" },
-  ragQuery: { title: "Document Search (RAG)" },
-  generateImage: { title: "Image Generation" },
-};
 // Helper function for file upload to RAG
 async function uploadFilesToRAG(files: File[]) {
   // Step 1: Get presigned upload URLs
@@ -630,7 +623,12 @@ function ChatContent() {
                                     "tool-",
                                     "",
                                   );
-                                  const config = TOOL_CONFIG[toolName];
+                                  const config =
+                                    toolName in TOOL_CONFIG
+                                      ? TOOL_CONFIG[
+                                          toolName as keyof typeof TOOL_CONFIG
+                                        ]
+                                      : undefined;
 
                                   // Special handling for generateImage tool
                                   if (
