@@ -135,8 +135,12 @@ export async function POST(req: Request) {
 
     if (space) {
       await Promise.all(
-        files.map((file) =>
-          prisma.document.create({
+        files.map((file) => {
+          const docChunks = result.documentsChunks.find(
+            (dc) => dc.documentId === file.documentId,
+          );
+
+          return prisma.document.create({
             data: {
               id: file.documentId,
               spaceId: space.id,
@@ -147,10 +151,10 @@ export async function POST(req: Request) {
               chromaDocId: file.documentId,
               collectionName: finalCollectionName,
               status: "INDEXED",
-              totalChunks: Math.floor(result.totalChunks / files.length),
+              totalChunks: docChunks?.chunks ?? 0,
             },
-          }),
-        ),
+          });
+        }),
       );
     }
 

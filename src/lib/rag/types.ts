@@ -45,6 +45,7 @@ export interface RAGIngestResult {
   documentIds: string[];
   totalChunks: number;
   collectionName: string;
+  documentsChunks: Array<{ documentId: string; chunks: number }>; // Per-document chunk counts
 }
 
 export interface EmbeddingResult {

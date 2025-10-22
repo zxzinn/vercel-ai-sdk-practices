@@ -161,9 +161,15 @@ export class RAGService {
       const allChunks: string[] = [];
       const allIds: string[] = [];
       const allMetadatas: Record<string, unknown>[] = [];
+      const documentsChunks: Array<{ documentId: string; chunks: number }> = [];
 
       for (const doc of documents) {
         const chunks = this.chunkText(doc.content, chunkSize, chunkOverlap);
+
+        documentsChunks.push({
+          documentId: doc.id,
+          chunks: chunks.length,
+        });
 
         chunks.forEach((chunk, index) => {
           allChunks.push(chunk);
@@ -207,6 +213,7 @@ export class RAGService {
         documentIds: documents.map((d) => d.id),
         totalChunks: allChunks.length,
         collectionName,
+        documentsChunks,
       };
     });
 
