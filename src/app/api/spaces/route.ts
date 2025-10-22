@@ -9,7 +9,9 @@ const CreateSpaceSchema = z.object({
   name: z.string().min(1, "Space name is required").max(100),
   description: z.string().max(500).optional(),
   vectorProvider: z.nativeEnum(VectorProvider).optional().default("MILVUS"),
-  vectorConfig: z.record(z.string(), z.unknown()).optional(),
+  vectorConfig: z
+    .record(z.string(), z.unknown())
+    .describe("Vector database connection configuration (required)"),
   embeddingModel: z.string().optional().default("cohere/embed-v4.0"),
   embeddingDim: z.number().int().positive().optional().default(1536),
 });
@@ -84,21 +86,31 @@ export async function POST(req: Request) {
       embeddingDim,
     } = validation.data;
 
-    // Validate vector configuration
-    if (vectorConfig) {
-      const configValidation = validateProviderConfig(
-        vectorProvider,
-        vectorConfig,
+    // Validate vector configuration (required for all providers)
+    if (!vectorConfig) {
+      return NextResponse.json(
+        {
+          error: "Vector configuration is required",
+          details: [
+            "vectorConfig must be provided with provider connection details",
+          ],
+        },
+        { status: 400 },
       );
-      if (!configValidation.valid) {
-        return NextResponse.json(
-          {
-            error: "Invalid vector configuration",
-            details: configValidation.errors,
-          },
-          { status: 400 },
-        );
-      }
+    }
+
+    const configValidation = validateProviderConfig(
+      vectorProvider,
+      vectorConfig,
+    );
+    if (!configValidation.valid) {
+      return NextResponse.json(
+        {
+          error: "Invalid vector configuration",
+          details: configValidation.errors,
+        },
+        { status: 400 },
+      );
     }
 
     const space = await prisma.space.create({

@@ -23,6 +23,19 @@ export function createRagQueryTool(boundSpaceId: string) {
     }),
     execute: async ({ query, topK }: { query: string; topK?: number }) => {
       const spaceId = boundSpaceId;
+
+      // Runtime guard: ensure tool was properly configured with a spaceId
+      if (!spaceId) {
+        return {
+          success: false as const,
+          message:
+            "RAG is not configured: missing spaceId. Tool must be created with createRagQueryTool(spaceId).",
+          query,
+          totalResults: 0,
+          sources: [],
+        };
+      }
+
       try {
         const result = await ragService.query(spaceId, query, {
           topK,

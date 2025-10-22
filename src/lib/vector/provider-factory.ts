@@ -57,7 +57,8 @@ function mergeConfig(
 
   if (!userConfig) {
     throw new Error(
-      `No configuration provided for ${provider}. Configuration must be stored in the database.`,
+      `Vector configuration missing for ${provider}. ` +
+        `Spaces must be created with valid provider connection details (url, token, etc.).`,
     );
   }
 
