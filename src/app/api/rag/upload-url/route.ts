@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeFileName } from "@/lib/utils/file";
 
 const STORAGE_BUCKET = "documents";
 const MAX_FILES = 20;
@@ -131,16 +132,4 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
-}
-
-function sanitizeFileName(fileName: string): string {
-  const lastDotIndex = fileName.lastIndexOf(".");
-  const extension = lastDotIndex > 0 ? fileName.slice(lastDotIndex) : "";
-  const baseName =
-    lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
-
-  const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const sanitizedExtension = extension.replace(/[^a-zA-Z0-9.]/g, "");
-
-  return sanitizedBaseName + sanitizedExtension;
 }
