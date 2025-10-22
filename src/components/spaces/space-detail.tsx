@@ -31,37 +31,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { Space } from "@/types/space";
 import { DocumentUploadDialog } from "./document-upload-dialog";
 import { TagManager } from "./tag-manager";
-
-interface Document {
-  id: string;
-  fileName: string;
-  fileType: string;
-  size: number;
-  status: string;
-  totalChunks: number;
-  uploadedAt: string;
-  tags: Array<{
-    tag: {
-      id: string;
-      name: string;
-      color: string | null;
-    };
-  }>;
-}
-
-interface Space {
-  id: string;
-  name: string;
-  description: string | null;
-  documents: Document[];
-  tags: Array<{
-    id: string;
-    name: string;
-    color: string | null;
-  }>;
-}
 
 interface SpaceDetailProps {
   spaceId: string;

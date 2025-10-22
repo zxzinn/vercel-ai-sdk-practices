@@ -9,14 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface Space {
-  id: string;
-  name: string;
-  _count: {
-    documents: number;
-  };
-}
+import type { SpaceSelectorItem } from "@/types/space";
 
 interface SpaceSelectorProps {
   selectedSpaceId?: string;
@@ -27,7 +20,7 @@ export function SpaceSelector({
   selectedSpaceId,
   onSpaceChange,
 }: SpaceSelectorProps) {
-  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [spaces, setSpaces] = useState<SpaceSelectorItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [open, setOpen] = useState(false);
 

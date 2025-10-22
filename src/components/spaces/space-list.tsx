@@ -10,21 +10,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-interface Space {
-  id: string;
-  name: string;
-  description: string | null;
-  createdAt: string;
-  updatedAt: string;
-  _count: {
-    documents: number;
-    tags: number;
-  };
-}
+import type { SpaceListItem } from "@/types/space";
 
 export function SpaceList() {
-  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [spaces, setSpaces] = useState<SpaceListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
