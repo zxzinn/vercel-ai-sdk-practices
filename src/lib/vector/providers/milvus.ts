@@ -157,6 +157,14 @@ export class MilvusProvider implements IVectorProvider {
     });
   }
 
+  /**
+   * Escape special characters in filter values to prevent expression injection
+   */
+  private escapeFilterValue(value: string): string {
+    // Escape backslashes and double quotes
+    return value.replace(/[\\"]/g, "\\$&");
+  }
+
   async delete(
     collectionName: string,
     filter: Record<string, unknown>,
@@ -166,9 +174,17 @@ export class MilvusProvider implements IVectorProvider {
     let expr = "";
 
     if (filter.originalDocId) {
-      expr = `metadata["originalDocId"] == "${filter.originalDocId}"`;
+      if (typeof filter.originalDocId !== "string") {
+        throw new Error("originalDocId must be a string");
+      }
+      const escapedValue = this.escapeFilterValue(filter.originalDocId);
+      expr = `metadata["originalDocId"] == "${escapedValue}"`;
     } else if (filter.id) {
-      expr = `id == "${filter.id}"`;
+      if (typeof filter.id !== "string") {
+        throw new Error("id must be a string");
+      }
+      const escapedValue = this.escapeFilterValue(filter.id);
+      expr = `id == "${escapedValue}"`;
     } else {
       throw new Error("Unsupported filter format for Milvus delete");
     }

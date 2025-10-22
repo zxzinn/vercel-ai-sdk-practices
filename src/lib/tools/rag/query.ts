@@ -10,13 +10,13 @@ export const ragQuery = {
     query: z.string().describe("The search query to find relevant documents"),
     topK: z
       .number()
+      .int()
+      .min(1)
+      .max(50)
       .optional()
       .default(5)
-      .describe("Number of results to return (default: 5)"),
-    spaceId: z
-      .string()
-      .optional()
-      .describe("Specific Space ID to search in (optional)"),
+      .describe("Number of results to return (default: 5, max: 50)"),
+    spaceId: z.string().describe("Space ID to search in (required)"),
     collectionName: z
       .string()
       .optional()
@@ -29,20 +29,10 @@ export const ragQuery = {
   }: {
     query: string;
     topK?: number;
-    spaceId?: string;
+    spaceId: string;
     collectionName?: string;
   }) => {
     try {
-      if (!spaceId) {
-        return {
-          success: false as const,
-          message: "spaceId is required to search documents.",
-          query,
-          totalResults: 0,
-          sources: [],
-        };
-      }
-
       const result = await ragService.query(spaceId, query, {
         topK,
         scoreThreshold: 0.3,

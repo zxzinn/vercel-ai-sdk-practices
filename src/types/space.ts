@@ -1,3 +1,5 @@
+export type DocumentStatus = "UPLOADING" | "PROCESSING" | "INDEXED" | "FAILED";
+
 export interface Tag {
   id: string;
   name: string;
@@ -13,7 +15,7 @@ export interface Document {
   fileName: string;
   fileType: string;
   size: number;
-  status: string;
+  status: DocumentStatus;
   totalChunks: number;
   uploadedAt: string;
   tags: DocumentTag[];
