@@ -18,6 +18,14 @@ const envSchema = z
     MILVUS_URL: z.string().min(1).optional(),
     MILVUS_TOKEN: z.string().min(1).optional(),
     MILVUS_DATABASE: z.string().optional().default("default"),
+    // Cohere embed-v4.0 supports: 256, 512, 1024, 1536 (default)
+    EMBEDDING_DIMENSION: z.coerce
+      .number()
+      .refine((val) => [256, 512, 1024, 1536].includes(val), {
+        message: "EMBEDDING_DIMENSION must be one of: 256, 512, 1024, 1536",
+      })
+      .optional()
+      .default(1536),
 
     // Database (Supabase PostgreSQL via Prisma)
     DATABASE_URL: z.string().optional(),
@@ -62,6 +70,7 @@ function validateEnv() {
     return {
       ...process.env,
       MILVUS_DATABASE: process.env.MILVUS_DATABASE || "default",
+      EMBEDDING_DIMENSION: Number(process.env.EMBEDDING_DIMENSION) || 1536,
       NODE_ENV:
         (process.env.NODE_ENV as "development" | "production" | "test") ||
         "development",

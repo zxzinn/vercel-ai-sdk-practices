@@ -108,7 +108,7 @@ export async function DELETE(
     await supabase.storage.from(STORAGE_BUCKET).remove([document.storageUrl]);
 
     await ragService.deleteDocument(
-      document.chromaDocId,
+      document.vectorDocId,
       document.collectionName,
     );
 

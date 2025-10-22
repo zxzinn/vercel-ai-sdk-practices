@@ -63,7 +63,7 @@ model Document {
   fileType        String
   size            Int
   storageUrl      String
-  chromaDocId     String
+  vectorDocId     String
   collectionName  String
   status          DocumentStatus @default(PROCESSING)
   totalChunks     Int            @default(0)

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
+import { createClient } from "@/lib/supabase/server";
 
 const UpdateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -134,6 +135,8 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const STORAGE_BUCKET = "documents";
+
   try {
     const userId = await getCurrentUserId();
 
@@ -157,9 +160,34 @@ export async function DELETE(
       return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
 
+    const supabase = await createClient();
     const collectionName = `space_${id}`;
-    await ragService.clearCollection(collectionName);
 
+    // Clean up resources in order: Storage -> Vector Store -> Database
+    // Use best-effort cleanup: log errors but continue deletion
+
+    // 1. Delete files from Supabase Storage
+    if (space.documents.length > 0) {
+      const storagePaths = space.documents.map((doc) => doc.storageUrl);
+      const { error: storageError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove(storagePaths);
+
+      if (storageError) {
+        console.error("Failed to delete storage files:", storageError);
+        // Continue - orphaned files are less critical than DB inconsistency
+      }
+    }
+
+    // 2. Delete vector collection from Milvus
+    try {
+      await ragService.clearCollection(collectionName);
+    } catch (vectorError) {
+      console.error("Failed to clear vector collection:", vectorError);
+      // Continue - orphaned vectors can be cleaned up later
+    }
+
+    // 3. Delete database records (cascades to documents, tags, etc.)
     await prisma.space.delete({
       where: { id },
     });

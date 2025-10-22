@@ -129,33 +129,58 @@ export async function POST(req: Request) {
       }
     }
 
+    // Ingest documents into vector store
     const result = await ragService.ingest(documents, {
       collectionName: finalCollectionName,
     });
 
+    // If using spaces, persist document records with transaction rollback support
     if (space) {
-      await Promise.all(
-        files.map((file) => {
-          const docChunks = result.documentsChunks.find(
-            (dc) => dc.documentId === file.documentId,
-          );
+      try {
+        await Promise.all(
+          files.map((file) => {
+            const docChunks = result.documentsChunks.find(
+              (dc) => dc.documentId === file.documentId,
+            );
 
-          return prisma.document.create({
-            data: {
-              id: file.documentId,
-              spaceId: space.id,
-              fileName: file.fileName,
-              fileType: file.type || "text/plain",
-              size: file.size,
-              storageUrl: `${userId}/${file.documentId}/${sanitizeFileName(file.fileName)}`,
-              chromaDocId: file.documentId,
-              collectionName: finalCollectionName,
-              status: "INDEXED",
-              totalChunks: docChunks?.chunks ?? 0,
-            },
-          });
-        }),
-      );
+            return prisma.document.create({
+              data: {
+                id: file.documentId,
+                spaceId: space.id,
+                fileName: file.fileName,
+                fileType: file.type || "text/plain",
+                size: file.size,
+                storageUrl: `${userId}/${file.documentId}/${sanitizeFileName(file.fileName)}`,
+                vectorDocId: file.documentId,
+                collectionName: finalCollectionName,
+                status: "INDEXED",
+                totalChunks: docChunks?.chunks ?? 0,
+              },
+            });
+          }),
+        );
+      } catch (dbError) {
+        // Rollback: Remove indexed documents from vector store
+        console.error(
+          "Database persistence failed, rolling back vector store:",
+          dbError,
+        );
+
+        try {
+          await Promise.all(
+            documents.map((doc) =>
+              ragService.deleteDocument(doc.id, finalCollectionName),
+            ),
+          );
+        } catch (rollbackError) {
+          console.error("Rollback failed:", rollbackError);
+          // Log for manual cleanup, but still throw original error
+        }
+
+        throw new Error(
+          `Failed to persist document records: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
+        );
+      }
     }
 
     return NextResponse.json({
