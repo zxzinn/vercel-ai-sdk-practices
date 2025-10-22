@@ -14,6 +14,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  SUPPORTED_EXTENSIONS_DISPLAY,
+  SUPPORTED_EXTENSIONS_STRING,
+} from "@/lib/constants/file-types";
 
 interface DocumentUploadDialogProps {
   spaceId: string;
@@ -79,32 +83,38 @@ export function DocumentUploadDialog({
     setUploadProgress(0);
 
     try {
+      // Step 1: Get upload URLs for all files in batch
+      const urlResponse = await fetch("/api/rag/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: files.map(({ file }) => ({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          })),
+        }),
+      });
+
+      if (!urlResponse.ok) {
+        const errorData = await urlResponse.json();
+        throw new Error(errorData.error || "Failed to get upload URLs");
+      }
+
+      const { uploadUrls } = await urlResponse.json();
       const fileMetadata = [];
 
+      // Step 2: Upload files using presigned URLs
       for (let i = 0; i < files.length; i++) {
-        const { file, id } = files[i];
+        const { file } = files[i];
+        const uploadUrlData = uploadUrls[i];
 
-        const urlResponse = await fetch("/api/rag/upload-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            documentId: id,
-            fileName: file.name,
-            fileType: file.type,
-          }),
-        });
-
-        if (!urlResponse.ok) {
-          throw new Error(`Failed to get upload URL for ${file.name}`);
-        }
-
-        const { uploadUrl } = await urlResponse.json();
-
-        const uploadResponse = await fetch(uploadUrl, {
+        const uploadResponse = await fetch(uploadUrlData.signedUrl, {
           method: "PUT",
           body: file,
           headers: {
             "Content-Type": file.type || "application/octet-stream",
+            "x-upsert": "true",
           },
         });
 
@@ -113,9 +123,9 @@ export function DocumentUploadDialog({
         }
 
         fileMetadata.push({
-          documentId: id,
-          fileName: file.name,
-          filePath: uploadUrl,
+          documentId: uploadUrlData.documentId,
+          fileName: uploadUrlData.fileName,
+          filePath: uploadUrlData.filePath,
           size: file.size,
           type: file.type,
         });
@@ -188,11 +198,14 @@ export function DocumentUploadDialog({
             <p className="text-sm text-muted-foreground mb-2">
               Drag and drop files here, or click to browse
             </p>
+            <p className="text-xs text-muted-foreground">
+              Supported: {SUPPORTED_EXTENSIONS_DISPLAY}
+            </p>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".txt,.md,.json"
+              accept={SUPPORTED_EXTENSIONS_STRING}
               onChange={(e) => handleFileSelect(e.target.files)}
               className="hidden"
             />

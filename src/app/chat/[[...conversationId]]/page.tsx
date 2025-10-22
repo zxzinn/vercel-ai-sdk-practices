@@ -84,6 +84,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SUPPORTED_EXTENSIONS_STRING } from "@/lib/constants/file-types";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
 import { TOOL_CONFIG } from "@/lib/tools/config";
@@ -810,7 +811,7 @@ function ChatContent() {
                       type="file"
                       multiple
                       className="hidden"
-                      accept=".txt,.md,.json,.csv"
+                      accept={SUPPORTED_EXTENSIONS_STRING}
                       onChange={async (e) => {
                         if (!e.target.files || e.target.files.length === 0)
                           return;
