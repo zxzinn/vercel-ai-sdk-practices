@@ -12,10 +12,3 @@ export const amazonModels = [
     name: "Nova Micro",
   },
 ];
-
-export const amazonEmbeddingModels = [
-  {
-    id: "amazon/titan-embed-text-v2",
-    name: "Titan Embed Text V2",
-  },
-];

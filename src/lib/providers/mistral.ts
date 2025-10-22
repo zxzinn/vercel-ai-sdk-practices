@@ -56,14 +56,3 @@ export const mistralModels = [
     name: "Mixtral 8x22B Instruct",
   },
 ];
-
-export const mistralEmbeddingModels = [
-  {
-    id: "mistral/mistral-embed",
-    name: "Mistral Embed",
-  },
-  {
-    id: "mistral/codestral-embed",
-    name: "Codestral Embed",
-  },
-];

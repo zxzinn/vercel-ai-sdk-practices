@@ -86,18 +86,3 @@ export const googleModels: Model[] = [
     name: "Gemma 2 9B",
   },
 ];
-
-export const googleEmbeddingModels = [
-  {
-    id: "google/gemini-embedding-001",
-    name: "Gemini Embedding 001",
-  },
-  {
-    id: "google/text-multilingual-embedding-002",
-    name: "Text Multilingual Embedding 002",
-  },
-  {
-    id: "google/text-embedding-005",
-    name: "Text Embedding 005",
-  },
-];
