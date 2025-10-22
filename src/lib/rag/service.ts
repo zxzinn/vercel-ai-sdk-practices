@@ -1,4 +1,4 @@
-import { embed, embedMany } from "ai";
+import { embed, embedMany, SerialJobExecutor } from "ai";
 import { ChromaClient, type Collection } from "chromadb";
 import { env } from "@/lib/env";
 import type {
@@ -24,6 +24,7 @@ const customEmbeddingFunction = {
 export class RAGService {
   private chromaClient: ChromaClient;
   private collections: Map<string, Collection> = new Map();
+  private ingestExecutor: SerialJobExecutor = new SerialJobExecutor();
 
   constructor() {
     const chromaUrl = env.CHROMA_URL;
@@ -103,56 +104,71 @@ export class RAGService {
     documents: RAGDocument[],
     options: RAGIngestOptions = {},
   ): Promise<RAGIngestResult> {
-    const {
-      collectionName = DEFAULT_COLLECTION,
-      chunkSize = DEFAULT_CHUNK_SIZE,
-      chunkOverlap = DEFAULT_CHUNK_OVERLAP,
-    } = options;
+    // Use SerialJobExecutor to ensure sequential processing
+    // This prevents concurrent embedding conflicts and ensures proper ordering
+    let result: RAGIngestResult | undefined;
 
-    const collection = await this.getCollection(collectionName);
+    await this.ingestExecutor.run(async () => {
+      const {
+        collectionName = DEFAULT_COLLECTION,
+        chunkSize = DEFAULT_CHUNK_SIZE,
+        chunkOverlap = DEFAULT_CHUNK_OVERLAP,
+      } = options;
 
-    const allChunks: string[] = [];
-    const allIds: string[] = [];
-    const allMetadatas: Record<string, string | number | boolean | null>[] = [];
+      const collection = await this.getCollection(collectionName);
 
-    for (const doc of documents) {
-      const chunks = this.chunkText(doc.content, chunkSize, chunkOverlap);
+      const allChunks: string[] = [];
+      const allIds: string[] = [];
+      const allMetadatas: Record<string, string | number | boolean | null>[] =
+        [];
 
-      chunks.forEach((chunk, index) => {
-        allChunks.push(chunk);
-        allIds.push(`${doc.id}_chunk_${index}`);
-        allMetadatas.push({
-          filename: doc.metadata.filename,
-          fileType: doc.metadata.fileType,
-          size: doc.metadata.size,
-          chunkIndex: index,
-          totalChunks: chunks.length,
-          originalDocId: doc.id,
-          uploadedAt: doc.metadata.uploadedAt.toISOString(),
+      for (const doc of documents) {
+        const chunks = this.chunkText(doc.content, chunkSize, chunkOverlap);
+
+        chunks.forEach((chunk, index) => {
+          allChunks.push(chunk);
+          allIds.push(`${doc.id}_chunk_${index}`);
+          allMetadatas.push({
+            filename: doc.metadata.filename,
+            fileType: doc.metadata.fileType,
+            size: doc.metadata.size,
+            chunkIndex: index,
+            totalChunks: chunks.length,
+            originalDocId: doc.id,
+            uploadedAt: doc.metadata.uploadedAt.toISOString(),
+          });
         });
+      }
+
+      console.log(`Generating embeddings for ${allChunks.length} chunks...`);
+      const { embeddings } = await embedMany({
+        model: EMBEDDING_MODEL,
+        values: allChunks,
       });
+
+      await collection.add({
+        ids: allIds,
+        embeddings,
+        documents: allChunks,
+        metadatas: allMetadatas,
+      });
+
+      console.log(
+        `✅ Indexed ${allChunks.length} chunks into ${collectionName}`,
+      );
+
+      result = {
+        documentIds: documents.map((d) => d.id),
+        totalChunks: allChunks.length,
+        collectionName,
+      };
+    });
+
+    if (!result) {
+      throw new Error("Ingest job failed to produce a result");
     }
 
-    console.log(`Generating embeddings for ${allChunks.length} chunks...`);
-    const { embeddings } = await embedMany({
-      model: EMBEDDING_MODEL,
-      values: allChunks,
-    });
-
-    await collection.add({
-      ids: allIds,
-      embeddings,
-      documents: allChunks,
-      metadatas: allMetadatas,
-    });
-
-    console.log(`✅ Indexed ${allChunks.length} chunks into ${collectionName}`);
-
-    return {
-      documentIds: documents.map((d) => d.id),
-      totalChunks: allChunks.length,
-      collectionName,
-    };
+    return result;
   }
 
   async query(
