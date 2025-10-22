@@ -52,23 +52,19 @@ export async function POST(req: Request) {
       );
     }
 
-    let space = null;
-    let finalCollectionName = collectionName || "rag_documents";
+    // Verify space exists and belongs to user
+    const space = await prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        userId,
+      },
+    });
 
-    if (spaceId) {
-      space = await prisma.space.findFirst({
-        where: {
-          id: spaceId,
-          userId,
-        },
-      });
-
-      if (!space) {
-        return NextResponse.json({ error: "Space not found" }, { status: 404 });
-      }
-
-      finalCollectionName = `space_${spaceId}`;
+    if (!space) {
+      return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
+
+    const finalCollectionName = `space_${spaceId}`;
 
     // DoS prevention: limit number of files to prevent timeout
     if (files.length > MAX_FILES) {
@@ -143,51 +139,49 @@ export async function POST(req: Request) {
       chunkOverlap: 200,
     });
 
-    // If using spaces, persist document records with transaction rollback support
-    if (space) {
+    // Persist document records with transaction rollback support
+    try {
+      await Promise.all(
+        files.map((file) => {
+          const docChunks = result.documentsChunks.find(
+            (dc) => dc.documentId === file.documentId,
+          );
+
+          return prisma.document.create({
+            data: {
+              id: file.documentId,
+              spaceId: space.id,
+              fileName: file.fileName,
+              fileType: file.type || "text/plain",
+              size: file.size,
+              storageUrl: `${userId}/${file.documentId}/${sanitizeFileName(file.fileName)}`,
+              vectorDocId: file.documentId,
+              collectionName: finalCollectionName,
+              status: "INDEXED",
+              totalChunks: docChunks?.chunks ?? 0,
+            },
+          });
+        }),
+      );
+    } catch (dbError) {
+      // Rollback: Remove indexed documents from vector store
+      console.error(
+        "Database persistence failed, rolling back vector store:",
+        dbError,
+      );
+
       try {
         await Promise.all(
-          files.map((file) => {
-            const docChunks = result.documentsChunks.find(
-              (dc) => dc.documentId === file.documentId,
-            );
-
-            return prisma.document.create({
-              data: {
-                id: file.documentId,
-                spaceId: space.id,
-                fileName: file.fileName,
-                fileType: file.type || "text/plain",
-                size: file.size,
-                storageUrl: `${userId}/${file.documentId}/${sanitizeFileName(file.fileName)}`,
-                vectorDocId: file.documentId,
-                collectionName: finalCollectionName,
-                status: "INDEXED",
-                totalChunks: docChunks?.chunks ?? 0,
-              },
-            });
-          }),
+          documents.map((doc) => ragService.deleteDocument(spaceId, doc.id)),
         );
-      } catch (dbError) {
-        // Rollback: Remove indexed documents from vector store
-        console.error(
-          "Database persistence failed, rolling back vector store:",
-          dbError,
-        );
-
-        try {
-          await Promise.all(
-            documents.map((doc) => ragService.deleteDocument(spaceId, doc.id)),
-          );
-        } catch (rollbackError) {
-          console.error("Rollback failed:", rollbackError);
-          // Log for manual cleanup, but still throw original error
-        }
-
-        throw new Error(
-          `Failed to persist document records: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
-        );
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+        // Log for manual cleanup, but still throw original error
       }
+
+      throw new Error(
+        `Failed to persist document records: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
+      );
     }
 
     return NextResponse.json({
