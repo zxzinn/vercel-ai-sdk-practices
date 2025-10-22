@@ -1,4 +1,4 @@
-export const TOOL_CONFIG: Record<string, { title: string }> = {
+export const TOOL_CONFIG = {
   tavilySearch: { title: "Web Search (Tavily)" },
   exaSearch: { title: "Web Search (Exa)" },
   perplexitySearch: { title: "Web Search (Perplexity)" },
