@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth/server";
+import { prisma } from "@/lib/prisma";
 import type { RAGDocument } from "@/lib/rag";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
@@ -18,6 +19,7 @@ interface IngestRequest {
     size: number;
     type: string;
   }>;
+  spaceId?: string;
   collectionName?: string;
 }
 
@@ -36,10 +38,28 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json()) as IngestRequest;
-    const { files, collectionName } = body;
+    const { files, spaceId, collectionName } = body;
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
+    }
+
+    let space = null;
+    let finalCollectionName = collectionName || "rag_documents";
+
+    if (spaceId) {
+      space = await prisma.space.findFirst({
+        where: {
+          id: spaceId,
+          userId,
+        },
+      });
+
+      if (!space) {
+        return NextResponse.json({ error: "Space not found" }, { status: 404 });
+      }
+
+      finalCollectionName = `space_${spaceId}`;
     }
 
     // DoS prevention: limit number of files to prevent timeout
@@ -110,8 +130,29 @@ export async function POST(req: Request) {
     }
 
     const result = await ragService.ingest(documents, {
-      collectionName,
+      collectionName: finalCollectionName,
     });
+
+    if (space) {
+      await Promise.all(
+        files.map((file) =>
+          prisma.document.create({
+            data: {
+              id: file.documentId,
+              spaceId: space.id,
+              fileName: file.fileName,
+              fileType: file.type || "text/plain",
+              size: file.size,
+              storageUrl: `${userId}/${file.documentId}/${sanitizeFileName(file.fileName)}`,
+              chromaDocId: file.documentId,
+              collectionName: finalCollectionName,
+              status: "INDEXED",
+              totalChunks: Math.floor(result.totalChunks / files.length),
+            },
+          }),
+        ),
+      );
+    }
 
     return NextResponse.json({
       success: true,

@@ -40,3 +40,86 @@ model ConversationMessage {
   @@index([conversationId, createdAt])
   @@map("conversation_messages")
 }
+
+model Space {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents Document[]
+  tags      Tag[]
+
+  @@index([userId, createdAt])
+  @@map("spaces")
+}
+
+model Document {
+  id              String         @id @default(cuid())
+  spaceId         String
+  fileName        String
+  fileType        String
+  size            Int
+  storageUrl      String
+  chromaDocId     String
+  collectionName  String
+  status          DocumentStatus @default(PROCESSING)
+  totalChunks     Int            @default(0)
+  uploadedAt      DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  space    Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  metadata DocumentMetadata[]
+  tags     DocumentTag[]
+
+  @@index([spaceId, uploadedAt])
+  @@index([status])
+  @@map("documents")
+}
+
+model DocumentMetadata {
+  id         String @id @default(cuid())
+  documentId String
+  key        String
+  value      String
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, key])
+  @@map("document_metadata")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  spaceId   String
+  createdAt DateTime @default(now())
+
+  space     Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  documents DocumentTag[]
+
+  @@unique([spaceId, name])
+  @@map("tags")
+}
+
+model DocumentTag {
+  documentId String
+  tagId      String
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
+  @@map("document_tags")
+}
+
+enum DocumentStatus {
+  UPLOADING
+  PROCESSING
+  INDEXED
+  FAILED
+}
