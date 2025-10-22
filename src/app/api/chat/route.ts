@@ -146,6 +146,21 @@ export async function POST(req: Request) {
       conversationId,
     } = validation.data;
 
+    // Validate RAG configuration early
+    if (rag && !spaceId) {
+      return new Response(
+        JSON.stringify({
+          error: "RAG is enabled but no space is selected",
+          message:
+            "Please select a space before enabling RAG. Documents are organized in spaces.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
 
