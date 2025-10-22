@@ -59,7 +59,7 @@ export const cohereEmbeddingModels: EmbeddingModelDefinition[] = [
     defaultDim: 1536,
     maxTokens: 128000,
     costPer1M: 0.12,
-    description: "Latest multilingual multimodal embedding model",
+    description: "Latest multilingual multimodal embedding (text + images)",
   },
   {
     id: "cohere/embed-english-v3.0",
@@ -92,11 +92,11 @@ export const googleEmbeddingModels: EmbeddingModelDefinition[] = [
     id: "google/gemini-embedding-001",
     name: "Gemini Embedding 001",
     provider: "google",
-    dimensions: [768, 1536, 3072],
+    dimensions: [128, 256, 512, 768, 1024, 1536, 2048, 3072],
     defaultDim: 3072,
     maxTokens: 2048,
-    costPer1M: 0.15,
-    description: "Latest multilingual embedding with MRL support",
+    description:
+      "Latest stable model with Matryoshka Representation Learning (128-3072 dims)",
   },
   {
     id: "google/text-embedding-004",
@@ -105,7 +105,7 @@ export const googleEmbeddingModels: EmbeddingModelDefinition[] = [
     dimensions: [768],
     defaultDim: 768,
     maxTokens: 2048,
-    description: "Legacy Gecko model, discontinuing Nov 2025",
+    description: "Legacy Gecko model, discontinuing Oct 2025",
   },
 ];
 
@@ -119,9 +119,27 @@ export const voyageEmbeddingModels: EmbeddingModelDefinition[] = [
     name: "Voyage 3 Large",
     provider: "voyage",
     dimensions: [256, 512, 1024, 2048],
-    defaultDim: 2048,
+    defaultDim: 1024,
     maxTokens: 32000,
-    description: "State-of-the-art general-purpose embedding",
+    description: "Best general-purpose and multilingual retrieval quality",
+  },
+  {
+    id: "voyage/voyage-3.5",
+    name: "Voyage 3.5",
+    provider: "voyage",
+    dimensions: [256, 512, 1024, 2048],
+    defaultDim: 1024,
+    maxTokens: 32000,
+    description: "Latest general-purpose and multilingual model",
+  },
+  {
+    id: "voyage/voyage-3.5-lite",
+    name: "Voyage 3.5 Lite",
+    provider: "voyage",
+    dimensions: [256, 512, 1024, 2048],
+    defaultDim: 1024,
+    maxTokens: 32000,
+    description: "Optimized for latency and cost",
   },
   {
     id: "voyage/voyage-3",
@@ -152,6 +170,24 @@ export const voyageEmbeddingModels: EmbeddingModelDefinition[] = [
     maxTokens: 32000,
     description: "Specialized for code retrieval tasks",
   },
+  {
+    id: "voyage/voyage-finance-2",
+    name: "Voyage Finance 2",
+    provider: "voyage",
+    dimensions: [1024],
+    defaultDim: 1024,
+    maxTokens: 32000,
+    description: "Specialized for finance retrieval and RAG",
+  },
+  {
+    id: "voyage/voyage-law-2",
+    name: "Voyage Law 2",
+    provider: "voyage",
+    dimensions: [1024],
+    defaultDim: 1024,
+    maxTokens: 16000,
+    description: "Specialized for legal retrieval and RAG",
+  },
 ];
 
 // ============================================================================
@@ -165,8 +201,19 @@ export const mistralEmbeddingModels: EmbeddingModelDefinition[] = [
     provider: "mistral",
     dimensions: [1024],
     defaultDim: 1024,
-    maxTokens: 8000,
-    description: "High-accuracy embedding for RAG and semantic search",
+    maxTokens: 8192,
+    description: "High-accuracy text embedding for RAG and semantic search",
+  },
+  {
+    id: "mistral/codestral-embed",
+    name: "Codestral Embed",
+    provider: "mistral",
+    dimensions: [256, 512, 768, 1024, 1536, 2048, 3072],
+    defaultDim: 1536,
+    maxTokens: 8192,
+    costPer1M: 0.15,
+    description:
+      "Specialized code embedding with configurable dimensions up to 3072",
   },
 ];
 
