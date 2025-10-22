@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
+import { ragService } from "@/lib/rag";
 
 const UpdateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -155,6 +156,9 @@ export async function DELETE(
     if (!space) {
       return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
+
+    const collectionName = `space_${id}`;
+    await ragService.clearCollection(collectionName);
 
     await prisma.space.delete({
       where: { id },

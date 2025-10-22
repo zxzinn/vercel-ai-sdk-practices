@@ -15,8 +15,8 @@ const envSchema = z
     PERPLEXITY_API_KEY: z.string().optional(),
 
     // RAG - Vector store (Milvus/Zilliz Cloud)
-    MILVUS_URL: z.string().optional(),
-    MILVUS_TOKEN: z.string().optional(),
+    MILVUS_URL: z.string().min(1).optional(),
+    MILVUS_TOKEN: z.string().min(1).optional(),
     MILVUS_DATABASE: z.string().optional().default("default"),
 
     // Database (Supabase PostgreSQL via Prisma)

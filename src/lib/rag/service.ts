@@ -248,7 +248,7 @@ export class RAGService {
       limit: topK,
       output_fields: ["id", "content", "metadata"],
       params: {
-        nprobe: 16,
+        ef: Math.max(64, topK * 4),
       },
     });
 
