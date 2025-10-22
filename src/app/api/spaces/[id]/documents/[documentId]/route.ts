@@ -107,10 +107,7 @@ export async function DELETE(
 
     await supabase.storage.from(STORAGE_BUCKET).remove([document.storageUrl]);
 
-    await ragService.deleteDocument(
-      document.vectorDocId,
-      document.collectionName,
-    );
+    await ragService.deleteDocument(spaceId, document.vectorDocId);
 
     await prisma.document.delete({
       where: { id: documentId },

@@ -179,9 +179,9 @@ export async function DELETE(
       }
     }
 
-    // 2. Delete vector collection from Milvus
+    // 2. Delete vector collection
     try {
-      await ragService.clearCollection(collectionName);
+      await ragService.clearCollection(id);
     } catch (vectorError) {
       console.error("Failed to clear vector collection:", vectorError);
       // Continue - orphaned vectors can be cleaned up later

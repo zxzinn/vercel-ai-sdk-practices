@@ -1,9 +1,9 @@
-import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
 import { embed, embedMany, SerialJobExecutor } from "ai";
-import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
+import { createVectorProvider } from "@/lib/vector";
+import type { IVectorProvider, VectorDocument } from "@/lib/vector/types";
 import type {
   DocumentMetadata,
-  MilvusSearchResult,
   RAGDocument,
   RAGIngestOptions,
   RAGIngestResult,
@@ -12,105 +12,100 @@ import type {
   RAGSource,
 } from "./types";
 
-const EMBEDDING_MODEL = "cohere/embed-v4.0";
-const EMBEDDING_DIMENSION = 1536; // Cohere embed-v4.0 default dimension
-const DEFAULT_COLLECTION = "rag_documents";
 const DEFAULT_CHUNK_SIZE = 1000;
 const DEFAULT_CHUNK_OVERLAP = 200;
 
-export class RAGService {
-  private milvusClient: MilvusClient | null = null;
-  private ingestExecutor: SerialJobExecutor = new SerialJobExecutor();
+// Type-safe metadata parsing helpers
+function safeString(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
 
-  private getClient(): MilvusClient {
-    if (!this.milvusClient) {
-      const milvusUrl = env.MILVUS_URL;
-      const milvusToken = env.MILVUS_TOKEN;
-
-      if (!milvusUrl || !milvusToken) {
-        throw new Error(
-          "MILVUS_URL and MILVUS_TOKEN environment variables are required",
-        );
-      }
-
-      this.milvusClient = new MilvusClient({
-        address: milvusUrl,
-        token: milvusToken,
-        database: env.MILVUS_DATABASE,
-        ssl: true,
-      });
-    }
-
-    return this.milvusClient;
+function safeNumber(value: unknown, fallback?: number): number | undefined {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? fallback : parsed;
   }
+  return fallback;
+}
 
-  private async ensureCollection(name: string): Promise<void> {
-    const client = this.getClient();
+function safeDate(value: unknown): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+  return new Date();
+}
 
-    try {
-      // Check if collection exists
-      const hasCollection = await client.hasCollection({
-        collection_name: name,
+function parseMetadata(raw: Record<string, unknown>): DocumentMetadata {
+  return {
+    filename: safeString(raw.filename, "unknown"),
+    fileType: safeString(raw.fileType, "unknown"),
+    uploadedAt: safeDate(raw.uploadedAt),
+    size: safeNumber(raw.size, 0) ?? 0,
+    chunkIndex: safeNumber(raw.chunkIndex),
+    totalChunks: safeNumber(raw.totalChunks),
+  };
+}
+
+export class RAGService {
+  private ingestExecutor: SerialJobExecutor = new SerialJobExecutor();
+  private providerCache: Map<string, IVectorProvider> = new Map();
+
+  /**
+   * Get or create vector provider for a space
+   */
+  private async getProviderForSpace(spaceId: string): Promise<{
+    provider: IVectorProvider;
+    embeddingModel: string;
+    embeddingDim: number;
+  }> {
+    // Check cache first
+    if (this.providerCache.has(spaceId)) {
+      const provider = this.providerCache.get(spaceId)!;
+      const space = await prisma.space.findUnique({
+        where: { id: spaceId },
+        select: { embeddingModel: true, embeddingDim: true },
       });
+      if (!space) throw new Error(`Space ${spaceId} not found`);
 
-      if (hasCollection.value) {
-        return;
-      }
-
-      // Create collection with schema
-      await client.createCollection({
-        collection_name: name,
-        description: "RAG document collection",
-        fields: [
-          {
-            name: "id",
-            description: "Chunk ID",
-            data_type: DataType.VarChar,
-            is_primary_key: true,
-            max_length: 255,
-          },
-          {
-            name: "vector",
-            description: "Embedding vector",
-            data_type: DataType.FloatVector,
-            dim: EMBEDDING_DIMENSION,
-          },
-          {
-            name: "content",
-            description: "Text content",
-            data_type: DataType.VarChar,
-            max_length: 65535,
-          },
-          {
-            name: "metadata",
-            description: "Document metadata",
-            data_type: DataType.JSON,
-          },
-        ],
-      });
-
-      // Create HNSW index for vector field
-      await client.createIndex({
-        collection_name: name,
-        field_name: "vector",
-        index_type: "HNSW",
-        metric_type: "IP", // Inner Product (cosine similarity)
-        params: {
-          M: 16,
-          efConstruction: 200,
-        },
-      });
-
-      // Load collection into memory for search
-      await client.loadCollection({
-        collection_name: name,
-      });
-
-      console.log(`✅ Created and loaded collection: ${name}`);
-    } catch (error) {
-      console.error(`Failed to ensure collection ${name}:`, error);
-      throw error;
+      return {
+        provider,
+        embeddingModel: space.embeddingModel,
+        embeddingDim: space.embeddingDim,
+      };
     }
+
+    // Fetch space configuration from database
+    const space = await prisma.space.findUnique({
+      where: { id: spaceId },
+      select: {
+        vectorProvider: true,
+        vectorConfig: true,
+        embeddingModel: true,
+        embeddingDim: true,
+      },
+    });
+
+    if (!space) {
+      throw new Error(`Space ${spaceId} not found`);
+    }
+
+    // Create provider instance
+    const provider = await createVectorProvider(
+      space.vectorProvider,
+      space.vectorConfig as Record<string, unknown> | null,
+    );
+
+    // Cache the provider
+    this.providerCache.set(spaceId, provider);
+
+    return {
+      provider,
+      embeddingModel: space.embeddingModel,
+      embeddingDim: space.embeddingDim,
+    };
   }
 
   private chunkText(
@@ -142,22 +137,35 @@ export class RAGService {
   }
 
   async ingest(
+    spaceId: string,
     documents: RAGDocument[],
     options: RAGIngestOptions = {},
   ): Promise<RAGIngestResult> {
-    // Use SerialJobExecutor to ensure sequential processing
-    // This prevents concurrent embedding conflicts and ensures proper ordering
     let result: RAGIngestResult | undefined;
 
     await this.ingestExecutor.run(async () => {
       const {
-        collectionName = DEFAULT_COLLECTION,
         chunkSize = DEFAULT_CHUNK_SIZE,
         chunkOverlap = DEFAULT_CHUNK_OVERLAP,
       } = options;
 
-      await this.ensureCollection(collectionName);
+      // Get provider and config for this space
+      const { provider, embeddingModel, embeddingDim } =
+        await this.getProviderForSpace(spaceId);
 
+      const collectionName = `space_${spaceId}`;
+
+      // Ensure collection exists
+      const exists = await provider.hasCollection(collectionName);
+      if (!exists) {
+        await provider.createCollection({
+          name: collectionName,
+          dimension: embeddingDim,
+          description: `Vector collection for space ${spaceId}`,
+        });
+      }
+
+      // Prepare chunks
       const allChunks: string[] = [];
       const allIds: string[] = [];
       const allMetadatas: Record<string, unknown>[] = [];
@@ -186,27 +194,31 @@ export class RAGService {
         });
       }
 
-      console.log(`Generating embeddings for ${allChunks.length} chunks...`);
+      // Generate embeddings
+      console.log(
+        `Generating embeddings for ${allChunks.length} chunks using ${embeddingModel}...`,
+      );
       const { embeddings } = await embedMany({
-        model: EMBEDDING_MODEL,
+        model: embeddingModel,
         values: allChunks,
+        experimental_telemetry: {
+          isEnabled: false,
+        },
       });
 
-      // Insert data into Milvus
-      const insertData = allIds.map((id, index) => ({
+      // Prepare vector documents
+      const vectorDocuments: VectorDocument[] = allIds.map((id, index) => ({
         id,
         vector: embeddings[index],
         content: allChunks[index],
         metadata: allMetadatas[index],
       }));
 
-      await this.getClient().insert({
-        collection_name: collectionName,
-        data: insertData,
-      });
+      // Insert into vector store
+      await provider.insert(collectionName, vectorDocuments);
 
       console.log(
-        `✅ Indexed ${allChunks.length} chunks into ${collectionName}`,
+        `✅ Indexed ${allChunks.length} chunks into ${collectionName} using ${provider.name}`,
       );
 
       result = {
@@ -225,76 +237,41 @@ export class RAGService {
   }
 
   async query(
+    spaceId: string,
     queryText: string,
     options: RAGQueryOptions = {},
   ): Promise<RAGQueryResult> {
-    const {
-      topK = 5,
-      scoreThreshold = 0,
-      collectionName = DEFAULT_COLLECTION,
-    } = options;
+    const { topK = 5, scoreThreshold = 0 } = options;
 
-    await this.ensureCollection(collectionName);
+    // Get provider for this space
+    const { provider, embeddingModel } =
+      await this.getProviderForSpace(spaceId);
 
+    const collectionName = `space_${spaceId}`;
+
+    // Generate query embedding
     const { embedding } = await embed({
-      model: EMBEDDING_MODEL,
+      model: embeddingModel,
       value: queryText,
-    });
-
-    // Search in Milvus
-    const searchResults = await this.getClient().search({
-      collection_name: collectionName,
-      vector: embedding,
-      limit: topK,
-      output_fields: ["id", "content", "metadata"],
-      params: {
-        ef: Math.max(64, topK * 4),
+      experimental_telemetry: {
+        isEnabled: false,
       },
     });
 
-    const sources: RAGSource[] = [];
+    // Search
+    const searchResults = await provider.search(collectionName, embedding, {
+      topK,
+      scoreThreshold,
+    });
 
-    for (const result of searchResults.results as MilvusSearchResult[]) {
-      const score = result.score;
-
-      if (score < scoreThreshold) continue;
-
-      const metadata = result.metadata as Record<string, unknown>;
-
-      sources.push({
-        id: result.id,
-        content: result.content,
-        score,
-        distance: 1 - score, // Convert IP score back to distance
-        metadata: {
-          ...metadata,
-          filename:
-            typeof metadata.filename === "string"
-              ? metadata.filename
-              : "unknown",
-          fileType:
-            typeof metadata.fileType === "string"
-              ? metadata.fileType
-              : "unknown",
-          uploadedAt:
-            typeof metadata.uploadedAt === "string"
-              ? new Date(metadata.uploadedAt)
-              : new Date(),
-          size:
-            typeof metadata.size === "number"
-              ? metadata.size
-              : Number(metadata.size ?? 0) || 0,
-          chunkIndex:
-            metadata.chunkIndex !== undefined && metadata.chunkIndex !== null
-              ? Number(metadata.chunkIndex)
-              : undefined,
-          totalChunks:
-            metadata.totalChunks !== undefined && metadata.totalChunks !== null
-              ? Number(metadata.totalChunks)
-              : undefined,
-        } as DocumentMetadata,
-      });
-    }
+    // Parse results
+    const sources: RAGSource[] = searchResults.map((result) => ({
+      id: result.id,
+      content: result.content,
+      score: result.score,
+      distance: result.distance,
+      metadata: parseMetadata(result.metadata),
+    }));
 
     return {
       sources,
@@ -303,48 +280,44 @@ export class RAGService {
     };
   }
 
-  async deleteDocument(
-    documentId: string,
-    collectionName: string = DEFAULT_COLLECTION,
-  ): Promise<void> {
-    await this.ensureCollection(collectionName);
+  async deleteDocument(spaceId: string, documentId: string): Promise<void> {
+    const { provider } = await this.getProviderForSpace(spaceId);
+    const collectionName = `space_${spaceId}`;
 
-    // Delete all chunks for this document
-    const filter = `metadata["originalDocId"] == "${documentId}"`;
+    await provider.delete(collectionName, { originalDocId: documentId });
 
-    await this.getClient().delete({
-      collection_name: collectionName,
-      filter,
-    });
-
-    console.log(`✅ Deleted chunks for document ${documentId}`);
+    console.log(
+      `✅ Deleted chunks for document ${documentId} from space ${spaceId}`,
+    );
   }
 
-  async clearCollection(
-    collectionName: string = DEFAULT_COLLECTION,
-  ): Promise<void> {
-    const client = this.getClient();
+  async clearCollection(spaceId: string): Promise<void> {
+    const { provider } = await this.getProviderForSpace(spaceId);
+    const collectionName = `space_${spaceId}`;
 
-    try {
-      const hasCollection = await client.hasCollection({
-        collection_name: collectionName,
-      });
+    await provider.deleteCollection(collectionName);
 
-      if (hasCollection.value) {
-        await client.dropCollection({
-          collection_name: collectionName,
-        });
-        console.log(`✅ Cleared collection: ${collectionName}`);
-      }
-    } catch (error) {
-      console.error(`Failed to clear collection ${collectionName}:`, error);
+    // Clear from cache
+    this.providerCache.delete(spaceId);
+
+    console.log(`✅ Cleared collection: ${collectionName}`);
+  }
+
+  async listCollections(spaceId: string): Promise<string[]> {
+    const { provider } = await this.getProviderForSpace(spaceId);
+    return await provider.listCollections();
+  }
+
+  /**
+   * Clean up all cached providers
+   */
+  async cleanup(): Promise<void> {
+    for (const provider of this.providerCache.values()) {
+      await provider.cleanup();
     }
-  }
-
-  async listCollections(): Promise<string[]> {
-    const result = await this.getClient().listCollections();
-    return result.data.map((c) => c.name);
+    this.providerCache.clear();
   }
 }
 
+// Singleton instance
 export const ragService = new RAGService();

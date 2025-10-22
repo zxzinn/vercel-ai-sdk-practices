@@ -130,8 +130,16 @@ export async function POST(req: Request) {
     }
 
     // Ingest documents into vector store
-    const result = await ragService.ingest(documents, {
-      collectionName: finalCollectionName,
+    if (!spaceId) {
+      return NextResponse.json(
+        { error: "spaceId is required" },
+        { status: 400 },
+      );
+    }
+
+    const result = await ragService.ingest(spaceId, documents, {
+      chunkSize: 1000,
+      chunkOverlap: 200,
     });
 
     // If using spaces, persist document records with transaction rollback support

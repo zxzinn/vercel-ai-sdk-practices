@@ -46,6 +46,13 @@ model Space {
   name        String
   description String?
   userId      String
+
+  // Vector database configuration
+  vectorProvider  VectorProvider @default(MILVUS)
+  vectorConfig    Json?          @db.JsonB // Provider-specific config
+  embeddingModel  String         @default("cohere/embed-v4.0")
+  embeddingDim    Int            @default(1536)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -53,6 +60,7 @@ model Space {
   tags      Tag[]
 
   @@index([userId, createdAt])
+  @@index([vectorProvider])
   @@map("spaces")
 }
 
@@ -122,4 +130,12 @@ enum DocumentStatus {
   PROCESSING
   INDEXED
   FAILED
+}
+
+enum VectorProvider {
+  MILVUS
+  PINECONE
+  QDRANT
+  WEAVIATE
+  CHROMA
 }

@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { VectorProvider } from "@/generated/prisma";
 import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
+import { validateProviderConfig } from "@/lib/vector";
 
 const CreateSpaceSchema = z.object({
   name: z.string().min(1, "Space name is required").max(100),
   description: z.string().max(500).optional(),
+  vectorProvider: z.nativeEnum(VectorProvider).optional().default("MILVUS"),
+  vectorConfig: z.record(z.string(), z.unknown()).optional(),
+  embeddingModel: z.string().optional().default("cohere/embed-v4.0"),
+  embeddingDim: z.number().int().positive().optional().default(1536),
 });
 
 export async function GET() {
@@ -69,13 +75,41 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, description } = validation.data;
+    const {
+      name,
+      description,
+      vectorProvider,
+      vectorConfig,
+      embeddingModel,
+      embeddingDim,
+    } = validation.data;
+
+    // Validate vector configuration
+    if (vectorConfig) {
+      const configValidation = validateProviderConfig(
+        vectorProvider,
+        vectorConfig,
+      );
+      if (!configValidation.valid) {
+        return NextResponse.json(
+          {
+            error: "Invalid vector configuration",
+            details: configValidation.errors,
+          },
+          { status: 400 },
+        );
+      }
+    }
 
     const space = await prisma.space.create({
       data: {
         name,
         description,
         userId,
+        vectorProvider,
+        vectorConfig: vectorConfig as never,
+        embeddingModel,
+        embeddingDim,
       },
       include: {
         _count: {

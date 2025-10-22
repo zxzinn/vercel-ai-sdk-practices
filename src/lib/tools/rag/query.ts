@@ -26,7 +26,6 @@ export const ragQuery = {
     query,
     topK,
     spaceId,
-    collectionName,
   }: {
     query: string;
     topK?: number;
@@ -34,15 +33,18 @@ export const ragQuery = {
     collectionName?: string;
   }) => {
     try {
-      let finalCollectionName = collectionName;
-
-      if (spaceId) {
-        finalCollectionName = `space_${spaceId}`;
+      if (!spaceId) {
+        return {
+          success: false as const,
+          message: "spaceId is required to search documents.",
+          query,
+          totalResults: 0,
+          sources: [],
+        };
       }
 
-      const result = await ragService.query(query, {
+      const result = await ragService.query(spaceId, query, {
         topK,
-        collectionName: finalCollectionName,
         scoreThreshold: 0.3,
       });
 
