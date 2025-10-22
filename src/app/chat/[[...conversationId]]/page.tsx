@@ -6,7 +6,6 @@ import {
   BrainIcon,
   CopyIcon,
   DatabaseIcon,
-  FileUpIcon,
   GlobeIcon,
   PaperclipIcon,
   PlugIcon,
@@ -85,7 +84,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { SUPPORTED_EXTENSIONS_STRING } from "@/lib/constants/file-types";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
 import { TOOL_CONFIG } from "@/lib/tools/config";
@@ -93,90 +91,6 @@ import { TOOL_CONFIG } from "@/lib/tools/config";
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
-// Helper function for file upload to RAG
-async function uploadFilesToRAG(files: File[], spaceId?: string) {
-  if (!spaceId) {
-    throw new Error("Please select a space before uploading documents");
-  }
-
-  // Step 1: Get presigned upload URLs
-  const uploadUrlResponse = await fetch("/api/rag/upload-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      files: files.map((f) => ({
-        name: f.name,
-        size: f.size,
-        type: f.type,
-      })),
-      spaceId,
-    }),
-  });
-
-  if (!uploadUrlResponse.ok) {
-    const error = await uploadUrlResponse.json();
-    throw new Error(error.error || "Failed to get upload URLs");
-  }
-
-  const { uploadUrls } = await uploadUrlResponse.json();
-
-  // Step 2: Upload files directly to Supabase using presigned URLs
-  // Match files by name rather than relying on array order for robustness
-  const uploadPromises = uploadUrls.map(
-    async (urlData: {
-      documentId: string;
-      fileName: string;
-      filePath: string;
-      signedUrl: string;
-    }) => {
-      // Find the corresponding file by name instead of using index
-      const file = files.find((f) => f.name === urlData.fileName);
-      if (!file) {
-        throw new Error(`File not found for upload URL: ${urlData.fileName}`);
-      }
-
-      const response = await fetch(urlData.signedUrl, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "content-type": file.type || "application/octet-stream",
-          "x-upsert": "false",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to upload ${file.name}`);
-      }
-
-      return {
-        documentId: urlData.documentId,
-        fileName: urlData.fileName,
-        filePath: urlData.filePath,
-        size: file.size,
-        type: file.type,
-      };
-    },
-  );
-
-  const uploadedFiles = await Promise.all(uploadPromises);
-
-  // Step 3: Trigger RAG indexing with uploaded file metadata
-  const ingestResponse = await fetch("/api/rag/ingest", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      files: uploadedFiles,
-      spaceId,
-    }),
-  });
-
-  if (!ingestResponse.ok) {
-    const error = await ingestResponse.json();
-    throw new Error(error.error || "Failed to ingest documents");
-  }
-
-  return ingestResponse.json();
-}
 const searchProviderOptions = [
   { id: "tavily" as const, label: "Tavily Search" },
   { id: "exa" as const, label: "Exa Search" },
@@ -194,7 +108,6 @@ function ChatContent() {
   const [ragEnabled, setRagEnabled] = useState<boolean>(false);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
-  const [uploading, setUploading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
   const [conversationId, setConversationId] = useState<string>("");
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -806,53 +719,6 @@ function ChatContent() {
                     selectedSpaceId={selectedSpaceId}
                     onSpaceChange={setSelectedSpaceId}
                   />
-                  {/* RAG File Upload */}
-                  <label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                      disabled={uploading || !selectedSpaceId}
-                      asChild
-                    >
-                      <span>
-                        <FileUpIcon size={16} />
-                        <span>
-                          {uploading ? "Uploading..." : "Upload Docs"}
-                        </span>
-                      </span>
-                    </Button>
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      accept={SUPPORTED_EXTENSIONS_STRING}
-                      onChange={async (e) => {
-                        if (!e.target.files || e.target.files.length === 0)
-                          return;
-
-                        const files = Array.from(e.target.files);
-                        setUploading(true);
-
-                        try {
-                          const result = await uploadFilesToRAG(
-                            files,
-                            selectedSpaceId,
-                          );
-                          alert(
-                            `✅ Success! Indexed ${result.totalChunks} chunks from ${files.length} file(s)`,
-                          );
-                        } catch (error) {
-                          alert(
-                            `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-                          );
-                        } finally {
-                          setUploading(false);
-                          e.target.value = "";
-                        }
-                      }}
-                    />
-                  </label>
                   <Button
                     variant={ragEnabled ? "default" : "ghost"}
                     size="sm"
