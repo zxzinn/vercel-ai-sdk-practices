@@ -1,8 +1,16 @@
 "use client";
 
-import { FileText, FolderOpen, Tag } from "lucide-react";
+import {
+  ChevronRight,
+  Database,
+  FileText,
+  FolderOpen,
+  Sparkles,
+  Tag,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -10,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { SpaceListItem } from "@/types/space";
+import type { SpaceListItem, SpaceStatus } from "@/types/space";
 
 export function SpaceList() {
   const [spaces, setSpaces] = useState<SpaceListItem[]>([]);
@@ -68,39 +76,100 @@ export function SpaceList() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-3">
       {spaces.map((space) => (
         <Link key={space.id} href={`/spaces/${space.id}`}>
-          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="h-5 w-5 text-primary" />
-                {space.name}
-              </CardTitle>
-              {space.description && (
-                <CardDescription className="line-clamp-2">
-                  {space.description}
-                </CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <FileText className="h-4 w-4" />
-                  <span>{space._count.documents} docs</span>
+          <div className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer bg-card">
+            <div className="flex items-start justify-between gap-4">
+              {/* Left: Name & Description */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <FolderOpen className="h-5 w-5 text-primary shrink-0" />
+                  <h3 className="font-semibold truncate">{space.name}</h3>
+                  <SpaceStatusBadge status={space.status} />
                 </div>
-                <div className="flex items-center gap-1">
-                  <Tag className="h-4 w-4" />
-                  <span>{space._count.tags} tags</span>
+                {space.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-1 ml-7">
+                    {space.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Right: Config & Stats */}
+              <div className="flex items-center gap-6 text-sm shrink-0">
+                {/* Vector DB */}
+                <div className="flex items-center gap-1.5">
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {getProviderShortName(space.vectorProvider)}
+                  </span>
                 </div>
+
+                {/* Embedding Dim */}
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {space.embeddingDim}d
+                  </span>
+                </div>
+
+                {/* Documents */}
+                <div className="flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {space._count.documents}
+                  </span>
+                </div>
+
+                {/* Vectors */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">
+                    {space.vectorCount > 0
+                      ? `${(space.vectorCount / 1000).toFixed(1)}k`
+                      : "0"}
+                  </span>
+                </div>
+
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </div>
-              <div className="mt-4 text-xs text-muted-foreground">
-                Updated {new Date(space.updatedAt).toLocaleDateString()}
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </Link>
       ))}
     </div>
   );
+}
+
+function SpaceStatusBadge({ status }: { status: SpaceStatus }) {
+  const variants: Record<
+    SpaceStatus,
+    {
+      variant: "default" | "secondary" | "destructive" | "outline";
+      label: string;
+    }
+  > = {
+    INITIALIZING: { variant: "secondary", label: "Init" },
+    ACTIVE: { variant: "default", label: "Active" },
+    INACTIVE: { variant: "outline", label: "Inactive" },
+    ERROR: { variant: "destructive", label: "Error" },
+    DELETING: { variant: "destructive", label: "Deleting" },
+  };
+
+  const config = variants[status];
+  return (
+    <Badge variant={config.variant} className="text-xs">
+      {config.label}
+    </Badge>
+  );
+}
+
+function getProviderShortName(provider: string): string {
+  const names: Record<string, string> = {
+    MILVUS: "Milvus",
+    PINECONE: "Pinecone",
+    QDRANT: "Qdrant",
+    WEAVIATE: "Weaviate",
+    CHROMA: "Chroma",
+  };
+  return names[provider] || provider;
 }

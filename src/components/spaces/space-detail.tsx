@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import type { Space } from "@/types/space";
 import { DocumentUploadDialog } from "./document-upload-dialog";
+import { SpaceConfigCard } from "./space-config-card";
 import { TagManager } from "./tag-manager";
 
 interface SpaceDetailProps {
@@ -136,6 +137,9 @@ export function SpaceDetail({ spaceId }: SpaceDetailProps) {
           </DocumentUploadDialog>
         </div>
       </div>
+
+      {/* Configuration Cards */}
+      <SpaceConfigCard space={space} />
 
       <Card>
         <CardHeader>

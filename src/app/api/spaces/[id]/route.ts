@@ -32,6 +32,7 @@ export async function GET(
         userId,
       },
       include: {
+        embeddingModel: true,
         documents: {
           include: {
             tags: {
@@ -56,7 +57,13 @@ export async function GET(
       return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ space });
+    // Convert BigInt to string for JSON serialization
+    const serializedSpace = {
+      ...space,
+      storageSize: space.storageSize.toString(),
+    };
+
+    return NextResponse.json({ space: serializedSpace });
   } catch (error) {
     console.error("Failed to fetch space:", error);
     return NextResponse.json(
@@ -109,6 +116,7 @@ export async function PATCH(
       where: { id },
       data: validation.data,
       include: {
+        embeddingModel: true,
         _count: {
           select: {
             documents: true,
@@ -118,7 +126,13 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ space: updatedSpace });
+    // Convert BigInt to string for JSON serialization
+    const serializedSpace = {
+      ...updatedSpace,
+      storageSize: updatedSpace.storageSize.toString(),
+    };
+
+    return NextResponse.json({ space: serializedSpace });
   } catch (error) {
     console.error("Failed to update space:", error);
     return NextResponse.json(
@@ -161,7 +175,6 @@ export async function DELETE(
     }
 
     const supabase = await createClient();
-    const collectionName = `space_${id}`;
 
     // Clean up resources in order: Storage -> Vector Store -> Database
     // Use best-effort cleanup: log errors but continue deletion
@@ -179,12 +192,14 @@ export async function DELETE(
       }
     }
 
-    // 2. Delete vector collection
-    try {
-      await ragService.clearCollection(id);
-    } catch (vectorError) {
-      console.error("Failed to clear vector collection:", vectorError);
-      // Continue - orphaned vectors can be cleaned up later
+    // 2. Delete vector collection (using stored collectionName)
+    if (space.collectionName) {
+      try {
+        await ragService.clearCollection(id);
+      } catch (vectorError) {
+        console.error("Failed to clear vector collection:", vectorError);
+        // Continue - orphaned vectors can be cleaned up later
+      }
     }
 
     // 3. Delete database records (cascades to documents, tags, etc.)

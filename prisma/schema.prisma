@@ -69,14 +69,24 @@ model Space {
   // Vector database configuration
   vectorProvider  VectorProvider @default(MILVUS)
   vectorConfig    Json?          @db.JsonB
+  collectionName  String?
 
   // Embedding configuration (immutable after creation)
   embeddingModelId String
   embeddingModel   EmbeddingModel @relation(fields: [embeddingModelId], references: [id], onUpdate: Restrict)
   embeddingDim     Int
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Status and monitoring
+  status       SpaceStatus @default(INITIALIZING)
+  errorMessage String?
+  lastSyncAt   DateTime?
+
+  // Statistics
+  vectorCount  Int    @default(0)
+  storageSize  BigInt @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   documents Document[]
   tags      Tag[]
@@ -84,6 +94,7 @@ model Space {
   @@index([userId, createdAt])
   @@index([vectorProvider])
   @@index([embeddingModelId])
+  @@index([status])
   @@map("spaces")
 }
 
@@ -153,6 +164,14 @@ enum DocumentStatus {
   PROCESSING
   INDEXED
   FAILED
+}
+
+enum SpaceStatus {
+  INITIALIZING
+  ACTIVE
+  INACTIVE
+  ERROR
+  DELETING
 }
 
 enum VectorProvider {

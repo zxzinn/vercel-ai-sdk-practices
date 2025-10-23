@@ -141,13 +141,14 @@ export async function POST(req: Request) {
 
     // Persist document records with atomic transaction rollback support
     try {
-      await prisma.$transaction(
-        files.map((file) => {
+      await prisma.$transaction(async (tx) => {
+        // Create document records
+        for (const file of files) {
           const docChunks = result.documentsChunks.find(
             (dc) => dc.documentId === file.documentId,
           );
 
-          return prisma.document.create({
+          await tx.document.create({
             data: {
               id: file.documentId,
               spaceId: space.id,
@@ -161,8 +162,18 @@ export async function POST(req: Request) {
               totalChunks: docChunks?.chunks ?? 0,
             },
           });
-        }),
-      );
+        }
+
+        // Update space statistics
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+        await tx.space.update({
+          where: { id: spaceId },
+          data: {
+            vectorCount: { increment: result.totalChunks },
+            storageSize: { increment: totalSize },
+          },
+        });
+      });
     } catch (dbError) {
       // Rollback: Remove indexed documents from vector store
       console.error(

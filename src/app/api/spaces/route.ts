@@ -40,7 +40,13 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ spaces });
+    // Convert BigInt to string for JSON serialization
+    const serializedSpaces = spaces.map((space) => ({
+      ...space,
+      storageSize: space.storageSize.toString(),
+    }));
+
+    return NextResponse.json({ spaces: serializedSpaces });
   } catch (error) {
     console.error("Failed to fetch spaces:", error);
     return NextResponse.json(
@@ -151,6 +157,7 @@ export async function POST(req: Request) {
         vectorConfig: (vectorConfig ?? null) as Prisma.InputJsonValue,
         embeddingModelId,
         embeddingDim,
+        status: "ACTIVE",
       },
       include: {
         embeddingModel: true,
@@ -163,7 +170,29 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ space }, { status: 201 });
+    // Generate and update collection name after creation
+    const collectionName = `space_${space.id.replace(/-/g, "_")}`;
+    const updatedSpace = await prisma.space.update({
+      where: { id: space.id },
+      data: { collectionName },
+      include: {
+        embeddingModel: true,
+        _count: {
+          select: {
+            documents: true,
+            tags: true,
+          },
+        },
+      },
+    });
+
+    // Convert BigInt to string for JSON serialization
+    const serializedSpace = {
+      ...updatedSpace,
+      storageSize: updatedSpace.storageSize.toString(),
+    };
+
+    return NextResponse.json({ space: serializedSpace }, { status: 201 });
   } catch (error) {
     console.error("Failed to create space:", error);
     return NextResponse.json(
