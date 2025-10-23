@@ -3,21 +3,20 @@
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { VectorProvider } from "@/generated/prisma";
 import { VectorConfigForm } from "./vector-config-form";
+import {
+  WideDialog,
+  WideDialogContent,
+  WideDialogDescription,
+  WideDialogFooter,
+  WideDialogHeader,
+  WideDialogTitle,
+  WideDialogTrigger,
+} from "./wide-dialog";
 
 interface CreateSpaceDialogProps {
   children: ReactNode;
@@ -27,6 +26,7 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
   const [vectorConfig, setVectorConfig] = useState<Record<string, unknown>>({
     database: "default",
     indexType: "HNSW",
-    metricType: "IP",
+    metricType: "COSINE",
     M: 16,
     efConstruction: 200,
   });
@@ -70,13 +70,14 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
 
       const data = await response.json();
       setOpen(false);
+      setStep(1);
       setName("");
       setDescription("");
       setVectorProvider("MILVUS");
       setVectorConfig({
         database: "default",
         indexType: "HNSW",
-        metricType: "IP",
+        metricType: "COSINE",
         M: 16,
         efConstruction: 200,
       });
@@ -99,61 +100,71 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <WideDialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        setOpen(newOpen);
+        if (!newOpen) {
+          setStep(1);
+          setError(null);
+        }
+      }}
+    >
+      <WideDialogTrigger asChild>{children}</WideDialogTrigger>
+      <WideDialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto w-[95vw]">
         <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Create New Space</DialogTitle>
-            <DialogDescription>
-              Create a space to organize your documents with vector search
-            </DialogDescription>
-          </DialogHeader>
+          <WideDialogHeader>
+            <WideDialogTitle>Create New Space</WideDialogTitle>
+            <WideDialogDescription>
+              {step === 1
+                ? "Create a space to organize your documents with vector search"
+                : "Configure vector database and embedding settings"}
+            </WideDialogDescription>
+          </WideDialogHeader>
 
-          <Tabs defaultValue="basic" className="py-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="vector">Vector Configuration</TabsTrigger>
-            </TabsList>
+          <div className="py-4">
+            {step === 1 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    placeholder="My Research Space"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    maxLength={100}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="What will you store in this space?"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
 
-            <TabsContent value="basic" className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="My Research Space"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  maxLength={100}
+            {step === 2 && (
+              <div className="space-y-4">
+                <VectorConfigForm
+                  provider={vectorProvider}
+                  onProviderChange={setVectorProvider}
+                  config={vectorConfig}
+                  onConfigChange={setVectorConfig}
+                  embeddingModelId={embeddingModelId}
+                  onEmbeddingModelIdChange={setEmbeddingModelId}
+                  embeddingDim={embeddingDim}
+                  onEmbeddingDimChange={setEmbeddingDim}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="What will you store in this space?"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  maxLength={500}
-                  rows={3}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="vector" className="space-y-4">
-              <VectorConfigForm
-                provider={vectorProvider}
-                onProviderChange={setVectorProvider}
-                config={vectorConfig}
-                onConfigChange={setVectorConfig}
-                embeddingModelId={embeddingModelId}
-                onEmbeddingModelIdChange={setEmbeddingModelId}
-                embeddingDim={embeddingDim}
-                onEmbeddingDimChange={setEmbeddingDim}
-              />
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
 
           {error && (
             <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
@@ -161,24 +172,43 @@ export function CreateSpaceDialog({ children }: CreateSpaceDialogProps) {
             </div>
           )}
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !name.trim() || !isConfigValid()}
-            >
-              {isLoading ? "Creating..." : "Create Space"}
-            </Button>
-          </DialogFooter>
+          <WideDialogFooter>
+            {step === 1 ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                  disabled={isLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  disabled={!name.trim()}
+                >
+                  Next
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  disabled={isLoading}
+                >
+                  Back
+                </Button>
+                <Button type="submit" disabled={isLoading || !isConfigValid()}>
+                  {isLoading ? "Creating..." : "Create Space"}
+                </Button>
+              </>
+            )}
+          </WideDialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </WideDialogContent>
+    </WideDialog>
   );
 }
