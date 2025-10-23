@@ -1,5 +1,6 @@
 import type { VectorProvider } from "@/generated/prisma";
 import { MilvusProvider } from "./providers/milvus";
+import { getVectorProvider } from "./registry";
 import type { IVectorProvider, MilvusConfig } from "./types";
 
 /**
@@ -15,35 +16,21 @@ const PROVIDER_REGISTRY = {
 } as const;
 
 /**
- * Get default configuration for a provider
+ * Get default configuration for a provider from registry
  * Returns minimal defaults - actual config should come from database
  */
 function getDefaultConfig(provider: VectorProvider): Record<string, unknown> {
-  switch (provider) {
-    case "MILVUS":
-      return {
-        database: "default",
-        indexType: "HNSW",
-        metricType: "IP",
-        M: 16,
-        efConstruction: 200,
-      };
+  const providerDef = getVectorProvider(provider);
 
-    case "PINECONE":
-      throw new Error("Pinecone provider not yet implemented");
-
-    case "QDRANT":
-      throw new Error("Qdrant provider not yet implemented");
-
-    case "WEAVIATE":
-      throw new Error("Weaviate provider not yet implemented");
-
-    case "CHROMA":
-      throw new Error("Chroma provider not yet implemented");
-
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
+  if (!providerDef) {
+    throw new Error(`Unknown provider: ${provider}`);
   }
+
+  if (!providerDef.implemented) {
+    throw new Error(`${providerDef.name} provider not yet implemented`);
+  }
+
+  return providerDef.defaultConfig;
 }
 
 /**
