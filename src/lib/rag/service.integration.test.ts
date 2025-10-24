@@ -163,11 +163,11 @@ skipIfNoZilliz("RAG Service - Zilliz Integration Tests", () => {
       const text = "This is a test document for vectorization.";
       const chunks = ragService.chunkText(text, 100, 20);
 
-      const vectorDocs: VectorDocument[] = chunks.map((chunk, index) => ({
-        id: `doc-1-chunk-${index}`,
+      const vectorDocs: VectorDocument[] = chunks.map((chunk) => ({
+        id: `doc-1-chunk-${chunk.index}`,
         vector: Array(1024).fill(0.5), // Dummy vector for 1024-dim model
         metadata: {
-          chunkIndex: index,
+          chunkIndex: chunk.index,
           totalChunks: chunks.length,
           filename: "test.txt",
           fileType: "text",
@@ -303,12 +303,12 @@ skipIfNoZilliz("RAG Service - Zilliz Integration Tests", () => {
       };
 
       // Simulate creating vector docs with consistent metadata
-      const vectorDocs = chunks.map((chunk, index) => ({
-        id: `doc-1-chunk-${index}`,
+      const vectorDocs = chunks.map((chunk) => ({
+        id: `doc-1-chunk-${chunk.index}`,
         vector: Array(1024).fill(0.1),
         metadata: {
           ...metadata,
-          chunkIndex: index,
+          chunkIndex: chunk.index,
           content: chunk.content,
         },
       }));
