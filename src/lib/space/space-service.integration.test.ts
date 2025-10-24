@@ -13,6 +13,7 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
+import { getCollectionName } from "@/lib/rag/service";
 import { createVectorProvider } from "@/lib/vector";
 import {
   COHERE_MODELS,
@@ -324,11 +325,14 @@ skipIfNoMilvus("Space Service - Integration Tests", () => {
 
       spaceIds.push(space.id);
 
-      expect(space.collectionName).toBeDefined();
-      expect(space.collectionName).toMatch(/^space_/);
-      expect(space.collectionName).not.toContain("-"); // Hyphens replaced with underscores
+      // Collection name is deterministically generated from space ID by RAGService
+      const expectedName = getCollectionName(space.id);
 
-      console.log(`✓ Collection name generated: ${space.collectionName}`);
+      expect(expectedName).toBeDefined();
+      expect(expectedName).toMatch(/^space_/);
+      expect(expectedName).not.toContain("-"); // Hyphens replaced with underscores
+
+      console.log(`✓ Collection name generated: ${expectedName}`);
     });
   });
 });
