@@ -39,8 +39,10 @@ jobs:
 
       - name: Run tests
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           MILVUS_URL: ${{ secrets.MILVUS_URL }}
           MILVUS_TOKEN: ${{ secrets.MILVUS_TOKEN }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
         run: npm run test:ci
 
       - name: Build project
