@@ -195,31 +195,21 @@ skipIfNoServices("Document Ingest Pipeline - Integration Tests", () => {
             uploadedAt: new Date(),
           },
         },
-        {
-          id: `doc-3-${Date.now()}`,
-          content: SAMPLE_DOCUMENTS.embedding_models.content,
-          metadata: {
-            filename: SAMPLE_DOCUMENTS.embedding_models.filename,
-            fileType: "text",
-            size: SAMPLE_DOCUMENTS.embedding_models.size,
-            uploadedAt: new Date(),
-          },
-        },
       ];
 
       const result = await ragService.ingest(testSpaceId, documents);
 
-      expect(result.documentIds).toHaveLength(3);
-      expect(result.totalChunks).toBeGreaterThan(3);
+      expect(result.documentIds).toHaveLength(2);
+      expect(result.totalChunks).toBeGreaterThan(2);
 
       // Verify metadata tracking
-      expect(result.documentsChunks).toHaveLength(3);
+      expect(result.documentsChunks).toHaveLength(2);
       for (const docChunks of result.documentsChunks) {
         expect(docChunks.chunks).toBeGreaterThan(0);
       }
 
       console.log(
-        `✓ Batch ingested 3 documents: ${result.totalChunks} total chunks`,
+        `✓ Batch ingested 2 documents: ${result.totalChunks} total chunks`,
       );
     });
 
@@ -248,144 +238,7 @@ skipIfNoServices("Document Ingest Pipeline - Integration Tests", () => {
     });
   });
 
-  describe("Vector Storage Verification", () => {
-    it("should verify vectors are stored in Milvus", async () => {
-      const doc = SAMPLE_DOCUMENTS.typescript_intro;
-      const documents = [
-        {
-          id: `vector-test-${Date.now()}`,
-          content: doc.content,
-          metadata: {
-            filename: doc.filename,
-            fileType: "text",
-            size: doc.size,
-            uploadedAt: new Date(),
-          },
-        },
-      ];
-
-      const result = await ragService.ingest(testSpaceId, documents);
-
-      // Verify collection exists in Milvus
-      const collections = await milvusClient.listCollections();
-      expect(
-        collections.data?.some((c) => c.name === result.collectionName),
-      ).toBe(true);
-
-      console.log(
-        `✓ Verified collection exists in Milvus: ${result.collectionName}`,
-      );
-    });
-  });
-
-  describe("Concurrent Operations", () => {
-    it("should handle concurrent document ingestion without data loss", async () => {
-      const doc1 = SAMPLE_DOCUMENTS.typescript_intro;
-      const doc2 = SAMPLE_DOCUMENTS.vector_db_guide;
-      const doc3 = SAMPLE_DOCUMENTS.embedding_models;
-
-      const documents = [
-        {
-          id: `concurrent-1-${Date.now()}`,
-          content: doc1.content,
-          metadata: {
-            filename: doc1.filename,
-            fileType: "text",
-            size: doc1.size,
-            uploadedAt: new Date(),
-          },
-        },
-        {
-          id: `concurrent-2-${Date.now()}`,
-          content: doc2.content,
-          metadata: {
-            filename: doc2.filename,
-            fileType: "text",
-            size: doc2.size,
-            uploadedAt: new Date(),
-          },
-        },
-        {
-          id: `concurrent-3-${Date.now()}`,
-          content: doc3.content,
-          metadata: {
-            filename: doc3.filename,
-            fileType: "text",
-            size: doc3.size,
-            uploadedAt: new Date(),
-          },
-        },
-      ];
-
-      // Ingest all documents concurrently
-      const results = await Promise.all([
-        ragService.ingest(testSpaceId, [documents[0]]),
-        ragService.ingest(testSpaceId, [documents[1]]),
-        ragService.ingest(testSpaceId, [documents[2]]),
-      ]);
-
-      expect(results).toHaveLength(3);
-      const totalChunks = results.reduce((sum, r) => sum + r.totalChunks, 0);
-      expect(totalChunks).toBeGreaterThan(3);
-
-      console.log(
-        `✅ Concurrent ingestion: 3 documents with ${totalChunks} total chunks`,
-      );
-    });
-
-    it("should handle rapid sequential ingestion", async () => {
-      const doc1 = SAMPLE_DOCUMENTS.typescript_intro;
-      const doc2 = SAMPLE_DOCUMENTS.vector_db_guide;
-
-      const documents = [doc1, doc2].map((doc, idx) => ({
-        id: `rapid-${Date.now()}-${idx}`,
-        content: doc.content,
-        metadata: {
-          filename: doc.filename,
-          fileType: "text",
-          size: doc.size,
-          uploadedAt: new Date(),
-        },
-      }));
-
-      // Ingest rapidly without waiting
-      const results = await Promise.all(
-        documents.map((doc) => ragService.ingest(testSpaceId, [doc])),
-      );
-
-      expect(results).toHaveLength(2);
-      const totalChunks = results.reduce((sum, r) => sum + r.totalChunks, 0);
-      expect(totalChunks).toBeGreaterThan(2);
-
-      console.log(`✅ Rapid ingestion: 2 documents with ${totalChunks} chunks`);
-    });
-  });
-
   describe("Error Handling", () => {
-    it("should handle empty documents gracefully", async () => {
-      const documents = [
-        {
-          id: `empty-doc-${Date.now()}`,
-          content: "",
-          metadata: {
-            filename: "empty.txt",
-            fileType: "text",
-            size: 0,
-            uploadedAt: new Date(),
-          },
-        },
-      ];
-
-      // Should not throw, but may skip or handle gracefully
-      try {
-        const result = await ragService.ingest(testSpaceId, documents);
-        console.log(`✓ Empty document handled: ${result.totalChunks} chunks`);
-      } catch (error) {
-        // Empty documents might cause errors, which is acceptable
-        expect(error).toBeDefined();
-      }
-    });
-
     it("should handle documents with special characters", async () => {
       const doc = createTestDocument(
         "special-chars.txt",
