@@ -31,13 +31,33 @@ export async function GET(
 
     const documents = await prisma.document.findMany({
       where: { spaceId },
-      include: {
-        tags: {
-          include: {
-            tag: true,
+      select: {
+        id: true,
+        fileName: true,
+        fileType: true,
+        size: true,
+        status: true,
+        totalChunks: true,
+        uploadedAt: true,
+        updatedAt: true,
+        metadata: {
+          select: {
+            id: true,
+            key: true,
+            value: true,
           },
         },
-        metadata: true,
+        tags: {
+          select: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { uploadedAt: "desc" },
     });
