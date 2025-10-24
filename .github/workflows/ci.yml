@@ -38,7 +38,10 @@ jobs:
         run: npx biome ci .
 
       - name: Run tests
-        run: npm test
+        env:
+          MILVUS_URL: ${{ secrets.MILVUS_URL }}
+          MILVUS_TOKEN: ${{ secrets.MILVUS_TOKEN }}
+        run: npm run test:ci
 
       - name: Build project
         env:
