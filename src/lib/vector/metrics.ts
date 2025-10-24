@@ -26,10 +26,10 @@ export function normalizeMetricScore(
       break;
 
     case "IP":
-      // Inner Product with L2-normalized embeddings ∈ [-1, 1]; map to [0,1]
-      // Keeps thresholding stable with normalized embeddings (Cohere default)
-      score = (rawScore + 1) / 2;
-      distance = 1 - score;
+      // Inner Product: higher is better (already similarity)
+      // Score range depends on vector normalization; don't assume [-1, 1]
+      score = rawScore;
+      distance = 1 - rawScore;
       break;
 
     case "L2":
