@@ -4,9 +4,9 @@ import type {
   DescribeCollectionResponse,
   FieldType,
 } from "@zilliz/milvus2-sdk-node";
-import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
+import { DataType, MetricType, MilvusClient } from "@zilliz/milvus2-sdk-node";
 import { z } from "zod";
-import { type MilvusMetricType, normalizeMetricScore } from "../metrics";
+import { normalizeMetricScore } from "../metrics";
 import type {
   CollectionSchema,
   IVectorProvider,
@@ -30,7 +30,7 @@ const MilvusConfigSchema = z.object({
   indexType: z
     .enum(["FLAT", "HNSW", "IVF_FLAT", "IVF_SQ8", "IVF_PQ"])
     .optional(),
-  metricType: z.enum(["IP", "L2", "COSINE", "HAMMING", "JACCARD"]).optional(),
+  metricType: z.enum(MetricType).optional(),
   M: z.number().int().positive().optional(),
   efConstruction: z.number().int().positive().optional(),
   nlist: z.number().int().positive().optional(),
@@ -285,13 +285,13 @@ export class MilvusProvider implements IVectorProvider {
     });
 
     const results: SearchResult[] = [];
-    const metricType = this.config?.metricType || "COSINE";
+    const metricType = this.config?.metricType || MetricType.COSINE;
 
     // Convert Milvus search results to our SearchResult format
     for (const result of searchResults.results as MilvusSearchResult[]) {
       const { score, distance } = normalizeMetricScore(
         result.score,
-        metricType as MilvusMetricType,
+        metricType,
       );
 
       // Apply threshold (using normalized score)
