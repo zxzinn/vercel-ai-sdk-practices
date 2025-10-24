@@ -6,7 +6,7 @@ import type {
 } from "@zilliz/milvus2-sdk-node";
 import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
 import { z } from "zod";
-import { normalizeMetricScore } from "../metrics";
+import { type MilvusMetricType, normalizeMetricScore } from "../metrics";
 import type {
   CollectionSchema,
   IVectorProvider,
@@ -291,7 +291,7 @@ export class MilvusProvider implements IVectorProvider {
     for (const result of searchResults.results as MilvusSearchResult[]) {
       const { score, distance } = normalizeMetricScore(
         result.score,
-        metricType as any,
+        metricType as MilvusMetricType,
       );
 
       // Apply threshold (using normalized score)

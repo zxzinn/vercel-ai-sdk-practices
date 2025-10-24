@@ -1,4 +1,4 @@
-import type { Tool } from "ai";
+import type { Tool, UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
 import {
@@ -19,6 +19,37 @@ import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
+
+// Type definitions for assistant messages with type safety
+interface TextMessagePart {
+  type: "text";
+  text: string;
+}
+
+interface ToolMessagePart {
+  type: `tool-${string}`;
+  input: unknown;
+  output: unknown;
+  state: "output-available" | "output-error";
+}
+
+interface DynamicToolMessagePart {
+  type: "dynamic-tool";
+  toolName: string;
+  input: unknown;
+  output: unknown;
+  state: "output-available" | "output-error";
+}
+
+type AssistantMessagePart =
+  | TextMessagePart
+  | ToolMessagePart
+  | DynamicToolMessagePart;
+
+interface AssistantMessage {
+  role: "assistant";
+  parts: AssistantMessagePart[];
+}
 
 // Map of search providers to their tool implementations
 const SEARCH_PROVIDER_MAP = {
@@ -311,7 +342,7 @@ export async function POST(req: Request) {
             const userMessage = messages[messages.length - 1];
 
             // Build assistant message with all parts (text, tool calls, tool results)
-            const assistantMessage: any = {
+            const assistantMessage: AssistantMessage = {
               role: "assistant",
               parts: [],
             };
@@ -396,8 +427,8 @@ export async function POST(req: Request) {
             const userContent =
               userMessage.content ||
               userMessage.parts
-                ?.filter((p: { type: string }) => p.type === "text")
-                .map((p: { text: string }) => p.text)
+                ?.filter((p): p is TextMessagePart => p.type === "text")
+                .map((p) => p.text)
                 .join("\n") ||
               "";
 
@@ -418,14 +449,16 @@ export async function POST(req: Request) {
                 data: {
                   conversationId,
                   role: "user",
-                  content: userMessage as any, // Store complete UIMessage
+                  // UIMessage is runtime JSON-serializable but complex type for Prisma JSON field
+                  // This is a database serialization context where type safety is validated at runtime
+                  content: userMessage as any,
                 },
               }),
               prisma.conversationMessage.create({
                 data: {
                   conversationId,
                   role: "assistant",
-                  content: assistantMessage, // Store complete UIMessage with all parts
+                  content: assistantMessage as any, // Store complete UIMessage with all parts
                 },
               }),
             ]);
