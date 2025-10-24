@@ -46,7 +46,10 @@ export async function GET() {
 
     return NextResponse.json({ spaces: serializedSpaces });
   } catch (error) {
-    console.error("Failed to fetch spaces:", error);
+    console.error(
+      "Failed to fetch spaces:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     return NextResponse.json(
       {
         error: "Failed to fetch spaces",
@@ -189,7 +192,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ space: serializedSpace }, { status: 201 });
   } catch (error) {
-    console.error("Failed to create space:", error);
+    console.error(
+      "Failed to create space:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     return NextResponse.json(
       {
         error: "Failed to create space",

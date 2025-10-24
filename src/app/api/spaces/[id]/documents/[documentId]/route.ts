@@ -105,14 +105,33 @@ export async function DELETE(
 
     const supabase = await createClient();
 
-    // Use transaction to ensure atomic deletion and statistics update
+    // Clean up resources in order: Storage -> Vector Store -> Database
+    // Use best-effort cleanup: log errors but continue deletion
+
+    // 1. Delete file from Supabase Storage
+    const { error: storageError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .remove([document.storageUrl]);
+
+    if (storageError) {
+      console.error("Failed to delete storage file:", storageError);
+      // Continue - orphaned files are less critical than DB inconsistency
+    }
+
+    // 2. Delete from vector store
+    try {
+      await ragService.deleteDocument(spaceId, document.vectorDocId);
+    } catch (vectorError) {
+      console.error("Failed to delete from vector store:", vectorError);
+      // Continue - orphaned vectors can be cleaned up later
+    }
+
+    // 3. Delete database record and update statistics (atomic)
     await prisma.$transaction(async (tx) => {
-      // Delete document record
       await tx.document.delete({
         where: { id: documentId },
       });
 
-      // Update space statistics
       await tx.space.update({
         where: { id: spaceId },
         data: {
@@ -121,12 +140,6 @@ export async function DELETE(
         },
       });
     });
-
-    // Delete from storage (best effort - orphaned files can be cleaned up later)
-    await supabase.storage.from(STORAGE_BUCKET).remove([document.storageUrl]);
-
-    // Delete from vector store (best effort - orphaned vectors can be cleaned up later)
-    await ragService.deleteDocument(spaceId, document.vectorDocId);
 
     return NextResponse.json({
       success: true,

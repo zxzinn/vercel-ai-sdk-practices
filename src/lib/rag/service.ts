@@ -49,6 +49,16 @@ function parseMetadata(raw: Record<string, unknown>): DocumentMetadata {
   };
 }
 
+/**
+ * Generate consistent collection name for a space
+ * Replaces hyphens with underscores to ensure database compatibility
+ * This function must be used everywhere collection names are generated
+ * to prevent inconsistencies between different parts of the codebase
+ */
+export function getCollectionName(spaceId: string): string {
+  return `space_${spaceId.replace(/-/g, "_")}`;
+}
+
 export class RAGService {
   private ingestExecutor: SerialJobExecutor = new SerialJobExecutor();
   private providerCache: Map<string, IVectorProvider> = new Map();
@@ -181,7 +191,7 @@ export class RAGService {
       const { provider, embeddingModel, embeddingDim } =
         await this.getProviderForSpace(spaceId);
 
-      const collectionName = `space_${spaceId}`;
+      const collectionName = getCollectionName(spaceId);
 
       // Ensure collection exists
       const exists = await provider.hasCollection(collectionName);
@@ -275,7 +285,7 @@ export class RAGService {
     const { provider, embeddingModel } =
       await this.getProviderForSpace(spaceId);
 
-    const collectionName = `space_${spaceId}`;
+    const collectionName = getCollectionName(spaceId);
 
     // Generate query embedding
     const { embedding } = await embed({
@@ -310,7 +320,7 @@ export class RAGService {
 
   async deleteDocument(spaceId: string, documentId: string): Promise<void> {
     const { provider } = await this.getProviderForSpace(spaceId);
-    const collectionName = `space_${spaceId}`;
+    const collectionName = getCollectionName(spaceId);
 
     await provider.delete(collectionName, { originalDocId: documentId });
 
@@ -321,7 +331,7 @@ export class RAGService {
 
   async clearCollection(spaceId: string): Promise<void> {
     const { provider } = await this.getProviderForSpace(spaceId);
-    const collectionName = `space_${spaceId}`;
+    const collectionName = getCollectionName(spaceId);
 
     await provider.deleteCollection(collectionName);
 

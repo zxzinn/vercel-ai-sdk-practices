@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import type { RAGDocument } from "@/lib/rag";
-import { ragService } from "@/lib/rag";
+import { getCollectionName, ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
 
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
     // Use stored collection name or fallback to generated name
     const finalCollectionName =
-      space.collectionName ?? `space_${spaceId.replace(/-/g, "_")}`;
+      space.collectionName ?? getCollectionName(spaceId);
 
     // DoS prevention: limit number of files to prevent timeout
     if (files.length > MAX_FILES) {

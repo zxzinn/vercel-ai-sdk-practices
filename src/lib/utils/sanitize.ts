@@ -33,8 +33,15 @@ export function serializeSpace<
 } {
   const { vectorConfig, storageSize, ...rest } = space;
 
-  // Cast vectorConfig to expected type
-  const config = vectorConfig as Record<string, unknown> | null;
+  // Safely handle vectorConfig - it may be a string, object, or null from Prisma
+  let config: Record<string, unknown> | null = null;
+  if (
+    vectorConfig &&
+    typeof vectorConfig === "object" &&
+    !Array.isArray(vectorConfig)
+  ) {
+    config = vectorConfig as Record<string, unknown>;
+  }
 
   return {
     ...rest,

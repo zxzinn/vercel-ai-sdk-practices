@@ -8,11 +8,19 @@ export interface MilvusConfig {
   url: string;
   token: string;
   database?: string;
-  indexType?: "HNSW" | "IVF_FLAT" | "IVF_SQ8" | "IVF_PQ";
-  metricType?: "IP" | "L2" | "COSINE";
+  indexType?: "FLAT" | "HNSW" | "IVF_FLAT" | "IVF_SQ8" | "IVF_PQ";
+  metricType?: "IP" | "L2" | "COSINE" | "HAMMING" | "JACCARD";
   // HNSW specific parameters
   M?: number;
   efConstruction?: number;
+  // IVF specific parameters
+  nlist?: number;
+  nprobe?: number;
+  // IVF_PQ specific parameters
+  m?: number;
+  nbits?: number;
+  // HNSW search parameter
+  ef?: number;
 }
 
 export interface PineconeConfig {

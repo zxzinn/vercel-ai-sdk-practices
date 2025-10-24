@@ -1,4 +1,5 @@
 import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
+import { z } from "zod";
 import type {
   CollectionSchema,
   IVectorProvider,
@@ -15,21 +16,40 @@ interface MilvusSearchResult {
   metadata: Record<string, unknown>;
 }
 
+const MilvusConfigSchema = z.object({
+  url: z.string().url("Invalid Milvus URL"),
+  token: z.string().min(1, "Milvus token is required"),
+  database: z.string().optional(),
+  indexType: z
+    .enum(["FLAT", "HNSW", "IVF_FLAT", "IVF_SQ8", "IVF_PQ"])
+    .optional(),
+  metricType: z.enum(["IP", "L2", "COSINE", "HAMMING", "JACCARD"]).optional(),
+  M: z.number().int().positive().optional(),
+  efConstruction: z.number().int().positive().optional(),
+  nlist: z.number().int().positive().optional(),
+  nprobe: z.number().int().positive().optional(),
+  m: z.number().int().positive().optional(),
+  nbits: z.number().int().positive().optional(),
+  ef: z.number().int().positive().optional(),
+});
+
 export class MilvusProvider implements IVectorProvider {
   readonly name = "MILVUS" as const;
   private client: MilvusClient | null = null;
   private config: MilvusConfig | null = null;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
-    // Validate and cast config
-    if (!config.url || typeof config.url !== "string") {
-      throw new Error("Milvus URL is required");
-    }
-    if (!config.token || typeof config.token !== "string") {
-      throw new Error("Milvus token is required");
+    // Validate config using Zod schema
+    const validationResult = MilvusConfigSchema.safeParse(config);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join("; ");
+      throw new Error(`Invalid Milvus configuration: ${errors}`);
     }
 
-    this.config = config as unknown as MilvusConfig;
+    this.config = validationResult.data as MilvusConfig;
 
     this.client = new MilvusClient({
       address: this.config.url,
@@ -94,22 +114,35 @@ export class MilvusProvider implements IVectorProvider {
       ],
     });
 
-    // Create index
+    // Create index with appropriate parameters based on index type
     const indexType = this.config?.indexType || "HNSW";
     const metricType = this.config?.metricType || "IP";
+
+    let indexParams: Record<string, unknown> = {};
+    if (indexType === "HNSW") {
+      indexParams = {
+        M: this.config?.M || 16,
+        efConstruction: this.config?.efConstruction || 200,
+      };
+    } else if (indexType === "IVF_FLAT" || indexType === "IVF_SQ8") {
+      indexParams = {
+        nlist: this.config?.nlist || 128,
+        nprobe: this.config?.nprobe || 8,
+      };
+    } else if (indexType === "IVF_PQ") {
+      indexParams = {
+        nlist: this.config?.nlist || 128,
+        m: this.config?.m || 8,
+        nbits: this.config?.nbits || 8,
+      };
+    }
 
     await this.getClient().createIndex({
       collection_name: schema.name,
       field_name: "vector",
       index_type: indexType,
       metric_type: metricType,
-      params:
-        indexType === "HNSW"
-          ? {
-              M: this.config?.M || 16,
-              efConstruction: this.config?.efConstruction || 200,
-            }
-          : {},
+      params: indexParams,
     });
 
     // Load collection into memory
