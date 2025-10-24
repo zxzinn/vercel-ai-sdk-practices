@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json()) as IngestRequest;
-    const { files, spaceId, collectionName } = body;
+    const { files, spaceId } = body;
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });

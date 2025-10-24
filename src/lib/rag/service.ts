@@ -72,8 +72,9 @@ export class RAGService {
     embeddingDim: number;
   }> {
     // Check cache first
-    if (this.providerCache.has(spaceId)) {
-      const provider = this.providerCache.get(spaceId)!;
+    const cachedProvider = this.providerCache.get(spaceId);
+    if (cachedProvider) {
+      const provider = cachedProvider;
       const space = await prisma.space.findUnique({
         where: { id: spaceId },
         select: {

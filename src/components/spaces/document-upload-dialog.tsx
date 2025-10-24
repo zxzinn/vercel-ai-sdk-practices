@@ -177,10 +177,9 @@ export function DocumentUploadDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div
-            role="button"
-            tabIndex={0}
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          <button
+            type="button"
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors block w-full text-left cursor-pointer ${
               isDragging
                 ? "border-primary bg-primary/5"
                 : "border-muted-foreground/25"
@@ -188,6 +187,7 @@ export function DocumentUploadDialog({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 fileInputRef.current?.click();
@@ -217,7 +217,7 @@ export function DocumentUploadDialog({
             >
               Browse Files
             </Button>
-          </div>
+          </button>
 
           {files.length > 0 && (
             <div className="space-y-2">
