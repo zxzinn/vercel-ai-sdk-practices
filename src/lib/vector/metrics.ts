@@ -26,9 +26,10 @@ export function normalizeMetricScore(
       break;
 
     case "IP":
-      // Inner Product: higher is better (already similarity)
-      score = rawScore;
-      distance = 1 - rawScore;
+      // Inner Product with L2-normalized embeddings ∈ [-1, 1]; map to [0,1]
+      // Keeps thresholding stable with normalized embeddings (Cohere default)
+      score = (rawScore + 1) / 2;
+      distance = 1 - score;
       break;
 
     case "L2":
@@ -38,9 +39,15 @@ export function normalizeMetricScore(
       score = 1 / (1 + distance);
       break;
 
-    case "HAMMING":
     case "JACCARD":
-      // Distance metrics: lower is better
+      // Jaccard distance in [0,1]; similarity = 1 - distance
+      distance = rawScore;
+      score = 1 - distance;
+      break;
+
+    case "HAMMING":
+      // Hamming is count of differing bits; lower is better
+      // Use bounded mapping for normalized comparison
       distance = rawScore;
       score = 1 / (1 + distance);
       break;

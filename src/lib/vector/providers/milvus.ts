@@ -153,7 +153,7 @@ export class MilvusProvider implements IVectorProvider {
 
   /**
    * Build index parameters based on index type
-   * Uses Milvus SDK defaults as fallbacks
+   * Note: nprobe is a search-time parameter, not an index parameter
    */
   private buildIndexParams(
     indexType: "FLAT" | "HNSW" | "IVF_FLAT" | "IVF_SQ8" | "IVF_PQ",
@@ -169,7 +169,6 @@ export class MilvusProvider implements IVectorProvider {
       case "IVF_SQ8":
         return {
           nlist: this.config?.nlist || 128,
-          nprobe: this.config?.nprobe || 8,
         };
 
       case "IVF_PQ":
@@ -267,10 +266,14 @@ export class MilvusProvider implements IVectorProvider {
   ): Promise<SearchResult[]> {
     const { topK = 5, scoreThreshold = 0, ef } = options;
 
-    // Build search parameters
-    const searchParams = {
-      ef: ef || Math.max(64, topK * 4),
-    };
+    // Build search parameters based on index type
+    const indexType = this.config?.indexType || "HNSW";
+    const searchParams =
+      indexType === "HNSW"
+        ? { ef: ef || Math.max(64, topK * 4) }
+        : indexType.startsWith("IVF")
+          ? { nprobe: this.config?.nprobe || 8 }
+          : {};
 
     // Perform search using Milvus client
     const searchResults = await this.getClient().search({
