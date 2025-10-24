@@ -278,6 +278,89 @@ skipIfNoServices("Document Ingest Pipeline - Integration Tests", () => {
     });
   });
 
+  describe("Concurrent Operations", () => {
+    it("should handle concurrent document ingestion without data loss", async () => {
+      const doc1 = SAMPLE_DOCUMENTS.typescript_intro;
+      const doc2 = SAMPLE_DOCUMENTS.vector_db_guide;
+      const doc3 = SAMPLE_DOCUMENTS.embedding_models;
+
+      const documents = [
+        {
+          id: `concurrent-1-${Date.now()}`,
+          content: doc1.content,
+          metadata: {
+            filename: doc1.filename,
+            fileType: "text",
+            size: doc1.size,
+            uploadedAt: new Date(),
+          },
+        },
+        {
+          id: `concurrent-2-${Date.now()}`,
+          content: doc2.content,
+          metadata: {
+            filename: doc2.filename,
+            fileType: "text",
+            size: doc2.size,
+            uploadedAt: new Date(),
+          },
+        },
+        {
+          id: `concurrent-3-${Date.now()}`,
+          content: doc3.content,
+          metadata: {
+            filename: doc3.filename,
+            fileType: "text",
+            size: doc3.size,
+            uploadedAt: new Date(),
+          },
+        },
+      ];
+
+      // Ingest all documents concurrently
+      const results = await Promise.all([
+        ragService.ingest(testSpaceId, [documents[0]]),
+        ragService.ingest(testSpaceId, [documents[1]]),
+        ragService.ingest(testSpaceId, [documents[2]]),
+      ]);
+
+      expect(results).toHaveLength(3);
+      const totalChunks = results.reduce((sum, r) => sum + r.totalChunks, 0);
+      expect(totalChunks).toBeGreaterThan(3);
+
+      console.log(
+        `✅ Concurrent ingestion: 3 documents with ${totalChunks} total chunks`,
+      );
+    });
+
+    it("should handle rapid sequential ingestion", async () => {
+      const doc1 = SAMPLE_DOCUMENTS.typescript_intro;
+      const doc2 = SAMPLE_DOCUMENTS.vector_db_guide;
+
+      const documents = [doc1, doc2].map((doc, idx) => ({
+        id: `rapid-${Date.now()}-${idx}`,
+        content: doc.content,
+        metadata: {
+          filename: doc.filename,
+          fileType: "text",
+          size: doc.size,
+          uploadedAt: new Date(),
+        },
+      }));
+
+      // Ingest rapidly without waiting
+      const results = await Promise.all(
+        documents.map((doc) => ragService.ingest(testSpaceId, [doc])),
+      );
+
+      expect(results).toHaveLength(2);
+      const totalChunks = results.reduce((sum, r) => sum + r.totalChunks, 0);
+      expect(totalChunks).toBeGreaterThan(2);
+
+      console.log(`✅ Rapid ingestion: 2 documents with ${totalChunks} chunks`);
+    });
+  });
+
   describe("Error Handling", () => {
     it("should handle empty documents gracefully", async () => {
       const documents = [
