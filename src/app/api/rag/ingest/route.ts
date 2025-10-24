@@ -64,7 +64,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
 
-    const finalCollectionName = `space_${spaceId}`;
+    // Use stored collection name or fallback to generated name
+    const finalCollectionName =
+      space.collectionName ?? `space_${spaceId.replace(/-/g, "_")}`;
 
     // DoS prevention: limit number of files to prevent timeout
     if (files.length > MAX_FILES) {

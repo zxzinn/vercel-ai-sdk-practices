@@ -105,13 +105,28 @@ export async function DELETE(
 
     const supabase = await createClient();
 
+    // Use transaction to ensure atomic deletion and statistics update
+    await prisma.$transaction(async (tx) => {
+      // Delete document record
+      await tx.document.delete({
+        where: { id: documentId },
+      });
+
+      // Update space statistics
+      await tx.space.update({
+        where: { id: spaceId },
+        data: {
+          vectorCount: { decrement: document.totalChunks },
+          storageSize: { decrement: document.size },
+        },
+      });
+    });
+
+    // Delete from storage (best effort - orphaned files can be cleaned up later)
     await supabase.storage.from(STORAGE_BUCKET).remove([document.storageUrl]);
 
+    // Delete from vector store (best effort - orphaned vectors can be cleaned up later)
     await ragService.deleteDocument(spaceId, document.vectorDocId);
-
-    await prisma.document.delete({
-      where: { id: documentId },
-    });
 
     return NextResponse.json({
       success: true,

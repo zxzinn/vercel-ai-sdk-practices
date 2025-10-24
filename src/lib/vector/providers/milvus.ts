@@ -213,15 +213,48 @@ export class MilvusProvider implements IVectorProvider {
     });
 
     const results: SearchResult[] = [];
+    const metricType = this.config?.metricType || "COSINE";
 
     for (const result of searchResults.results as MilvusSearchResult[]) {
-      if (result.score < scoreThreshold) continue;
+      // Convert score to normalized similarity and distance based on metric type
+      let score: number;
+      let distance: number;
+
+      switch (metricType) {
+        case "COSINE":
+          // Cosine: Milvus returns similarity in [-1, 1], higher is better
+          // Normalize to [0, 1] where 1 is most similar
+          score = (result.score + 1) / 2;
+          distance = 1 - score;
+          break;
+
+        case "IP":
+          // Inner Product: higher is better (already similarity)
+          score = result.score;
+          distance = 1 - result.score;
+          break;
+
+        case "L2":
+          // Euclidean Distance: lower is better (already distance)
+          // Convert to similarity: score = 1 / (1 + distance)
+          distance = result.score;
+          score = 1 / (1 + distance);
+          break;
+
+        default:
+          // Fallback: assume similarity metric
+          score = result.score;
+          distance = 1 - result.score;
+      }
+
+      // Apply threshold (now correctly using normalized score)
+      if (score < scoreThreshold) continue;
 
       results.push({
         id: result.id,
         content: result.content,
-        score: result.score,
-        distance: 1 - result.score, // IP score to distance
+        score,
+        distance,
         metadata: result.metadata,
       });
     }

@@ -178,19 +178,6 @@ export const milvusProvider: VectorProviderDefinition = {
         nbits: "Bits per sub-vector",
       },
     },
-    {
-      id: "SCANN",
-      name: "SCANN (Google)",
-      description: "IVF_PQ optimized with SIMD instructions",
-      storageOverhead: "10-20%",
-      querySpeed: "Very Fast",
-      accuracy: ">90%",
-      useCases: [
-        "High-performance requirements",
-        "Large-scale production systems",
-        "Modern CPU architectures",
-      ],
-    },
   ],
 
   defaultConfig: {

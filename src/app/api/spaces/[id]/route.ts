@@ -4,6 +4,7 @@ import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
+import { serializeSpace } from "@/lib/utils/sanitize";
 
 const UpdateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -57,11 +58,8 @@ export async function GET(
       return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
 
-    // Convert BigInt to string for JSON serialization
-    const serializedSpace = {
-      ...space,
-      storageSize: space.storageSize.toString(),
-    };
+    // Serialize space (convert BigInt and redact secrets)
+    const serializedSpace = serializeSpace(space);
 
     return NextResponse.json({ space: serializedSpace });
   } catch (error) {
@@ -126,11 +124,8 @@ export async function PATCH(
       },
     });
 
-    // Convert BigInt to string for JSON serialization
-    const serializedSpace = {
-      ...updatedSpace,
-      storageSize: updatedSpace.storageSize.toString(),
-    };
+    // Serialize space (convert BigInt and redact secrets)
+    const serializedSpace = serializeSpace(updatedSpace);
 
     return NextResponse.json({ space: serializedSpace });
   } catch (error) {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { type Prisma, VectorProvider } from "@/generated/prisma";
 import { getCurrentUserId } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
+import { serializeSpace } from "@/lib/utils/sanitize";
 import { validateProviderConfig } from "@/lib/vector";
 
 const CreateSpaceSchema = z.object({
@@ -40,11 +41,8 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    // Convert BigInt to string for JSON serialization
-    const serializedSpaces = spaces.map((space) => ({
-      ...space,
-      storageSize: space.storageSize.toString(),
-    }));
+    // Serialize spaces (convert BigInt and redact secrets)
+    const serializedSpaces = spaces.map((space) => serializeSpace(space));
 
     return NextResponse.json({ spaces: serializedSpaces });
   } catch (error) {
@@ -186,11 +184,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // Convert BigInt to string for JSON serialization
-    const serializedSpace = {
-      ...updatedSpace,
-      storageSize: updatedSpace.storageSize.toString(),
-    };
+    // Serialize space (convert BigInt and redact secrets)
+    const serializedSpace = serializeSpace(updatedSpace);
 
     return NextResponse.json({ space: serializedSpace }, { status: 201 });
   } catch (error) {
