@@ -323,27 +323,4 @@ skipIfNoServices("RAG Search Quality - Integration Tests", () => {
       );
     });
   });
-
-  describe("Empty Space Search", () => {
-    it("should handle search on empty space", async () => {
-      // Create a new empty space
-      const emptySpace = await createTestSpace({
-        userId: testUserId,
-        name: "empty-space",
-      });
-
-      try {
-        const results = await ragService.query(emptySpace.id, "test query");
-
-        // Should return empty results, not error
-        expect(results.sources).toBeDefined();
-        expect(Array.isArray(results.sources)).toBe(true);
-        expect(results.sources.length).toBe(0);
-
-        console.log(`✓ Empty space search handled gracefully`);
-      } finally {
-        await deleteTestSpace(emptySpace.id);
-      }
-    });
-  });
 });

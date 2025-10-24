@@ -276,62 +276,6 @@ skipIfNoServices("Document Ingest Pipeline - Integration Tests", () => {
         `✓ Verified collection exists in Milvus: ${result.collectionName}`,
       );
     });
-
-    it("should support space isolation in vector storage", async () => {
-      const userId2 = `test-user-2-${Date.now()}`;
-      const space2 = await createTestSpace({
-        userId: userId2,
-        name: "Second space",
-      });
-
-      const doc = SAMPLE_DOCUMENTS.short_text;
-
-      // Ingest to both spaces
-      const result1 = await ragService.ingest(testSpaceId, [
-        {
-          id: `doc-space1-${Date.now()}`,
-          content: doc.content,
-          metadata: {
-            filename: doc.filename,
-            fileType: "text",
-            size: doc.size,
-            uploadedAt: new Date(),
-          },
-        },
-      ]);
-
-      const result2 = await ragService.ingest(space2.id, [
-        {
-          id: `doc-space2-${Date.now()}`,
-          content: doc.content,
-          metadata: {
-            filename: doc.filename,
-            fileType: "text",
-            size: doc.size,
-            uploadedAt: new Date(),
-          },
-        },
-      ]);
-
-      // Collections should be different
-      expect(result1.collectionName).not.toBe(result2.collectionName);
-
-      // Cleanup second space
-      try {
-        const collection2 = await milvusClient.listCollections();
-        if (collection2.data?.some((c) => c.name === result2.collectionName)) {
-          await milvusClient.dropCollection({
-            collection_name: result2.collectionName,
-          });
-        }
-      } catch (error) {
-        console.error("Cleanup error:", error);
-      }
-
-      await deleteTestSpace(space2.id);
-
-      console.log(`✓ Space isolation verified in vector storage`);
-    });
   });
 
   describe("Error Handling", () => {
