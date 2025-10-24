@@ -1,8 +1,4 @@
-import type {
-  Model,
-  ReasoningBudgetLevel,
-  ReasoningCapability,
-} from "./providers/types";
+import type { Model, ReasoningBudgetLevel } from "./providers/types";
 
 export function getProviderFromModelId(modelId: string): string {
   return modelId.split("/")[0];

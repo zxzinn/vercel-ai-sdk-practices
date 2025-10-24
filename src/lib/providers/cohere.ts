@@ -12,10 +12,3 @@ export const cohereModels = [
     name: "Command R",
   },
 ];
-
-export const cohereEmbeddingModels = [
-  {
-    id: "cohere/embed-v4.0",
-    name: "Embed V4.0",
-  },
-];

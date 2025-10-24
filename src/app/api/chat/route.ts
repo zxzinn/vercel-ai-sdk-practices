@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
 import { generateImageTool } from "@/lib/tools/image/generate-image";
-import { ragQuery } from "@/lib/tools/rag/query";
+import { createRagQueryTool } from "@/lib/tools/rag/query";
 import { exaSearch } from "@/lib/tools/websearch/exa-search";
 import { perplexitySearch } from "@/lib/tools/websearch/perplexity-search";
 import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
@@ -63,6 +63,7 @@ const RequestBodySchema = z
       .default([])
       .transform((arr) => Array.from(new Set(arr))),
     rag: z.boolean().optional().default(false),
+    spaceId: z.string().optional(),
     reasoning: z.boolean().optional().default(false),
     reasoningBudget: z
       .enum(["low", "medium", "high"])
@@ -137,12 +138,28 @@ export async function POST(req: Request) {
       webSearch,
       searchProviders,
       rag,
+      spaceId,
       reasoning,
       reasoningBudget,
       mcpConnectionIds,
       sessionId,
       conversationId,
     } = validation.data;
+
+    // Validate RAG configuration early
+    if (rag && !spaceId) {
+      return new Response(
+        JSON.stringify({
+          error: "RAG is enabled but no space is selected",
+          message:
+            "Please select a space before enabling RAG. Documents are organized in spaces.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
 
     // Convert UI messages to model messages
     const convertedMessages = convertToModelMessages(messages);
@@ -165,8 +182,8 @@ export async function POST(req: Request) {
       });
     }
 
-    if (rag) {
-      availableTools.ragQuery = ragQuery;
+    if (rag && spaceId) {
+      availableTools.ragQuery = createRagQueryTool(spaceId);
     }
 
     // Always add image generation tool

@@ -14,8 +14,7 @@ const envSchema = z
     EXA_API_KEY: z.string().optional(),
     PERPLEXITY_API_KEY: z.string().optional(),
 
-    // RAG - Vector store
-    CHROMA_URL: z.string().optional().default("http://localhost:8000"),
+    // RAG - Vector store configuration moved to database (per-space)
 
     // Database (Supabase PostgreSQL via Prisma)
     DATABASE_URL: z.string().optional(),
@@ -59,7 +58,6 @@ function validateEnv() {
     // Still apply defaults to maintain Env contract
     return {
       ...process.env,
-      CHROMA_URL: process.env.CHROMA_URL || "http://localhost:8000",
       NODE_ENV:
         (process.env.NODE_ENV as "development" | "production" | "test") ||
         "development",

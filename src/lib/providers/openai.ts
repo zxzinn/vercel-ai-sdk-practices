@@ -206,18 +206,3 @@ export const openaiModels: Model[] = [
     name: "GPT OSS 20B",
   },
 ];
-
-export const openaiEmbeddingModels = [
-  {
-    id: "openai/text-embedding-3-large",
-    name: "Text Embedding 3 Large",
-  },
-  {
-    id: "openai/text-embedding-3-small",
-    name: "Text Embedding 3 Small",
-  },
-  {
-    id: "openai/text-embedding-ada-002",
-    name: "Text Embedding Ada 002",
-  },
-];

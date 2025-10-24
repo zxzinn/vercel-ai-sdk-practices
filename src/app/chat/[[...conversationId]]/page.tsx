@@ -5,8 +5,6 @@ import {
   AlertCircleIcon,
   BrainIcon,
   CopyIcon,
-  DatabaseIcon,
-  FileUpIcon,
   GlobeIcon,
   PaperclipIcon,
   PlugIcon,
@@ -66,6 +64,7 @@ import {
   ToolOutput,
 } from "@/components/ai-elements/tool";
 import { MCPConnector } from "@/components/mcp/mcp-connector";
+import { SpaceSelector } from "@/components/spaces/space-selector";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -91,84 +90,6 @@ import { TOOL_CONFIG } from "@/lib/tools/config";
 // Dynamically load all available providers
 const providers = loadAllProviders();
 
-// Helper function for file upload to RAG
-async function uploadFilesToRAG(files: File[]) {
-  // Step 1: Get presigned upload URLs
-  const uploadUrlResponse = await fetch("/api/rag/upload-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      files: files.map((f) => ({
-        name: f.name,
-        size: f.size,
-        type: f.type,
-      })),
-    }),
-  });
-
-  if (!uploadUrlResponse.ok) {
-    const error = await uploadUrlResponse.json();
-    throw new Error(error.error || "Failed to get upload URLs");
-  }
-
-  const { uploadUrls } = await uploadUrlResponse.json();
-
-  // Step 2: Upload files directly to Supabase using presigned URLs
-  // Match files by name rather than relying on array order for robustness
-  const uploadPromises = uploadUrls.map(
-    async (urlData: {
-      documentId: string;
-      fileName: string;
-      filePath: string;
-      signedUrl: string;
-    }) => {
-      // Find the corresponding file by name instead of using index
-      const file = files.find((f) => f.name === urlData.fileName);
-      if (!file) {
-        throw new Error(`File not found for upload URL: ${urlData.fileName}`);
-      }
-
-      const response = await fetch(urlData.signedUrl, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "content-type": file.type || "application/octet-stream",
-          "x-upsert": "false",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to upload ${file.name}`);
-      }
-
-      return {
-        documentId: urlData.documentId,
-        fileName: urlData.fileName,
-        filePath: urlData.filePath,
-        size: file.size,
-        type: file.type,
-      };
-    },
-  );
-
-  const uploadedFiles = await Promise.all(uploadPromises);
-
-  // Step 3: Trigger RAG indexing with uploaded file metadata
-  const ingestResponse = await fetch("/api/rag/ingest", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      files: uploadedFiles,
-    }),
-  });
-
-  if (!ingestResponse.ok) {
-    const error = await ingestResponse.json();
-    throw new Error(error.error || "Failed to ingest documents");
-  }
-
-  return ingestResponse.json();
-}
 const searchProviderOptions = [
   { id: "tavily" as const, label: "Tavily Search" },
   { id: "exa" as const, label: "Exa Search" },
@@ -183,9 +104,11 @@ function ChatContent() {
 
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
-  const [ragEnabled, setRagEnabled] = useState<boolean>(false);
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
-  const [uploading, setUploading] = useState(false);
+
+  // Auto-enable RAG when a space is selected
+  const ragEnabled = Boolean(selectedSpaceId);
   const [sessionId, setSessionId] = useState<string>("");
   const [conversationId, setConversationId] = useState<string>("");
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -315,6 +238,7 @@ function ChatContent() {
         webSearch: searchProviders.length > 0,
         searchProviders: searchProviders,
         rag: ragEnabled,
+        spaceId: selectedSpaceId,
         reasoning: reasoningEnabled,
         mcpConnectionIds: mcpConnections.map((c) => c.id),
         sessionId,
@@ -350,6 +274,7 @@ function ChatContent() {
           webSearch: searchProviders.length > 0,
           searchProviders: searchProviders,
           rag: ragEnabled,
+          spaceId: selectedSpaceId,
           reasoning: reasoningEnabled,
           mcpConnectionIds: mcpConnections.map((c) => c.id),
           sessionId,
@@ -790,59 +715,11 @@ function ChatContent() {
                       <PromptInputActionAddAttachments />
                     </PromptInputActionMenuContent>
                   </PromptInputActionMenu>
-                  {/* RAG File Upload */}
-                  <label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                      disabled={uploading}
-                      asChild
-                    >
-                      <span>
-                        <FileUpIcon size={16} />
-                        <span>
-                          {uploading ? "Uploading..." : "Upload Docs"}
-                        </span>
-                      </span>
-                    </Button>
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      accept=".txt,.md,.json,.csv"
-                      onChange={async (e) => {
-                        if (!e.target.files || e.target.files.length === 0)
-                          return;
-
-                        const files = Array.from(e.target.files);
-                        setUploading(true);
-
-                        try {
-                          const result = await uploadFilesToRAG(files);
-                          alert(
-                            `✅ Success! Indexed ${result.totalChunks} chunks from ${files.length} file(s)`,
-                          );
-                        } catch (error) {
-                          alert(
-                            `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-                          );
-                        } finally {
-                          setUploading(false);
-                          e.target.value = "";
-                        }
-                      }}
-                    />
-                  </label>
-                  <Button
-                    variant={ragEnabled ? "default" : "ghost"}
-                    size="sm"
-                    className="h-8"
-                    onClick={() => setRagEnabled(!ragEnabled)}
-                  >
-                    <DatabaseIcon size={16} />
-                    <span>RAG {ragEnabled ? "ON" : "OFF"}</span>
-                  </Button>
+                  {/* Space Selector for RAG */}
+                  <SpaceSelector
+                    selectedSpaceId={selectedSpaceId}
+                    onSpaceChange={setSelectedSpaceId}
+                  />
                   <Button
                     variant={reasoningEnabled ? "default" : "ghost"}
                     size="sm"

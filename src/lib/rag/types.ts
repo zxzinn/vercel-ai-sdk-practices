@@ -45,6 +45,7 @@ export interface RAGIngestResult {
   documentIds: string[];
   totalChunks: number;
   collectionName: string;
+  documentsChunks: Array<{ documentId: string; chunks: number }>; // Per-document chunk counts
 }
 
 export interface EmbeddingResult {
@@ -55,12 +56,12 @@ export interface EmbeddingResult {
   };
 }
 
-export interface ChromaQueryResult {
-  ids: string[][];
-  documents: (string | null)[][];
-  distances: (number | null)[][];
-  metadatas: (Record<string, unknown> | null)[][];
+export interface MilvusSearchResult {
+  id: string;
+  score: number;
+  content: string;
+  metadata: Record<string, unknown>;
 }
 
-export type VectorStoreProvider = "chroma";
+export type VectorStoreProvider = "milvus";
 export type EmbeddingProvider = "cohere";

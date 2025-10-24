@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth/server";
+import { prisma } from "@/lib/prisma";
 import type { RAGDocument } from "@/lib/rag";
-import { ragService } from "@/lib/rag";
+import { getCollectionName, ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
 
@@ -18,6 +19,7 @@ interface IngestRequest {
     size: number;
     type: string;
   }>;
+  spaceId?: string;
   collectionName?: string;
 }
 
@@ -36,11 +38,35 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json()) as IngestRequest;
-    const { files, collectionName } = body;
+    const { files, spaceId, collectionName } = body;
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
+
+    // Validate spaceId is provided (required for new architecture)
+    if (!spaceId) {
+      return NextResponse.json(
+        { error: "spaceId is required" },
+        { status: 400 },
+      );
+    }
+
+    // Verify space exists and belongs to user
+    const space = await prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        userId,
+      },
+    });
+
+    if (!space) {
+      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+    }
+
+    // Use stored collection name or fallback to generated name
+    const finalCollectionName =
+      space.collectionName ?? getCollectionName(spaceId);
 
     // DoS prevention: limit number of files to prevent timeout
     if (files.length > MAX_FILES) {
@@ -109,9 +135,67 @@ export async function POST(req: Request) {
       }
     }
 
-    const result = await ragService.ingest(documents, {
-      collectionName,
+    // Ingest documents into vector store
+    const result = await ragService.ingest(spaceId, documents, {
+      chunkSize: 1000,
+      chunkOverlap: 200,
     });
+
+    // Persist document records with atomic transaction rollback support
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Create document records
+        for (const file of files) {
+          const docChunks = result.documentsChunks.find(
+            (dc) => dc.documentId === file.documentId,
+          );
+
+          await tx.document.create({
+            data: {
+              id: file.documentId,
+              spaceId: space.id,
+              fileName: file.fileName,
+              fileType: file.type || "text/plain",
+              size: file.size,
+              storageUrl: `${userId}/${file.documentId}/${sanitizeFileName(file.fileName)}`,
+              vectorDocId: file.documentId,
+              collectionName: finalCollectionName,
+              status: "INDEXED",
+              totalChunks: docChunks?.chunks ?? 0,
+            },
+          });
+        }
+
+        // Update space statistics
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+        await tx.space.update({
+          where: { id: spaceId },
+          data: {
+            vectorCount: { increment: result.totalChunks },
+            storageSize: { increment: totalSize },
+          },
+        });
+      });
+    } catch (dbError) {
+      // Rollback: Remove indexed documents from vector store
+      console.error(
+        "Database persistence failed, rolling back vector store:",
+        dbError,
+      );
+
+      try {
+        await Promise.all(
+          documents.map((doc) => ragService.deleteDocument(spaceId, doc.id)),
+        );
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+        // Log for manual cleanup, but still throw original error
+      }
+
+      throw new Error(
+        `Failed to persist document records: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
+      );
+    }
 
     return NextResponse.json({
       success: true,
