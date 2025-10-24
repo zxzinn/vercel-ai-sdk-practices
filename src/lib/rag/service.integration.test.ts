@@ -10,7 +10,7 @@
  * - Tests run serially to prevent collection conflicts
  */
 
-import { MilvusClient } from "@zilliz/milvus2-sdk-node";
+import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { VectorDocument } from "@/lib/vector/types";
 import { getCollectionName, RAGService } from "./service";
@@ -165,13 +165,13 @@ skipIfNoZilliz("RAG Service - Zilliz Integration Tests", () => {
 
       const vectorDocs: VectorDocument[] = chunks.map((chunk) => ({
         id: `doc-1-chunk-${chunk.index}`,
+        content: chunk.content,
         vector: Array(1024).fill(0.5), // Dummy vector for 1024-dim model
         metadata: {
           chunkIndex: chunk.index,
           totalChunks: chunks.length,
           filename: "test.txt",
           fileType: "text",
-          content: chunk.content,
         },
       }));
 
@@ -200,6 +200,7 @@ skipIfNoZilliz("RAG Service - Zilliz Integration Tests", () => {
 
       const doc: VectorDocument = {
         id: "doc-1-chunk-0",
+        content: metadata.content,
         vector: Array(1024).fill(0.1),
         metadata,
       };
@@ -227,26 +228,26 @@ skipIfNoZilliz("RAG Service - Zilliz Integration Tests", () => {
           {
             name: "id",
             description: "Primary key",
-            data_type: 21, // VarChar
+            data_type: DataType.VarChar,
             is_primary_key: true,
             max_length: 255,
           },
           {
             name: "vector",
             description: "Embedding vector",
-            data_type: 101, // FloatVector
+            data_type: DataType.FloatVector,
             dim: 1024,
           },
           {
             name: "content",
             description: "Text content",
-            data_type: 21, // VarChar
+            data_type: DataType.VarChar,
             max_length: 65535,
           },
           {
             name: "metadata",
             description: "Document metadata",
-            data_type: 11, // JSON
+            data_type: DataType.JSON,
           },
         ],
       });
