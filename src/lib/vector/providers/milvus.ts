@@ -6,6 +6,7 @@ import type {
 } from "@zilliz/milvus2-sdk-node";
 import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
 import { z } from "zod";
+import { normalizeMetricScore } from "../metrics";
 import type {
   CollectionSchema,
   IVectorProvider,
@@ -285,9 +286,9 @@ export class MilvusProvider implements IVectorProvider {
 
     // Convert Milvus search results to our SearchResult format
     for (const result of searchResults.results as MilvusSearchResult[]) {
-      const { score, distance } = this.normalizeSearchScore(
+      const { score, distance } = normalizeMetricScore(
         result.score,
-        metricType,
+        metricType as any,
       );
 
       // Apply threshold (using normalized score)
@@ -303,54 +304,6 @@ export class MilvusProvider implements IVectorProvider {
     }
 
     return results;
-  }
-
-  /**
-   * Normalize search score based on metric type
-   * Converts Milvus metric-specific scores to normalized [0, 1] similarity
-   */
-  private normalizeSearchScore(
-    rawScore: number,
-    metricType: "IP" | "L2" | "COSINE" | "HAMMING" | "JACCARD" = "COSINE",
-  ): { score: number; distance: number } {
-    let score: number;
-    let distance: number;
-
-    switch (metricType) {
-      case "COSINE":
-        // Cosine: Milvus returns similarity in [-1, 1], higher is better
-        // Normalize to [0, 1] where 1 is most similar
-        score = (rawScore + 1) / 2;
-        distance = 1 - score;
-        break;
-
-      case "IP":
-        // Inner Product: higher is better (already similarity)
-        score = rawScore;
-        distance = 1 - rawScore;
-        break;
-
-      case "L2":
-        // Euclidean Distance: lower is better (already distance)
-        // Convert to similarity: score = 1 / (1 + distance)
-        distance = rawScore;
-        score = 1 / (1 + distance);
-        break;
-
-      case "HAMMING":
-      case "JACCARD":
-        // Distance metrics: lower is better
-        distance = rawScore;
-        score = 1 / (1 + distance);
-        break;
-
-      default:
-        // Fallback: assume similarity metric
-        score = rawScore;
-        distance = 1 - rawScore;
-    }
-
-    return { score, distance };
   }
 
   async getCollectionStats(
