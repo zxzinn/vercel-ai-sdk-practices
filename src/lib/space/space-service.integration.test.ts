@@ -195,19 +195,15 @@ skipIfNoMilvus("Space Service - Integration Tests", () => {
 
       await provider.cleanup();
 
-      // Invalid config
-      try {
-        const invalidConfig = {
-          url: "invalid-url",
-          token: "invalid-token",
-        };
+      // Invalid config should throw
+      const invalidConfig = {
+        url: "invalid-url",
+        token: "invalid-token",
+      };
 
-        await createVectorProvider("MILVUS", invalidConfig);
-
-        // May not throw immediately, but provider operations will fail
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+      await expect(
+        createVectorProvider("MILVUS", invalidConfig as any),
+      ).rejects.toThrow();
 
       console.log(`✓ Vector configuration validation working`);
     });
