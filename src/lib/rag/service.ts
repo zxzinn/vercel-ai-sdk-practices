@@ -146,11 +146,11 @@ export class RAGService {
     };
   }
 
-  private chunkText(
+  chunkText(
     text: string,
     chunkSize: number,
     overlap: number,
-  ): string[] {
+  ): Array<{ content: string; index: number }> {
     if (!Number.isFinite(chunkSize) || chunkSize <= 0) {
       throw new RangeError(`chunkSize must be > 0 (got ${chunkSize})`);
     }
@@ -160,12 +160,17 @@ export class RAGService {
     if (overlap >= chunkSize) {
       overlap = Math.max(0, Math.floor(chunkSize / 4));
     }
-    const chunks: string[] = [];
+    const chunks: Array<{ content: string; index: number }> = [];
     let start = 0;
+    let index = 0;
 
     while (start < text.length) {
       const end = Math.min(start + chunkSize, text.length);
-      chunks.push(text.slice(start, end));
+      chunks.push({
+        content: text.slice(start, end),
+        index,
+      });
+      index++;
 
       if (end === text.length) break;
       start += chunkSize - overlap;
@@ -217,14 +222,14 @@ export class RAGService {
           chunks: chunks.length,
         });
 
-        chunks.forEach((chunk, index) => {
-          allChunks.push(chunk);
-          allIds.push(`${doc.id}_chunk_${index}`);
+        chunks.forEach((chunk) => {
+          allChunks.push(chunk.content);
+          allIds.push(`${doc.id}_chunk_${chunk.index}`);
           allMetadatas.push({
             filename: doc.metadata.filename,
             fileType: doc.metadata.fileType,
             size: doc.metadata.size,
-            chunkIndex: index,
+            chunkIndex: chunk.index,
             totalChunks: chunks.length,
             originalDocId: doc.id,
             uploadedAt: doc.metadata.uploadedAt.toISOString(),
