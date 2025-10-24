@@ -1,4 +1,10 @@
-import type { Tool, UIMessage } from "ai";
+import type {
+  TextUIPart,
+  Tool,
+  TypedToolCall,
+  TypedToolResult,
+  UIMessage,
+} from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
 import {
@@ -11,51 +17,21 @@ import { getMCPConnection } from "@/lib/mcp/redis";
 import { prisma } from "@/lib/prisma";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
-import { generateImageTool } from "@/lib/tools/image/generate-image";
 import { createRagQueryTool } from "@/lib/tools/rag/query";
-import { exaSearch } from "@/lib/tools/websearch/exa-search";
-import { perplexitySearch } from "@/lib/tools/websearch/perplexity-search";
-import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
+import {
+  AppTools,
+  generateImageTool,
+  staticTools,
+} from "@/lib/types/chat-tools";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
-// Type definitions for assistant messages with type safety
-interface TextMessagePart {
-  type: "text";
-  text: string;
-}
-
-interface ToolMessagePart {
-  type: `tool-${string}`;
-  input: unknown;
-  output: unknown;
-  state: "output-available" | "output-error";
-}
-
-interface DynamicToolMessagePart {
-  type: "dynamic-tool";
-  toolName: string;
-  input: unknown;
-  output: unknown;
-  state: "output-available" | "output-error";
-}
-
-type AssistantMessagePart =
-  | TextMessagePart
-  | ToolMessagePart
-  | DynamicToolMessagePart;
-
-interface AssistantMessage {
-  role: "assistant";
-  parts: AssistantMessagePart[];
-}
-
 // Map of search providers to their tool implementations
 const SEARCH_PROVIDER_MAP = {
-  tavily: tavilySearch,
-  exa: exaSearch,
-  perplexity: perplexitySearch,
+  tavily: staticTools.tavilySearch,
+  exa: staticTools.exaSearch,
+  perplexity: staticTools.perplexitySearch,
 } as const;
 
 // Schema that matches Vercel AI SDK's UIMessage format
@@ -342,7 +318,9 @@ export async function POST(req: Request) {
             const userMessage = messages[messages.length - 1];
 
             // Build assistant message with all parts (text, tool calls, tool results)
-            const assistantMessage: AssistantMessage = {
+            // Using SDK's UIMessage type directly
+            const assistantMessage: UIMessage = {
+              id: crypto.randomUUID(),
               role: "assistant",
               parts: [],
             };
@@ -398,19 +376,21 @@ export async function POST(req: Request) {
                   // MCP tools use "dynamic-tool" type
                   assistantMessage.parts.push({
                     type: "dynamic-tool",
+                    toolCallId: toolCall.toolCallId,
                     toolName: toolCall.toolName,
                     input: toolCall.input,
                     output: result?.output,
                     state,
-                  });
+                  } as any); // SDK type expects strict structure, casting is acceptable here
                 } else {
                   // Static tools use "tool-{toolName}" type
                   assistantMessage.parts.push({
                     type: `tool-${toolCall.toolName}`,
+                    toolCallId: toolCall.toolCallId,
                     input: toolCall.input,
                     output: result?.output,
                     state,
-                  });
+                  } as any); // SDK type expects strict structure, casting is acceptable here
                 }
               }
             }
@@ -427,7 +407,7 @@ export async function POST(req: Request) {
             const userContent =
               userMessage.content ||
               userMessage.parts
-                ?.filter((p): p is TextMessagePart => p.type === "text")
+                ?.filter((p): p is TextUIPart => p.type === "text")
                 .map((p) => p.text)
                 .join("\n") ||
               "";

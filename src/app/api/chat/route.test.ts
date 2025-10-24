@@ -1,40 +1,12 @@
+import type { DynamicToolUIPart, TextUIPart, ToolUIPart, UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
-
-// Type definitions tested here match the route.ts message types
-interface TextMessagePart {
-  type: "text";
-  text: string;
-}
-
-interface ToolMessagePart {
-  type: `tool-${string}`;
-  input: unknown;
-  output: unknown;
-  state: "output-available" | "output-error";
-}
-
-interface DynamicToolMessagePart {
-  type: "dynamic-tool";
-  toolName: string;
-  input: unknown;
-  output: unknown;
-  state: "output-available" | "output-error";
-}
-
-type AssistantMessagePart =
-  | TextMessagePart
-  | ToolMessagePart
-  | DynamicToolMessagePart;
-
-interface AssistantMessage {
-  role: "assistant";
-  parts: AssistantMessagePart[];
-}
+import type { AppTools } from "@/lib/types/chat-tools";
 
 describe("Chat Route Message Types", () => {
-  describe("AssistantMessage", () => {
+  describe("UIMessage", () => {
     it("should construct a valid assistant message with text", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-1",
         role: "assistant",
         parts: [{ type: "text", text: "Hello" }],
       };
@@ -45,7 +17,8 @@ describe("Chat Route Message Types", () => {
     });
 
     it("should construct a message with multiple text parts", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-2",
         role: "assistant",
         parts: [
           { type: "text", text: "First" },
@@ -55,7 +28,7 @@ describe("Chat Route Message Types", () => {
 
       expect(message.parts).toHaveLength(2);
       const textParts = message.parts.filter(
-        (p): p is TextMessagePart => p.type === "text",
+        (p): p is TextUIPart => p.type === "text",
       );
       expect(textParts).toHaveLength(2);
       expect(textParts[0].text).toBe("First");
@@ -63,7 +36,8 @@ describe("Chat Route Message Types", () => {
     });
 
     it("should construct a message with tool results", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-3",
         role: "assistant",
         parts: [
           {
@@ -81,7 +55,8 @@ describe("Chat Route Message Types", () => {
     });
 
     it("should construct a message with dynamic tool results (MCP)", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-4",
         role: "assistant",
         parts: [
           {
@@ -103,7 +78,8 @@ describe("Chat Route Message Types", () => {
     });
 
     it("should construct a message with error state", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-5",
         role: "assistant",
         parts: [
           {
@@ -119,7 +95,8 @@ describe("Chat Route Message Types", () => {
     });
 
     it("should construct a complex message with mixed parts", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-6",
         role: "assistant",
         parts: [
           {
@@ -141,7 +118,8 @@ describe("Chat Route Message Types", () => {
     });
 
     it("should start with empty parts array", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-7",
         role: "assistant",
         parts: [],
       };
@@ -154,7 +132,8 @@ describe("Chat Route Message Types", () => {
 
   describe("Message part filtering", () => {
     it("should correctly filter text parts with type guard", () => {
-      const message: AssistantMessage = {
+      const message: UIMessage = {
+        id: "msg-8",
         role: "assistant",
         parts: [
           {
@@ -169,7 +148,7 @@ describe("Chat Route Message Types", () => {
       };
 
       const textParts = message.parts.filter(
-        (p): p is TextMessagePart => p.type === "text",
+        (p): p is TextUIPart => p.type === "text",
       );
 
       expect(textParts).toHaveLength(2);
@@ -190,7 +169,7 @@ describe("Chat Route Message Types", () => {
       };
 
       const userContent = userMessage.parts
-        ?.filter((p): p is TextMessagePart => p.type === "text")
+        ?.filter((p): p is TextUIPart => p.type === "text")
         .map((p) => p.text)
         .join("\n");
 
@@ -206,7 +185,7 @@ describe("Chat Route Message Types", () => {
       const userContent =
         userMessage.content ||
         userMessage.parts
-          ?.filter((p): p is TextMessagePart => p.type === "text")
+          ?.filter((p): p is TextUIPart => p.type === "text")
           .map((p) => p.text)
           .join("\n");
 
@@ -216,19 +195,18 @@ describe("Chat Route Message Types", () => {
 
   describe("Tool message part types", () => {
     it("should accept all static tool types", () => {
-      const toolTypes: ToolMessagePart["type"][] = [
+      const toolTypes: ToolUIPart<AppTools>["type"][] = [
         "tool-tavilySearch",
         "tool-exaSearch",
         "tool-perplexitySearch",
-        "tool-ragQuery",
         "tool-generateImage",
       ];
 
       toolTypes.forEach((toolType) => {
-        const part: ToolMessagePart = {
+        const part: ToolUIPart<AppTools> = {
           type: toolType,
-          input: {},
-          output: {},
+          input: {} as never,
+          output: {} as never,
           state: "output-available",
         };
         expect(part.type).toBe(toolType);
@@ -236,14 +214,14 @@ describe("Chat Route Message Types", () => {
     });
 
     it("should distinguish between static and dynamic tools", () => {
-      const staticTool: ToolMessagePart = {
+      const staticTool: ToolUIPart<AppTools> = {
         type: "tool-tavilySearch",
-        input: {},
-        output: {},
+        input: {} as never,
+        output: {} as never,
         state: "output-available",
       };
 
-      const dynamicTool: DynamicToolMessagePart = {
+      const dynamicTool: DynamicToolUIPart = {
         type: "dynamic-tool",
         toolName: "custom__tool",
         input: {},
