@@ -107,6 +107,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // Safely coerce enableFullTextSearch to boolean
+    const enableFullTextSearch = z
+      .boolean()
+      .catch(false)
+      .parse(vectorConfig.enableFullTextSearch);
+
     const space = await prisma.space.create({
       data: {
         name,
@@ -116,8 +122,7 @@ export async function POST(req: Request) {
         vectorConfig: (vectorConfig ?? null) as Prisma.InputJsonValue,
         embeddingModelId,
         embeddingDim,
-        enableFullTextSearch:
-          (vectorConfig.enableFullTextSearch as boolean) || false,
+        enableFullTextSearch,
         status: "ACTIVE",
       },
       include: {
