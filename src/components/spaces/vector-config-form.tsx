@@ -474,24 +474,12 @@ export function VectorConfigForm({
                       </TooltipTrigger>
                       <TooltipContent className="max-w-sm">
                         <p className="font-medium mb-1">
-                          Choose based on your needs:
+                          Select an index type based on your requirements
                         </p>
-                        <ul className="text-xs space-y-1">
-                          <li>
-                            <strong>HNSW:</strong> Best for real-time search,
-                            high accuracy
-                          </li>
-                          <li>
-                            <strong>IVF_FLAT:</strong> Balanced speed/accuracy
-                          </li>
-                          <li>
-                            <strong>IVF_SQ8:</strong> Memory-constrained
-                            environments
-                          </li>
-                          <li>
-                            <strong>IVF_PQ:</strong> Very large datasets
-                          </li>
-                        </ul>
+                        <p className="text-xs text-muted-foreground">
+                          Each option shows performance characteristics and use
+                          cases below
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </div>

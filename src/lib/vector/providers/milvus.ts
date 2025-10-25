@@ -4,7 +4,12 @@ import type {
   DescribeCollectionResponse,
   FieldType,
 } from "@zilliz/milvus2-sdk-node";
-import { DataType, MetricType, MilvusClient } from "@zilliz/milvus2-sdk-node";
+import {
+  DataType,
+  IndexType,
+  MetricType,
+  MilvusClient,
+} from "@zilliz/milvus2-sdk-node";
 import { z } from "zod";
 import { normalizeMetricScore } from "../metrics";
 import type {
@@ -127,8 +132,8 @@ export class MilvusProvider implements IVectorProvider {
     await this.getClient().createCollection(createReq);
 
     // Build index parameters based on index type
-    const indexType = this.config?.indexType || "HNSW";
-    const metricType = this.config?.metricType || "COSINE";
+    const indexType = this.config?.indexType || IndexType.HNSW;
+    const metricType = this.config?.metricType || MetricType.COSINE;
 
     const indexParams = this.buildIndexParams(indexType);
 
@@ -155,23 +160,21 @@ export class MilvusProvider implements IVectorProvider {
    * Build index parameters based on index type
    * Note: nprobe is a search-time parameter, not an index parameter
    */
-  private buildIndexParams(
-    indexType: "FLAT" | "HNSW" | "IVF_FLAT" | "IVF_SQ8" | "IVF_PQ",
-  ): Record<string, unknown> {
+  private buildIndexParams(indexType: IndexType): Record<string, unknown> {
     switch (indexType) {
-      case "HNSW":
+      case IndexType.HNSW:
         return {
           M: this.config?.M || 16,
           efConstruction: this.config?.efConstruction || 200,
         };
 
-      case "IVF_FLAT":
-      case "IVF_SQ8":
+      case IndexType.IVF_FLAT:
+      case IndexType.IVF_SQ8:
         return {
           nlist: this.config?.nlist || 128,
         };
 
-      case "IVF_PQ":
+      case IndexType.IVF_PQ:
         return {
           nlist: this.config?.nlist || 128,
           m: this.config?.m || 8,
