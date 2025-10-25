@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
@@ -32,22 +33,12 @@ export async function GET(
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 },
-      );
+      return Errors.notFound("Document");
     }
 
     return NextResponse.json({ document });
   } catch (error) {
-    console.error("Failed to fetch document:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch document",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch document");
   }
 }
 
@@ -69,10 +60,7 @@ export async function DELETE(
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 },
-      );
+      return Errors.notFound("Document");
     }
 
     const supabase = await createClient();
@@ -118,13 +106,6 @@ export async function DELETE(
       message: "Document deleted successfully",
     });
   } catch (error) {
-    console.error("Failed to delete document:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to delete document",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to delete document");
   }
 }

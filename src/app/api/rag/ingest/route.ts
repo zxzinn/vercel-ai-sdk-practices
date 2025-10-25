@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import type { RAGDocument } from "@/lib/rag";
 import { getCollectionName, ragService } from "@/lib/rag";
@@ -34,15 +35,12 @@ export async function POST(req: Request) {
     const { files, spaceId } = body;
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: "No files provided" }, { status: 400 });
+      return Errors.badRequest("No files provided");
     }
 
     // Validate spaceId is provided (required for new architecture)
     if (!spaceId) {
-      return NextResponse.json(
-        { error: "spaceId is required" },
-        { status: 400 },
-      );
+      return Errors.badRequest("spaceId is required");
     }
 
     // Verify space exists and belongs to user
@@ -54,7 +52,7 @@ export async function POST(req: Request) {
     });
 
     if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+      return Errors.notFound("Space");
     }
 
     // Use stored collection name or fallback to generated name
@@ -63,13 +61,12 @@ export async function POST(req: Request) {
 
     // DoS prevention: limit number of files to prevent timeout
     if (files.length > MAX_FILES) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
         {
-          error: `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
           limit: MAX_FILES,
           provided: files.length,
         },
-        { status: 413 },
       );
     }
 
@@ -94,12 +91,9 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error(`Failed to download ${fileMetadata.fileName}:`, error);
-          return NextResponse.json(
-            {
-              error: `Failed to download file: ${fileMetadata.fileName}`,
-              message: error.message,
-            },
-            { status: 500 },
+          return Errors.internalError(
+            `Failed to download file: ${fileMetadata.fileName}`,
+            { message: error.message },
           );
         }
 
@@ -118,12 +112,11 @@ export async function POST(req: Request) {
         });
       } catch (error) {
         console.error(`Error processing file ${fileMetadata.fileName}:`, error);
-        return NextResponse.json(
+        return Errors.internalError(
+          `Failed to process file: ${fileMetadata.fileName}`,
           {
-            error: `Failed to process file: ${fileMetadata.fileName}`,
             message: error instanceof Error ? error.message : "Unknown error",
           },
-          { status: 500 },
         );
       }
     }
@@ -196,13 +189,6 @@ export async function POST(req: Request) {
       ...result,
     });
   } catch (error) {
-    console.error("RAG ingest error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to ingest documents",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to ingest documents");
   }
 }

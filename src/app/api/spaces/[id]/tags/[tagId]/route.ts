@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
@@ -20,7 +21,7 @@ export async function DELETE(
     });
 
     if (!tag) {
-      return NextResponse.json({ error: "Tag not found" }, { status: 404 });
+      return Errors.notFound("Tag");
     }
 
     await prisma.tag.delete({
@@ -32,13 +33,6 @@ export async function DELETE(
       message: "Tag deleted successfully",
     });
   } catch (error) {
-    console.error("Failed to delete tag:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to delete tag",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to delete tag");
   }
 }

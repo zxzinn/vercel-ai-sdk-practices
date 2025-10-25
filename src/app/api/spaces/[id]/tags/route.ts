@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { validateRequest } from "@/lib/validation/api-validation";
 
@@ -36,14 +37,7 @@ export async function GET(
 
     return NextResponse.json({ tags });
   } catch (error) {
-    console.error("Failed to fetch tags:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch tags",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch tags");
   }
 }
 
@@ -73,10 +67,7 @@ export async function POST(
     });
 
     if (existingTag) {
-      return NextResponse.json(
-        { error: "Tag with this name already exists in this space" },
-        { status: 409 },
-      );
+      return Errors.conflict("Tag with this name already exists in this space");
     }
 
     const tag = await prisma.tag.create({
@@ -96,13 +87,6 @@ export async function POST(
 
     return NextResponse.json({ tag }, { status: 201 });
   } catch (error) {
-    console.error("Failed to create tag:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to create tag",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to create tag");
   }
 }

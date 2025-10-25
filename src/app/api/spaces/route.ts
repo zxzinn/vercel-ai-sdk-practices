@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { type Prisma, VectorProvider } from "@/generated/prisma";
 import { requireAuth } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { serializeSpace } from "@/lib/utils/sanitize";
 import { validateRequest } from "@/lib/validation/api-validation";
@@ -43,17 +44,7 @@ export async function GET() {
 
     return NextResponse.json({ spaces: serializedSpaces });
   } catch (error) {
-    console.error(
-      "Failed to fetch spaces:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    return NextResponse.json(
-      {
-        error: "Failed to fetch spaces",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch spaces");
   }
 }
 
@@ -83,40 +74,26 @@ export async function POST(req: Request) {
     });
 
     if (!embeddingModel) {
-      return NextResponse.json(
-        {
-          error: "Invalid embedding model",
-          details: [`Embedding model '${embeddingModelId}' not found`],
-        },
-        { status: 400 },
-      );
+      return Errors.badRequest("Invalid embedding model", {
+        message: `Embedding model '${embeddingModelId}' not found`,
+      });
     }
 
     // Validate dimension is supported by the model
     if (!embeddingModel.dimensions.includes(embeddingDim)) {
-      return NextResponse.json(
-        {
-          error: "Invalid embedding dimension",
-          details: [
-            `Dimension ${embeddingDim} not supported by ${embeddingModel.name}. ` +
-              `Supported dimensions: ${embeddingModel.dimensions.join(", ")}`,
-          ],
-        },
-        { status: 400 },
-      );
+      return Errors.badRequest("Invalid embedding dimension", {
+        message:
+          `Dimension ${embeddingDim} not supported by ${embeddingModel.name}. ` +
+          `Supported dimensions: ${embeddingModel.dimensions.join(", ")}`,
+      });
     }
 
     // Validate vector configuration (required for all providers)
     if (!vectorConfig) {
-      return NextResponse.json(
-        {
-          error: "Vector configuration is required",
-          details: [
-            "vectorConfig must be provided with provider connection details",
-          ],
-        },
-        { status: 400 },
-      );
+      return Errors.badRequest("Vector configuration is required", {
+        message:
+          "vectorConfig must be provided with provider connection details",
+      });
     }
 
     const configValidation = validateProviderConfig(
@@ -124,12 +101,9 @@ export async function POST(req: Request) {
       vectorConfig,
     );
     if (!configValidation.valid) {
-      return NextResponse.json(
-        {
-          error: "Invalid vector configuration",
-          details: configValidation.errors,
-        },
-        { status: 400 },
+      return Errors.badRequest(
+        "Invalid vector configuration",
+        configValidation.errors,
       );
     }
 
@@ -176,16 +150,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ space: serializedSpace }, { status: 201 });
   } catch (error) {
-    console.error(
-      "Failed to create space:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    return NextResponse.json(
-      {
-        error: "Failed to create space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to create space");
   }
 }

@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import type { NextResponse } from "next/server";
 import type { z } from "zod";
+import { createErrorResponse, ErrorCodes } from "@/lib/errors/api-error";
 
 /**
  * Validates request body against a Zod schema
@@ -17,12 +18,11 @@ export function validateRequest<T extends z.ZodTypeAny>(
   const validation = schema.safeParse(body);
 
   if (!validation.success) {
-    return NextResponse.json(
-      {
-        error: "Invalid request body",
-        details: validation.error.issues,
-      },
-      { status: 400 },
+    return createErrorResponse(
+      "Invalid request body",
+      400,
+      ErrorCodes.VALIDATION_ERROR,
+      validation.error.issues,
     );
   }
 
@@ -48,6 +48,7 @@ export function validateRequestRaw<T extends z.ZodTypeAny>(
     return new Response(
       JSON.stringify({
         error: "Invalid request body",
+        code: ErrorCodes.VALIDATION_ERROR,
         details: validation.error.issues,
       }),
       {

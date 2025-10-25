@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { createErrorFromException } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { validateRequest } from "@/lib/validation/api-validation";
 
@@ -28,11 +29,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ conversations });
   } catch (error) {
-    console.error("Failed to fetch conversations:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch conversations" },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch conversations");
   }
 }
 
@@ -62,10 +59,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ conversation });
   } catch (error) {
-    console.error("Failed to create conversation:", error);
-    return NextResponse.json(
-      { error: "Failed to create conversation" },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to create conversation");
   }
 }

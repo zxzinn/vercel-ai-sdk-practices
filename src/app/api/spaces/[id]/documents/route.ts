@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -27,13 +28,6 @@ export async function GET(
 
     return NextResponse.json({ documents });
   } catch (error) {
-    console.error("Failed to fetch documents:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch documents",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch documents");
   }
 }

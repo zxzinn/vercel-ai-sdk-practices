@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
@@ -47,7 +48,7 @@ export async function GET(
     });
 
     if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+      return Errors.notFound("Space");
     }
 
     // Serialize space (convert BigInt and redact secrets)
@@ -55,14 +56,7 @@ export async function GET(
 
     return NextResponse.json({ space: serializedSpace });
   } catch (error) {
-    console.error("Failed to fetch space:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch space");
   }
 }
 
@@ -99,14 +93,7 @@ export async function PATCH(
 
     return NextResponse.json({ space: serializedSpace });
   } catch (error) {
-    console.error("Failed to update space:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to update space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to update space");
   }
 }
 
@@ -130,7 +117,7 @@ export async function DELETE(
     });
 
     if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+      return Errors.notFound("Space");
     }
 
     const supabase = await createClient();
@@ -171,13 +158,6 @@ export async function DELETE(
       message: "Space deleted successfully",
     });
   } catch (error) {
-    console.error("Failed to delete space:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to delete space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to delete space");
   }
 }

@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
 
@@ -28,32 +29,30 @@ export async function POST(req: Request) {
     const { files } = body;
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: "No files provided" }, { status: 400 });
+      return Errors.badRequest("No files provided");
     }
 
     // DoS prevention: check file count
     if (files.length > MAX_FILES) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
         {
-          error: `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
           limit: MAX_FILES,
           provided: files.length,
         },
-        { status: 413 },
       );
     }
 
     // DoS prevention: check individual file sizes
     const tooLargeFile = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
     if (tooLargeFile) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `File "${tooLargeFile.name}" exceeds ${MAX_FILE_MB} MB limit`,
         {
-          error: `File "${tooLargeFile.name}" exceeds ${MAX_FILE_MB} MB limit`,
           limit: `${MAX_FILE_MB} MB`,
           fileName: tooLargeFile.name,
           fileSize: `${(tooLargeFile.size / 1024 / 1024).toFixed(2)} MB`,
         },
-        { status: 413 },
       );
     }
 
@@ -61,14 +60,13 @@ export async function POST(req: Request) {
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     const totalMB = totalSize / 1024 / 1024;
     if (totalMB > MAX_TOTAL_MB) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `Total file size exceeds ${MAX_TOTAL_MB} MB limit`,
         {
-          error: `Total file size exceeds ${MAX_TOTAL_MB} MB limit`,
           limit: `${MAX_TOTAL_MB} MB`,
           totalSize: `${totalMB.toFixed(2)} MB`,
           fileCount: files.length,
         },
-        { status: 413 },
       );
     }
 
@@ -93,13 +91,9 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("Failed to create signed upload URL:", error);
-        return NextResponse.json(
-          {
-            error: "Failed to generate upload URL",
-            message: error.message,
-          },
-          { status: 500 },
-        );
+        return Errors.internalError("Failed to generate upload URL", {
+          message: error.message,
+        });
       }
 
       uploadUrls.push({
@@ -116,13 +110,6 @@ export async function POST(req: Request) {
       expiresIn: 7200, // 2 hours in seconds
     });
   } catch (error) {
-    console.error("Upload URL generation error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to generate upload URLs",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to generate upload URLs");
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "./server";
 
@@ -12,10 +13,7 @@ export async function requireAuth(): Promise<
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    return NextResponse.json(
-      { error: "Unauthorized", code: "AUTH_REQUIRED" },
-      { status: 401 },
-    );
+    return Errors.unauthorized();
   }
 
   return { userId };
@@ -44,10 +42,7 @@ export async function requireSpaceAccess(
   });
 
   if (!space) {
-    return NextResponse.json(
-      { error: "Space not found", code: "SPACE_NOT_FOUND" },
-      { status: 404 },
-    );
+    return Errors.notFound("Space");
   }
 
   return { userId, space };

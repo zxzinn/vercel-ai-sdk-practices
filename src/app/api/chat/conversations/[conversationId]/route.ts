@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { validateRequest } from "@/lib/validation/api-validation";
 
@@ -20,19 +21,12 @@ export async function GET(
     });
 
     if (!conversation) {
-      return NextResponse.json(
-        { error: "Conversation not found" },
-        { status: 404 },
-      );
+      return Errors.notFound("Conversation");
     }
 
     return NextResponse.json({ conversation });
   } catch (error) {
-    console.error("Failed to fetch conversation:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch conversation" },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch conversation");
   }
 }
 
@@ -63,11 +57,7 @@ export async function PATCH(
 
     return NextResponse.json({ conversation });
   } catch (error) {
-    console.error("Failed to update conversation:", error);
-    return NextResponse.json(
-      { error: "Failed to update conversation" },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to update conversation");
   }
 }
 
@@ -84,10 +74,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete conversation:", error);
-    return NextResponse.json(
-      { error: "Failed to delete conversation" },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to delete conversation");
   }
 }
