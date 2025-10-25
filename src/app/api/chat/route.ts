@@ -1,10 +1,4 @@
-import type {
-  TextUIPart,
-  Tool,
-  TypedToolCall,
-  TypedToolResult,
-  UIMessage,
-} from "ai";
+import type { TextUIPart, Tool, UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
 import {
@@ -18,11 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
 import { createRagQueryTool } from "@/lib/tools/rag/query";
-import {
-  AppTools,
-  generateImageTool,
-  staticTools,
-} from "@/lib/types/chat-tools";
+import { generateImageTool, staticTools } from "@/lib/types/chat-tools";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -381,7 +371,8 @@ export async function POST(req: Request) {
                     input: toolCall.input,
                     output: result?.output,
                     state,
-                  } as any); // SDK type expects strict structure, casting is acceptable here
+                    // biome-ignore lint/suspicious/noExplicitAny: SDK type mismatch
+                  } as any);
                 } else {
                   // Static tools use "tool-{toolName}" type
                   assistantMessage.parts.push({
@@ -390,7 +381,8 @@ export async function POST(req: Request) {
                     input: toolCall.input,
                     output: result?.output,
                     state,
-                  } as any); // SDK type expects strict structure, casting is acceptable here
+                    // biome-ignore lint/suspicious/noExplicitAny: SDK type mismatch
+                  } as any);
                 }
               }
             }
@@ -431,6 +423,7 @@ export async function POST(req: Request) {
                   role: "user",
                   // UIMessage is runtime JSON-serializable but complex type for Prisma JSON field
                   // This is a database serialization context where type safety is validated at runtime
+                  // biome-ignore lint/suspicious/noExplicitAny: Prisma JSON serialization
                   content: userMessage as any,
                 },
               }),
@@ -438,7 +431,8 @@ export async function POST(req: Request) {
                 data: {
                   conversationId,
                   role: "assistant",
-                  content: assistantMessage as any, // Store complete UIMessage with all parts
+                  // biome-ignore lint/suspicious/noExplicitAny: Prisma JSON serialization
+                  content: assistantMessage as any,
                 },
               }),
             ]);
