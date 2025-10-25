@@ -158,9 +158,14 @@ export function SpaceConfigCard({ space, onUpdate }: SpaceConfigCardProps) {
                 max="1"
                 step="0.1"
                 value={scoreThreshold}
-                onChange={(e) =>
-                  setScoreThreshold(Number.parseFloat(e.target.value) || 0)
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "") return;
+                  const parsed = Number.parseFloat(value);
+                  if (!Number.isNaN(parsed)) {
+                    setScoreThreshold(parsed);
+                  }
+                }}
                 className="max-w-xs"
               />
               <div className="flex gap-2 mt-2">
