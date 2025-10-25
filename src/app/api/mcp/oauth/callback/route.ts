@@ -91,7 +91,11 @@ export async function GET(req: NextRequest) {
     }
 
     // At this point, schema validation guarantees code and state are present
-    const stateData = await getOAuthState(params.state!);
+    if (!params.state || !params.code) {
+      return new Response("Missing required parameters", { status: 400 });
+    }
+
+    const stateData = await getOAuthState(params.state);
 
     if (!stateData) {
       return new Response("Invalid or expired state parameter", {

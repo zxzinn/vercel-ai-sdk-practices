@@ -202,7 +202,10 @@ skipIfNoMilvus("Space Service - Integration Tests", () => {
       };
 
       await expect(
-        createVectorProvider("MILVUS", invalidConfig as any),
+        createVectorProvider(
+          "MILVUS",
+          invalidConfig as unknown as MilvusConfig,
+        ),
       ).rejects.toThrow();
 
       console.log(`✓ Vector configuration validation working`);

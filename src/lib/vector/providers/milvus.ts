@@ -352,7 +352,12 @@ export class MilvusProvider implements IVectorProvider {
       params: searchParams,
     });
 
-    return this.formatSearchResults(searchResults.results);
+    const results = this.formatSearchResults(searchResults.results);
+
+    // Filter results by score threshold if specified
+    return scoreThreshold > 0
+      ? results.filter((result) => result.score >= scoreThreshold)
+      : results;
   }
 
   /**
