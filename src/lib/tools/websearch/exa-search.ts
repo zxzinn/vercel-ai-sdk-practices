@@ -1,3 +1,4 @@
+import type { LanguageModelV2Source } from "@ai-sdk/provider";
 import { generateId } from "@ai-sdk/provider-utils";
 import Exa from "exa-js";
 import { z } from "zod";
@@ -6,7 +7,6 @@ import {
   createNoResultsResponse,
   createSearchErrorResponse,
 } from "./error-handler";
-import type { WebSearchToolResult } from "./types";
 
 export const exaSearch = {
   description: "Search the web for up-to-date information using Exa",
@@ -17,7 +17,7 @@ export const exaSearch = {
     query,
   }: {
     query: string;
-  }): Promise<WebSearchToolResult> => {
+  }): Promise<{ text: string; sources: LanguageModelV2Source[] }> => {
     try {
       if (!process.env.EXA_API_KEY) {
         return createMissingApiKeyResponse("Exa", query);
