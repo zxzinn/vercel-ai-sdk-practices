@@ -36,13 +36,11 @@ export function SearchResultsCarousel({
 
   const scroll = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
-      const scrollAmount = 400;
+      const SCROLL_AMOUNT = 400;
       scrollContainerRef.current.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
+        left: direction === "left" ? -SCROLL_AMOUNT : SCROLL_AMOUNT,
         behavior: "smooth",
       });
-      // Check scroll position after a brief delay
-      setTimeout(checkScroll, 300);
     }
   };
 
@@ -73,6 +71,7 @@ export function SearchResultsCarousel({
           className="flex-shrink-0"
           onClick={() => scroll("left")}
           disabled={!canScrollLeft}
+          aria-label="Scroll search results left"
         >
           <ChevronLeftIcon className="size-4" />
         </Button>
@@ -82,6 +81,7 @@ export function SearchResultsCarousel({
           ref={scrollContainerRef}
           className="flex-1 flex gap-3 overflow-x-hidden snap-x snap-mandatory scroll-smooth"
           onScroll={checkScroll}
+          onScrollEnd={checkScroll}
         >
           {sources.map((source, index) => (
             <SearchResultCard
@@ -99,6 +99,7 @@ export function SearchResultsCarousel({
           className="flex-shrink-0"
           onClick={() => scroll("right")}
           disabled={!canScrollRight}
+          aria-label="Scroll search results right"
         >
           <ChevronRightIcon className="size-4" />
         </Button>
