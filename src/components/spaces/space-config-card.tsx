@@ -35,7 +35,9 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
 
         <div>
           <div className="text-muted-foreground text-xs">Embedding</div>
-          <div className="font-medium">{space.embeddingModel.name}</div>
+          <div className="font-medium">
+            {space.embeddingModel.provider} / {space.embeddingModel.name}
+          </div>
         </div>
 
         <div>
