@@ -27,9 +27,6 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@ai-sdk/cohere": "^2.0.14",
     "@ai-sdk/google": "^2.0.23",
@@ -37,7 +34,7 @@
     "@ai-sdk/perplexity": "^2.0.13",
     "@ai-sdk/react": "^2.0.76",
     "@modelcontextprotocol/sdk": "^1.19.1",
-    "@prisma/client": "^6.17.1",
+    "@prisma/client": "^6.18.0",
     "@prisma/extension-accelerate": "^2.0.2",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -63,13 +60,14 @@
     "ai": "^5.0.76",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
     "exa-js": "^1.9.3",
     "llamaindex": "^0.12.0",
     "lucide-react": "^0.546.0",
     "nanoid": "^5.1.6",
     "next": "16.0.0",
-    "prisma": "^6.17.1",
+    "prisma": "^6.18.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-syntax-highlighter": "^15.6.6",
