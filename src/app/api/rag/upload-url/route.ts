@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth/api-helpers";
+import { isSupportedTextFile } from "@/lib/constants/file-types";
 import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
@@ -19,7 +20,7 @@ const UploadUrlRequestSchema = z
         z.object({
           name: z.string().min(1),
           size: z.number().int().nonnegative(),
-          type: z.string().min(1),
+          type: z.string(), // Allow empty string for unknown MIME types
         }),
       )
       .min(1),
@@ -40,11 +41,11 @@ export async function POST(req: Request) {
     if (validation instanceof Response) return validation;
     const { files } = validation;
 
-    // Fail fast: reject unsupported file types (only text/* allowed)
-    const invalidType = files.find((f) => !/^text\//.test(f.type || ""));
-    if (invalidType) {
+    // Fail fast: reject unsupported file types using extension check
+    const invalidFile = files.find((f) => !isSupportedTextFile(f.name));
+    if (invalidFile) {
       return Errors.badRequest(
-        `Unsupported file type: ${invalidType.type}. Only text/* files are allowed.`,
+        `Unsupported file type: ${invalidFile.name}. Only text-based files are allowed.`,
       );
     }
 

@@ -23,7 +23,7 @@ const IngestRequestSchema = z
           fileName: z.string().min(1),
           filePath: z.string(), // Client-provided but ignored; server reconstructs trusted path
           size: z.number().int().nonnegative(),
-          type: z.string().min(1),
+          type: z.string(), // Allow empty string for unknown MIME types
         }),
       )
       .min(1, "At least one file is required"),
