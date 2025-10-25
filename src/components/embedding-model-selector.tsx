@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
+import { ProviderIcon } from "@/components/ui/provider-icon";
 import {
   Select,
   SelectContent,
@@ -95,24 +96,33 @@ export function EmbeddingModelSelector({
         >
           <SelectTrigger id="embedding-model">
             <SelectValue placeholder="Select embedding model">
-              {currentModel?.name}
+              {currentModel && (
+                <div className="flex items-center gap-2">
+                  <ProviderIcon provider={currentModel.provider} size={16} />
+                  <span>{currentModel.name}</span>
+                </div>
+              )}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {Object.entries(groupedModels).map(([provider, providerModels]) => (
               <SelectGroup key={provider}>
-                <SelectLabel className="text-muted-foreground">
+                <SelectLabel className="text-muted-foreground flex items-center gap-2">
+                  <ProviderIcon provider={provider} size={14} />
                   {providerNames[provider] || provider.toUpperCase()}
                 </SelectLabel>
                 {providerModels.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
-                    <div className="flex flex-col py-1">
-                      <span className="font-medium">{model.name}</span>
-                      {model.description && (
-                        <span className="text-xs text-muted-foreground line-clamp-1">
-                          {model.description}
-                        </span>
-                      )}
+                    <div className="flex items-center gap-2 py-1">
+                      <ProviderIcon provider={provider} size={16} />
+                      <div className="flex flex-col">
+                        <span className="font-medium">{model.name}</span>
+                        {model.description && (
+                          <span className="text-xs text-muted-foreground line-clamp-1">
+                            {model.description}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </SelectItem>
                 ))}

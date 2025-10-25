@@ -84,6 +84,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ProviderIcon } from "@/components/ui/provider-icon";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
@@ -834,11 +835,17 @@ function ChatContent() {
                         size="sm"
                         className="h-8 justify-between"
                       >
-                        <span className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">
-                            {currentModel.providerName}
+                        <span className="flex items-center gap-2">
+                          <ProviderIcon
+                            provider={currentModel.providerName}
+                            size={16}
+                          />
+                          <span className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">
+                              {currentModel.providerName}
+                            </span>
+                            <span>{currentModel.name}</span>
                           </span>
-                          <span>{currentModel.name}</span>
                         </span>
                       </Button>
                     </DropdownMenuTrigger>
@@ -848,6 +855,10 @@ function ChatContent() {
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>
                               <span className="flex items-center gap-2">
+                                <ProviderIcon
+                                  provider={provider.name}
+                                  size={16}
+                                />
                                 <span className="font-medium">
                                   {provider.name}
                                 </span>
