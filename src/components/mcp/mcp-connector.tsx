@@ -313,6 +313,15 @@ export function MCPConnector({
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
+                <Label htmlFor="mcp-name">Name (optional)</Label>
+                <Input
+                  id="mcp-name"
+                  placeholder="My MCP Server"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="mcp-endpoint">Endpoint URL</Label>
                 <Input
                   id="mcp-endpoint"
@@ -324,15 +333,6 @@ export function MCPConnector({
                       handleConnect();
                     }
                   }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="mcp-name">Name (optional)</Label>
-                <Input
-                  id="mcp-name"
-                  placeholder="My MCP Server"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
