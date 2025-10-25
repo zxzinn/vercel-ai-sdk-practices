@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { ProviderIcon } from "@/components/ui/provider-icon";
 import type { Space, SpaceStatus } from "@/types/space";
 
 interface SpaceConfigCardProps {
@@ -18,8 +19,9 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3 text-sm">
         <div>
           <div className="text-muted-foreground text-xs">Vector DB</div>
-          <div className="font-medium">
-            {getProviderDisplayName(space.vectorProvider)}
+          <div className="font-medium flex items-center gap-2">
+            <ProviderIcon provider={space.vectorProvider} size={16} />
+            <span>{getProviderDisplayName(space.vectorProvider)}</span>
           </div>
         </div>
 
@@ -35,8 +37,11 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
 
         <div>
           <div className="text-muted-foreground text-xs">Embedding</div>
-          <div className="font-medium">
-            {space.embeddingModel.provider} / {space.embeddingModel.name}
+          <div className="font-medium flex items-center gap-2">
+            <ProviderIcon provider={space.embeddingModel.provider} size={16} />
+            <span>
+              {space.embeddingModel.provider} / {space.embeddingModel.name}
+            </span>
           </div>
         </div>
 
