@@ -16,15 +16,17 @@ const MAX_FILES = 20;
 
 const IngestRequestSchema = z
   .object({
-    files: z.array(
-      z.object({
-        documentId: z.string().min(1),
-        fileName: z.string().min(1),
-        filePath: z.string(), // Client-provided but ignored; server reconstructs trusted path
-        size: z.number().int().nonnegative(),
-        type: z.string().min(1),
-      }),
-    ),
+    files: z
+      .array(
+        z.object({
+          documentId: z.string().min(1),
+          fileName: z.string().min(1),
+          filePath: z.string(), // Client-provided but ignored; server reconstructs trusted path
+          size: z.number().int().nonnegative(),
+          type: z.string().min(1),
+        }),
+      )
+      .min(1, "At least one file is required"),
     spaceId: z.string().min(1),
   })
   .strict();
@@ -42,15 +44,6 @@ export async function POST(req: Request) {
     );
     if (validation instanceof Response) return validation;
     const { files, spaceId } = validation;
-
-    if (!files || files.length === 0) {
-      return Errors.badRequest("No files provided");
-    }
-
-    // Validate spaceId is provided (required for new architecture)
-    if (!spaceId) {
-      return Errors.badRequest("spaceId is required");
-    }
 
     // Verify space exists and belongs to user
     const space = await prisma.space.findFirst({
