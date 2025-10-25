@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -512,6 +513,47 @@ export function VectorConfigForm({
                       )?.description
                     }
                   </p>
+                </div>
+
+                {/* BM25 Full-Text Search */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="enable-fulltext">
+                        Full-Text Search (BM25)
+                      </Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p className="font-medium mb-1">Hybrid Search</p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Combines semantic search with keyword matching
+                          </p>
+                          <ul className="text-xs space-y-1">
+                            <li>• Better for exact keyword matches</li>
+                            <li>• Useful for technical terms</li>
+                            <li>• Requires ~20% more storage</li>
+                          </ul>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Switch
+                      id="enable-fulltext"
+                      checked={
+                        (config.enableFullTextSearch as boolean) || false
+                      }
+                      onCheckedChange={(checked) =>
+                        updateConfig("enableFullTextSearch", checked)
+                      }
+                    />
+                  </div>
+                  {(config.enableFullTextSearch as boolean) && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Default parameters: k1=1.5, b=0.75
+                    </p>
+                  )}
                 </div>
               </div>
             )}

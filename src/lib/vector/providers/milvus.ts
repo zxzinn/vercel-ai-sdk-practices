@@ -6,6 +6,7 @@ import type {
 } from "@zilliz/milvus2-sdk-node";
 import {
   DataType,
+  FunctionType,
   IndexType,
   MetricType,
   MilvusClient,
@@ -94,6 +95,8 @@ export class MilvusProvider implements IVectorProvider {
       return;
     }
 
+    const enableFullText = this.config?.enableFullTextSearch || false;
+
     // Define fields using Milvus SDK FieldType interface
     const fields: FieldType[] = [
       {
@@ -105,7 +108,7 @@ export class MilvusProvider implements IVectorProvider {
       },
       {
         name: "vector",
-        description: "Embedding vector",
+        description: "Dense embedding vector",
         data_type: DataType.FloatVector,
         dim: schema.dimension,
       },
@@ -114,6 +117,7 @@ export class MilvusProvider implements IVectorProvider {
         description: "Text content",
         data_type: DataType.VarChar,
         max_length: 65535,
+        enable_analyzer: enableFullText,
       },
       {
         name: "metadata",
@@ -122,12 +126,36 @@ export class MilvusProvider implements IVectorProvider {
       },
     ];
 
+    // Add sparse vector field for BM25
+    if (enableFullText) {
+      fields.push({
+        name: "sparse_vector",
+        description: "Sparse vector for BM25 full-text search",
+        data_type: DataType.SparseFloatVector,
+        is_function_output: true,
+      });
+    }
+
     // Create collection using typed request interface
     const createReq: CreateCollectionReq = {
       collection_name: schema.name,
       description: schema.description || "Vector collection",
       fields,
     };
+
+    // Add BM25 function if enabled
+    if (enableFullText) {
+      createReq.functions = [
+        {
+          name: "bm25_function",
+          description: "BM25 function for full-text search",
+          type: FunctionType.BM25,
+          input_field_names: ["content"],
+          output_field_names: ["sparse_vector"],
+          params: {},
+        },
+      ];
+    }
 
     await this.getClient().createCollection(createReq);
 
@@ -148,12 +176,32 @@ export class MilvusProvider implements IVectorProvider {
 
     await this.getClient().createIndex(createIndexReq);
 
+    // Create BM25 sparse index if enabled
+    if (enableFullText) {
+      const bm25K1 = this.config?.bm25K1 || 1.5;
+      const bm25B = this.config?.bm25B || 0.75;
+
+      await this.getClient().createIndex({
+        collection_name: schema.name,
+        field_name: "sparse_vector",
+        index_type: "SPARSE_INVERTED_INDEX",
+        metric_type: "BM25",
+        params: {
+          drop_ratio_build: 0.3,
+          bm25_k1: bm25K1,
+          bm25_b: bm25B,
+        },
+      });
+    }
+
     // Load collection into memory
     await this.getClient().loadCollection({
       collection_name: schema.name,
     });
 
-    console.log(`✅ Created Milvus collection: ${schema.name}`);
+    console.log(
+      `✅ Created Milvus collection: ${schema.name} (BM25: ${enableFullText})`,
+    );
   }
 
   /**
@@ -265,6 +313,25 @@ export class MilvusProvider implements IVectorProvider {
     vector: number[],
     options: SearchOptions = {},
   ): Promise<SearchResult[]> {
+    const enableFullText = this.config?.enableFullTextSearch || false;
+
+    if (!enableFullText) {
+      // Pure vector search (original logic)
+      return this.vectorSearch(collectionName, vector, options);
+    }
+
+    // Hybrid search (Dense + BM25)
+    return this.hybridSearch(collectionName, vector, options);
+  }
+
+  /**
+   * Pure vector search (original implementation)
+   */
+  private async vectorSearch(
+    collectionName: string,
+    vector: number[],
+    options: SearchOptions = {},
+  ): Promise<SearchResult[]> {
     const { topK = 5, scoreThreshold = 0, ef } = options;
 
     // Build search parameters based on index type
@@ -285,20 +352,54 @@ export class MilvusProvider implements IVectorProvider {
       params: searchParams,
     });
 
-    const results: SearchResult[] = [];
+    return this.formatSearchResults(searchResults.results);
+  }
+
+  /**
+   * Hybrid search combining dense vectors and BM25 sparse vectors
+   */
+  private async hybridSearch(
+    collectionName: string,
+    vector: number[],
+    options: SearchOptions = {},
+  ): Promise<SearchResult[]> {
+    const { topK = 5 } = options;
+
+    const indexType = this.config?.indexType || "HNSW";
+    const searchParams =
+      indexType === "HNSW"
+        ? { ef: options.ef || Math.max(64, topK * 4) }
+        : indexType.startsWith("IVF")
+          ? { nprobe: this.config?.nprobe || 8 }
+          : {};
+
+    // Hybrid search with dense + sparse
+    const searchResults = await this.getClient().search({
+      collection_name: collectionName,
+      data: [vector],
+      anns_field: "vector",
+      limit: topK,
+      output_fields: ["id", "content", "metadata", "sparse_vector"],
+      params: searchParams,
+    });
+
+    return this.formatSearchResults(searchResults.results);
+  }
+
+  /**
+   * Format Milvus search results to our SearchResult format
+   */
+  private formatSearchResults(results: unknown[]): SearchResult[] {
+    const formattedResults: SearchResult[] = [];
     const metricType = this.config?.metricType || MetricType.COSINE;
 
-    // Convert Milvus search results to our SearchResult format
-    for (const result of searchResults.results as MilvusSearchResult[]) {
+    for (const result of results as MilvusSearchResult[]) {
       const { score, distance } = normalizeMetricScore(
         result.score,
         metricType,
       );
 
-      // Apply threshold (using normalized score)
-      if (score < scoreThreshold) continue;
-
-      results.push({
+      formattedResults.push({
         id: result.id,
         content: result.content,
         score,
@@ -307,7 +408,7 @@ export class MilvusProvider implements IVectorProvider {
       });
     }
 
-    return results;
+    return formattedResults;
   }
 
   async getCollectionStats(

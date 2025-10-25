@@ -116,6 +116,8 @@ export async function POST(req: Request) {
         vectorConfig: (vectorConfig ?? null) as Prisma.InputJsonValue,
         embeddingModelId,
         embeddingDim,
+        enableFullTextSearch:
+          (vectorConfig.enableFullTextSearch as boolean) || false,
         status: "ACTIVE",
       },
       include: {

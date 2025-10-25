@@ -25,6 +25,10 @@ export interface MilvusConfig {
   nbits?: number;
   // HNSW search parameter
   ef?: number;
+  // BM25 full-text search
+  enableFullTextSearch?: boolean;
+  bm25K1?: number; // BM25 k1 parameter (default: 1.5)
+  bm25B?: number; // BM25 b parameter (default: 0.75)
 }
 
 export interface PineconeConfig {
