@@ -63,6 +63,10 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import {
+  type RAGSettings,
+  RAGSettingsDialog,
+} from "@/components/chat/rag-settings-dialog";
 import { MCPConnector } from "@/components/mcp/mcp-connector";
 import { SearchResultsContainer } from "@/components/search-results";
 import type { SearchOutput } from "@/components/search-results/types";
@@ -108,6 +112,10 @@ function ChatContent() {
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
+  const [ragSettings, setRagSettings] = useState<RAGSettings>({
+    topK: 5,
+    scoreThreshold: 0,
+  });
 
   // Auto-enable RAG when a space is selected
   const ragEnabled = Boolean(selectedSpaceId);
@@ -241,6 +249,7 @@ function ChatContent() {
         searchProviders: searchProviders,
         rag: ragEnabled,
         spaceId: selectedSpaceId,
+        ragSettings: ragSettings,
         reasoning: reasoningEnabled,
         mcpConnectionIds: mcpConnections.map((c) => c.id),
         sessionId,
@@ -277,6 +286,7 @@ function ChatContent() {
           searchProviders: searchProviders,
           rag: ragEnabled,
           spaceId: selectedSpaceId,
+          ragSettings: ragSettings,
           reasoning: reasoningEnabled,
           mcpConnectionIds: mcpConnections.map((c) => c.id),
           sessionId,
@@ -752,6 +762,13 @@ function ChatContent() {
                     selectedSpaceId={selectedSpaceId}
                     onSpaceChange={setSelectedSpaceId}
                   />
+                  {/* RAG Settings */}
+                  {selectedSpaceId && (
+                    <RAGSettingsDialog
+                      settings={ragSettings}
+                      onSettingsChange={setRagSettings}
+                    />
+                  )}
                   <Button
                     variant={reasoningEnabled ? "default" : "ghost"}
                     size="sm"

@@ -1,10 +1,18 @@
 import { z } from "zod";
 import { ragService } from "@/lib/rag";
 
+interface RAGSettings {
+  topK?: number;
+  scoreThreshold?: number;
+}
+
 /**
  * Create a RAG query tool bound to a specific space
  */
-export function createRagQueryTool(boundSpaceId: string) {
+export function createRagQueryTool(
+  boundSpaceId: string,
+  requestSettings?: RAGSettings,
+) {
   return {
     description:
       "Search through uploaded documents and knowledge base using semantic search. " +
@@ -38,8 +46,8 @@ export function createRagQueryTool(boundSpaceId: string) {
 
       try {
         const result = await ragService.query(spaceId, query, {
-          topK,
-          // scoreThreshold will use Space's default value
+          topK: requestSettings?.topK ?? topK,
+          scoreThreshold: requestSettings?.scoreThreshold,
         });
 
         if (result.sources.length === 0) {

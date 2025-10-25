@@ -63,6 +63,12 @@ const RequestBodySchema = z
       .transform((arr) => Array.from(new Set(arr))),
     rag: z.boolean().optional().default(false),
     spaceId: z.string().optional(),
+    ragSettings: z
+      .object({
+        topK: z.number().int().min(1).max(20).optional(),
+        scoreThreshold: z.number().min(0).max(1).optional(),
+      })
+      .optional(),
     reasoning: z.boolean().optional().default(false),
     reasoningBudget: z
       .enum(["low", "medium", "high"])
@@ -129,6 +135,7 @@ export async function POST(req: Request) {
       searchProviders,
       rag,
       spaceId,
+      ragSettings,
       reasoning,
       reasoningBudget,
       mcpConnectionIds,
@@ -173,7 +180,7 @@ export async function POST(req: Request) {
     }
 
     if (rag && spaceId) {
-      availableTools.ragQuery = createRagQueryTool(spaceId);
+      availableTools.ragQuery = createRagQueryTool(spaceId, ragSettings);
     }
 
     // Always add image generation tool
