@@ -1,7 +1,7 @@
 "use client";
 
 import { Database, Settings, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,13 @@ export function SpaceConfigCard({ space, onUpdate }: SpaceConfigCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [scoreThreshold, setScoreThreshold] = useState(space.scoreThreshold);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sync state with props when space changes and not editing
+  useEffect(() => {
+    if (!isEditing) {
+      setScoreThreshold(space.scoreThreshold);
+    }
+  }, [space.scoreThreshold, isEditing]);
 
   async function handleSave() {
     setIsSaving(true);
@@ -152,7 +159,7 @@ export function SpaceConfigCard({ space, onUpdate }: SpaceConfigCardProps) {
                 step="0.1"
                 value={scoreThreshold}
                 onChange={(e) =>
-                  setScoreThreshold(Number.parseFloat(e.target.value))
+                  setScoreThreshold(Number.parseFloat(e.target.value) || 0)
                 }
                 className="max-w-xs"
               />

@@ -63,10 +63,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
-import {
-  type RAGSettings,
-  RAGSettingsDialog,
-} from "@/components/chat/rag-settings-dialog";
+import { RAGSettingsDialog } from "@/components/chat/rag-settings-dialog";
 import { MCPConnector } from "@/components/mcp/mcp-connector";
 import { SearchResultsContainer } from "@/components/search-results";
 import type { SearchOutput } from "@/components/search-results/types";
@@ -92,6 +89,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
 import { TOOL_CONFIG } from "@/lib/tools/config";
+import type { RAGSettings } from "@/types/rag";
 
 // Dynamically load all available providers
 const providers = loadAllProviders();

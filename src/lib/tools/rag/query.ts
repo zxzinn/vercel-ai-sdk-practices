@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { ragService } from "@/lib/rag";
-
-interface RAGSettings {
-  topK?: number;
-  scoreThreshold?: number;
-}
+import type { RAGSettings } from "@/types/rag";
 
 /**
  * Create a RAG query tool bound to a specific space

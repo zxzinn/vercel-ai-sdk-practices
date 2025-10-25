@@ -1,7 +1,7 @@
 "use client";
 
 import { Settings } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,11 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-export interface RAGSettings {
-  topK: number;
-  scoreThreshold: number;
-}
+import type { RAGSettings } from "@/types/rag";
 
 interface RAGSettingsDialogProps {
   settings: RAGSettings;
@@ -30,6 +26,13 @@ export function RAGSettingsDialog({
 }: RAGSettingsDialogProps) {
   const [localSettings, setLocalSettings] = useState(settings);
   const [open, setOpen] = useState(false);
+
+  // Sync local settings when props change (e.g., switching spaces)
+  useEffect(() => {
+    if (!open) {
+      setLocalSettings(settings);
+    }
+  }, [settings, open]);
 
   function handleSave() {
     onSettingsChange(localSettings);
@@ -96,8 +99,8 @@ export function RAGSettingsDialog({
               }
             />
             <p className="text-xs text-muted-foreground">
-              Higher values return fewer but more relevant results (0-1). Uses
-              Space default if not set.
+              Higher values return fewer but more relevant results (0-1).
+              Default: 0 (no filtering).
             </p>
           </div>
         </div>
