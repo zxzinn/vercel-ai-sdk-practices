@@ -11,7 +11,7 @@
  * - Each test creates/destroys its own Space and related data
  */
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { getCollectionName } from "@/lib/rag/service";
 import { createVectorProvider } from "@/lib/vector";
