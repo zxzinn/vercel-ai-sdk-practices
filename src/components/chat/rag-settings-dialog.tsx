@@ -108,12 +108,12 @@ export function RAGSettingsDialog({
               min={RAG_CONSTANTS.TOP_K.MIN}
               max={RAG_CONSTANTS.TOP_K.MAX}
               value={topK}
-              onChange={(e) =>
-                setTopK(
-                  Number.parseInt(e.target.value, 10) ||
-                    RAG_CONSTANTS.TOP_K.DEFAULT,
-                )
-              }
+              onChange={(e) => {
+                const value = Number.parseInt(e.target.value, 10);
+                if (!Number.isNaN(value)) {
+                  setTopK(value);
+                }
+              }}
             />
             <p className="text-xs text-muted-foreground">
               How many document chunks to retrieve ({RAG_CONSTANTS.TOP_K.MIN}-
@@ -131,12 +131,12 @@ export function RAGSettingsDialog({
               max={RAG_CONSTANTS.SCORE_THRESHOLD.MAX}
               step={RAG_CONSTANTS.SCORE_THRESHOLD.STEP}
               value={scoreThreshold}
-              onChange={(e) =>
-                setScoreThreshold(
-                  Number.parseFloat(e.target.value) ||
-                    RAG_CONSTANTS.SCORE_THRESHOLD.MIN,
-                )
-              }
+              onChange={(e) => {
+                const value = Number.parseFloat(e.target.value);
+                if (!Number.isNaN(value)) {
+                  setScoreThreshold(value);
+                }
+              }}
             />
             <p className="text-xs text-muted-foreground">
               Filter by relevance score ({RAG_CONSTANTS.SCORE_THRESHOLD.MIN}-
