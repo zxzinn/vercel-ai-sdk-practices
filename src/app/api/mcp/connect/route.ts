@@ -17,6 +17,7 @@ const ConnectRequestSchema = z.object({
   endpoint: z.string().url(),
   name: z.string().min(1).optional(),
   sessionId: z.string().min(1),
+  apiKey: z.string().min(1).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const validationResult = validateRequestRaw(ConnectRequestSchema, body);
     if (validationResult instanceof Response) return validationResult;
 
-    const { endpoint, name, sessionId } = validationResult;
+    const { endpoint, name, sessionId, apiKey } = validationResult;
 
     const connectionId = crypto.randomUUID();
     const connectionName = name || new URL(endpoint).hostname;
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
       body: JSON.stringify({
         client_name: "Vercel AI MCP Client",
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
       codeVerifier,
       clientId,
       connectionName,
+      apiKey,
     });
 
     const authEndpoint = new URL("/authorize", mcpServerUrl.origin).toString();

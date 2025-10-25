@@ -58,6 +58,7 @@ export function MCPConnector({
   const [showDialog, setShowDialog] = useState(false);
   const [endpoint, setEndpoint] = useState("");
   const [name, setName] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,6 +124,7 @@ export function MCPConnector({
         body: JSON.stringify({
           endpoint: endpoint.trim(),
           name: name.trim() || undefined,
+          apiKey: apiKey.trim() || undefined,
           sessionId,
         }),
       });
@@ -192,6 +194,7 @@ export function MCPConnector({
             setShowDialog(false);
             setEndpoint("");
             setName("");
+            setApiKey("");
             setConnecting(false);
           } else if (data.type === "mcp-oauth-error") {
             // Clean up interval and event listener
@@ -332,6 +335,16 @@ export function MCPConnector({
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="mcp-api-key">API Key (optional)</Label>
+                <Input
+                  id="mcp-api-key"
+                  type="password"
+                  placeholder="Enter API key if required"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+              </div>
               {error && (
                 <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
                   {error}
@@ -345,6 +358,7 @@ export function MCPConnector({
                   setShowDialog(false);
                   setEndpoint("");
                   setName("");
+                  setApiKey("");
                   setError(null);
                 }}
               >

@@ -193,6 +193,7 @@ export async function POST(req: Request) {
             const clientWithTransport = await createMCPClient({
               endpoint: connection.endpoint,
               accessToken: connection.accessToken,
+              apiKey: connection.apiKey,
               sessionId: sessionId,
             });
 

@@ -29,6 +29,7 @@ const MCPConnectionStateSchema = z.object({
   accessToken: z.string().optional(),
   refreshToken: z.string().optional(),
   tokenExpiresAt: z.number().optional(),
+  apiKey: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -40,6 +41,7 @@ export interface MCPConnectionState {
   accessToken?: string;
   refreshToken?: string;
   tokenExpiresAt?: number;
+  apiKey?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -151,6 +153,7 @@ const OAuthStateDataSchema = z.object({
   endpoint: z.string(),
   codeVerifier: z.string(),
   clientId: z.string().optional(),
+  apiKey: z.string().optional(),
 });
 
 export interface OAuthStateData {
@@ -160,6 +163,7 @@ export interface OAuthStateData {
   endpoint: string;
   codeVerifier: string;
   clientId?: string;
+  apiKey?: string;
 }
 
 export async function storeOAuthState(

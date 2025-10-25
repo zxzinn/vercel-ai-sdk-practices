@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
       endpoint,
       codeVerifier,
       clientId,
+      apiKey,
     } = stateData;
 
     // Validate required OAuth state data
@@ -148,6 +149,7 @@ export async function GET(req: NextRequest) {
       tokenExpiresAt: tokenResponse.expires_in
         ? Date.now() + tokenResponse.expires_in * 1000
         : undefined,
+      apiKey,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
