@@ -6,14 +6,12 @@ import {
   FileText,
   FolderOpen,
   Sparkles,
-  Tag,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,

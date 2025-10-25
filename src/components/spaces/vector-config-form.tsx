@@ -110,7 +110,7 @@ export function VectorConfigForm({
   );
 
   const embeddingProviders = Object.keys(groupedModels);
-  const currentEmbeddingModel = models.find((m) => m.id === embeddingModelId);
+  const _currentEmbeddingModel = models.find((m) => m.id === embeddingModelId);
 
   const providerDisplayNames: Record<string, string> = {
     openai: "OpenAI",
