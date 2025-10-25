@@ -110,10 +110,7 @@ function ChatContent() {
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
-  const [ragSettings, setRagSettings] = useState<RAGSettings>({
-    topK: 5,
-    scoreThreshold: 0,
-  });
+  const [ragSettings, setRagSettings] = useState<RAGSettings>({});
 
   // Auto-enable RAG when a space is selected
   const ragEnabled = Boolean(selectedSpaceId);

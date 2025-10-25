@@ -24,13 +24,19 @@ export function RAGSettingsDialog({
   settings,
   onSettingsChange,
 }: RAGSettingsDialogProps) {
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localSettings, setLocalSettings] = useState<RAGSettings>({
+    topK: settings.topK ?? 5,
+    scoreThreshold: settings.scoreThreshold ?? 0,
+  });
   const [open, setOpen] = useState(false);
 
   // Sync local settings when props change (e.g., switching spaces)
   useEffect(() => {
     if (!open) {
-      setLocalSettings(settings);
+      setLocalSettings({
+        topK: settings.topK ?? 5,
+        scoreThreshold: settings.scoreThreshold ?? 0,
+      });
     }
   }, [settings, open]);
 
@@ -55,7 +61,7 @@ export function RAGSettingsDialog({
         <DialogHeader>
           <DialogTitle>RAG Search Settings</DialogTitle>
           <DialogDescription>
-            Configure how documents are retrieved and ranked
+            Override Space defaults for this chat session
           </DialogDescription>
         </DialogHeader>
 
@@ -99,8 +105,8 @@ export function RAGSettingsDialog({
               }
             />
             <p className="text-xs text-muted-foreground">
-              Higher values return fewer but more relevant results (0-1).
-              Default: 0 (no filtering).
+              Higher values return fewer but more relevant results (0-1). Leave
+              at 0 to use Space default.
             </p>
           </div>
         </div>
