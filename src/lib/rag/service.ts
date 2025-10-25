@@ -292,7 +292,17 @@ export class RAGService {
     queryText: string,
     options: RAGQueryOptions = {},
   ): Promise<RAGQueryResult> {
-    const { topK = 5, scoreThreshold = 0 } = options;
+    const { topK = 5 } = options;
+
+    // Get Space configuration for scoreThreshold
+    const space = await prisma.space.findUnique({
+      where: { id: spaceId },
+      select: { scoreThreshold: true },
+    });
+    if (!space) throw new Error(`Space ${spaceId} not found`);
+
+    // Use provided scoreThreshold or fall back to Space's default
+    const scoreThreshold = options.scoreThreshold ?? space.scoreThreshold;
 
     // Get provider for this space
     const { provider, embeddingModel } =

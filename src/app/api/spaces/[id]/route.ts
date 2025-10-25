@@ -11,6 +11,11 @@ import { validateRequest } from "@/lib/validation/api-validation";
 const UpdateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional().nullable(),
+  scoreThreshold: z
+    .number()
+    .min(0, "Score threshold must be between 0 and 1")
+    .max(1, "Score threshold must be between 0 and 1")
+    .optional(),
 });
 
 export async function GET(

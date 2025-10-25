@@ -79,6 +79,9 @@ model Space {
   // Full-text search configuration (immutable after creation)
   enableFullTextSearch Boolean @default(false)
 
+  // Search configuration
+  scoreThreshold Float @default(0.3)
+
   // Status and monitoring
   status       SpaceStatus @default(INITIALIZING)
   errorMessage String?

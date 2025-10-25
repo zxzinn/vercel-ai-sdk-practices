@@ -368,7 +368,7 @@ export class MilvusProvider implements IVectorProvider {
     vector: number[],
     options: SearchOptions = {},
   ): Promise<SearchResult[]> {
-    const { topK = 5 } = options;
+    const { topK = 5, scoreThreshold = 0 } = options;
 
     const indexType = this.config?.indexType || "HNSW";
     const searchParams =
@@ -388,7 +388,12 @@ export class MilvusProvider implements IVectorProvider {
       params: searchParams,
     });
 
-    return this.formatSearchResults(searchResults.results);
+    const results = this.formatSearchResults(searchResults.results);
+
+    // Filter results by score threshold if specified
+    return scoreThreshold > 0
+      ? results.filter((result) => result.score >= scoreThreshold)
+      : results;
   }
 
   /**

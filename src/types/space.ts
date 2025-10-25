@@ -82,6 +82,7 @@ export interface Space {
   embeddingModelId: string;
   embeddingModel: EmbeddingModel;
   embeddingDim: number;
+  scoreThreshold: number;
   errorMessage: string | null;
   lastSyncAt: string | null;
   vectorCount: number;

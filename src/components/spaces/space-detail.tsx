@@ -139,7 +139,7 @@ export function SpaceDetail({ spaceId }: SpaceDetailProps) {
       </div>
 
       {/* Configuration Cards */}
-      <SpaceConfigCard space={space} />
+      <SpaceConfigCard space={space} onUpdate={fetchSpace} />
 
       <Card>
         <CardHeader>

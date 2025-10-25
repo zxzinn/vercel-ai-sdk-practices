@@ -1,19 +1,66 @@
 "use client";
 
-import { Database, Sparkles } from "lucide-react";
+import { Database, Settings, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { Space, SpaceStatus } from "@/types/space";
 
 interface SpaceConfigCardProps {
   space: Space;
+  onUpdate?: () => void;
 }
 
-export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
+export function SpaceConfigCard({ space, onUpdate }: SpaceConfigCardProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [scoreThreshold, setScoreThreshold] = useState(space.scoreThreshold);
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/spaces/${space.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scoreThreshold }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update space");
+      }
+
+      setIsEditing(false);
+      onUpdate?.();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update space");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleCancel() {
+    setScoreThreshold(space.scoreThreshold);
+    setIsEditing(false);
+  }
   return (
     <div className="border rounded-lg p-4 bg-muted/30">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium">Configuration</h3>
-        <SpaceStatusBadge status={space.status} />
+        <div className="flex items-center gap-2">
+          {!isEditing ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+            >
+              <Settings className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          ) : null}
+          <SpaceStatusBadge status={space.status} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3 text-sm">
@@ -83,6 +130,56 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
           {space.errorMessage}
         </div>
       )}
+
+      {/* Search Settings */}
+      <div className="mt-4 pt-4 border-t">
+        <h4 className="text-sm font-medium mb-3">Search Settings</h4>
+        <div className="space-y-3">
+          {isEditing ? (
+            <div className="space-y-2">
+              <Label htmlFor="scoreThreshold" className="text-sm">
+                Minimum Relevance Score (0-1)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Higher values return fewer but more relevant results. Default:
+                0.3
+              </p>
+              <Input
+                id="scoreThreshold"
+                type="number"
+                min="0"
+                max="1"
+                step="0.1"
+                value={scoreThreshold}
+                onChange={(e) =>
+                  setScoreThreshold(Number.parseFloat(e.target.value))
+                }
+                className="max-w-xs"
+              />
+              <div className="flex gap-2 mt-2">
+                <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="text-muted-foreground text-xs">
+                Minimum Relevance Score
+              </div>
+              <div className="font-medium">{space.scoreThreshold}</div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

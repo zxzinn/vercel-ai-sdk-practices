@@ -39,7 +39,7 @@ export function createRagQueryTool(boundSpaceId: string) {
       try {
         const result = await ragService.query(spaceId, query, {
           topK,
-          scoreThreshold: 0.3,
+          // scoreThreshold will use Space's default value
         });
 
         if (result.sources.length === 0) {
