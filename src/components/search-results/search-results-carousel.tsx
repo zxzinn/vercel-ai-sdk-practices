@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -21,14 +21,18 @@ export function SearchResultsCarousel({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const checkScroll = () => {
+  const checkScroll = useCallback(() => {
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } =
         scrollContainerRef.current;
       setCanScrollLeft(scrollLeft > 0);
       setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+  }, [checkScroll]);
 
   const scroll = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
@@ -78,7 +82,6 @@ export function SearchResultsCarousel({
           ref={scrollContainerRef}
           className="flex-1 flex gap-3 overflow-x-hidden snap-x snap-mandatory scroll-smooth"
           onScroll={checkScroll}
-          onLoad={checkScroll}
         >
           {sources.map((source, index) => (
             <SearchResultCard
