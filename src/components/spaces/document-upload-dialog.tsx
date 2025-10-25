@@ -177,9 +177,8 @@ export function DocumentUploadDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div
-            role="button"
-            tabIndex={0}
+          <section
+            aria-label="File upload drop zone"
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
               isDragging
                 ? "border-primary bg-primary/5"
@@ -188,11 +187,6 @@ export function DocumentUploadDialog({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                fileInputRef.current?.click();
-              }
-            }}
           >
             <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground mb-2">
@@ -217,7 +211,7 @@ export function DocumentUploadDialog({
             >
               Browse Files
             </Button>
-          </div>
+          </section>
 
           {files.length > 0 && (
             <div className="space-y-2">

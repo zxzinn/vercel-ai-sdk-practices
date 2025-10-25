@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -41,7 +42,7 @@ export async function createTestSpace(params: CreateSpaceParams) {
       description,
       userId,
       vectorProvider,
-      vectorConfig: vectorConfig as any,
+      vectorConfig: vectorConfig as unknown as Prisma.InputJsonValue,
       embeddingModelId,
       embeddingDim,
       status: "ACTIVE",
