@@ -1,5 +1,18 @@
-import { DataType, MilvusClient } from "@zilliz/milvus2-sdk-node";
+import type {
+  CreateCollectionReq,
+  CreateIndexSimpleReq,
+  DescribeCollectionResponse,
+  FieldType,
+} from "@zilliz/milvus2-sdk-node";
+import {
+  DataType,
+  FunctionType,
+  IndexType,
+  MetricType,
+  MilvusClient,
+} from "@zilliz/milvus2-sdk-node";
 import { z } from "zod";
+import { normalizeMetricScore } from "../metrics";
 import type {
   CollectionSchema,
   IVectorProvider,
@@ -23,7 +36,7 @@ const MilvusConfigSchema = z.object({
   indexType: z
     .enum(["FLAT", "HNSW", "IVF_FLAT", "IVF_SQ8", "IVF_PQ"])
     .optional(),
-  metricType: z.enum(["IP", "L2", "COSINE", "HAMMING", "JACCARD"]).optional(),
+  metricType: z.enum(MetricType).optional(),
   M: z.number().int().positive().optional(),
   efConstruction: z.number().int().positive().optional(),
   nlist: z.number().int().positive().optional(),
@@ -82,75 +95,142 @@ export class MilvusProvider implements IVectorProvider {
       return;
     }
 
-    // Create collection with schema
-    await this.getClient().createCollection({
-      collection_name: schema.name,
-      description: schema.description || "Vector collection",
-      fields: [
-        {
-          name: "id",
-          description: "Primary key",
-          data_type: DataType.VarChar,
-          is_primary_key: true,
-          max_length: 255,
-        },
-        {
-          name: "vector",
-          description: "Embedding vector",
-          data_type: DataType.FloatVector,
-          dim: schema.dimension,
-        },
-        {
-          name: "content",
-          description: "Text content",
-          data_type: DataType.VarChar,
-          max_length: 65535,
-        },
-        {
-          name: "metadata",
-          description: "Document metadata",
-          data_type: DataType.JSON,
-        },
-      ],
-    });
+    const enableFullText = this.config?.enableFullTextSearch || false;
 
-    // Create index with appropriate parameters based on index type
-    const indexType = this.config?.indexType || "HNSW";
-    const metricType = this.config?.metricType || "IP";
+    // Define fields using Milvus SDK FieldType interface
+    const fields: FieldType[] = [
+      {
+        name: "id",
+        description: "Primary key",
+        data_type: DataType.VarChar,
+        is_primary_key: true,
+        max_length: 255,
+      },
+      {
+        name: "vector",
+        description: "Dense embedding vector",
+        data_type: DataType.FloatVector,
+        dim: schema.dimension,
+      },
+      {
+        name: "content",
+        description: "Text content",
+        data_type: DataType.VarChar,
+        max_length: 65535,
+        enable_analyzer: enableFullText,
+      },
+      {
+        name: "metadata",
+        description: "Document metadata",
+        data_type: DataType.JSON,
+      },
+    ];
 
-    let indexParams: Record<string, unknown> = {};
-    if (indexType === "HNSW") {
-      indexParams = {
-        M: this.config?.M || 16,
-        efConstruction: this.config?.efConstruction || 200,
-      };
-    } else if (indexType === "IVF_FLAT" || indexType === "IVF_SQ8") {
-      indexParams = {
-        nlist: this.config?.nlist || 128,
-        nprobe: this.config?.nprobe || 8,
-      };
-    } else if (indexType === "IVF_PQ") {
-      indexParams = {
-        nlist: this.config?.nlist || 128,
-        m: this.config?.m || 8,
-        nbits: this.config?.nbits || 8,
-      };
+    // Add sparse vector field for BM25
+    if (enableFullText) {
+      fields.push({
+        name: "sparse_vector",
+        description: "Sparse vector for BM25 full-text search",
+        data_type: DataType.SparseFloatVector,
+        is_function_output: true,
+      });
     }
 
-    await this.getClient().createIndex({
+    // Create collection using typed request interface
+    const createReq: CreateCollectionReq = {
+      collection_name: schema.name,
+      description: schema.description || "Vector collection",
+      fields,
+    };
+
+    // Add BM25 function if enabled
+    if (enableFullText) {
+      createReq.functions = [
+        {
+          name: "bm25_function",
+          description: "BM25 function for full-text search",
+          type: FunctionType.BM25,
+          input_field_names: ["content"],
+          output_field_names: ["sparse_vector"],
+          params: {},
+        },
+      ];
+    }
+
+    await this.getClient().createCollection(createReq);
+
+    // Build index parameters based on index type
+    const indexType = this.config?.indexType || IndexType.HNSW;
+    const metricType = this.config?.metricType || MetricType.COSINE;
+
+    const indexParams = this.buildIndexParams(indexType);
+
+    // Create index using typed request interface
+    const createIndexReq: CreateIndexSimpleReq = {
       collection_name: schema.name,
       field_name: "vector",
       index_type: indexType,
       metric_type: metricType,
       params: indexParams,
-    });
+    };
+
+    await this.getClient().createIndex(createIndexReq);
+
+    // Create BM25 sparse index if enabled
+    if (enableFullText) {
+      const bm25K1 = this.config?.bm25K1 || 1.5;
+      const bm25B = this.config?.bm25B || 0.75;
+
+      await this.getClient().createIndex({
+        collection_name: schema.name,
+        field_name: "sparse_vector",
+        index_type: "SPARSE_INVERTED_INDEX",
+        metric_type: "BM25",
+        params: {
+          drop_ratio_build: 0.3,
+          bm25_k1: bm25K1,
+          bm25_b: bm25B,
+        },
+      });
+    }
 
     // Load collection into memory
     await this.getClient().loadCollection({
       collection_name: schema.name,
     });
 
-    console.log(`✅ Created Milvus collection: ${schema.name}`);
+    console.log(
+      `✅ Created Milvus collection: ${schema.name} (BM25: ${enableFullText})`,
+    );
+  }
+
+  /**
+   * Build index parameters based on index type
+   * Note: nprobe is a search-time parameter, not an index parameter
+   */
+  private buildIndexParams(indexType: IndexType): Record<string, unknown> {
+    switch (indexType) {
+      case IndexType.HNSW:
+        return {
+          M: this.config?.M || 16,
+          efConstruction: this.config?.efConstruction || 200,
+        };
+
+      case IndexType.IVF_FLAT:
+      case IndexType.IVF_SQ8:
+        return {
+          nlist: this.config?.nlist || 128,
+        };
+
+      case IndexType.IVF_PQ:
+        return {
+          nlist: this.config?.nlist || 128,
+          m: this.config?.m || 8,
+          nbits: this.config?.nbits || 8,
+        };
+      default:
+        return {};
+    }
   }
 
   async deleteCollection(name: string): Promise<void> {
@@ -233,57 +313,93 @@ export class MilvusProvider implements IVectorProvider {
     vector: number[],
     options: SearchOptions = {},
   ): Promise<SearchResult[]> {
+    const enableFullText = this.config?.enableFullTextSearch || false;
+
+    if (!enableFullText) {
+      // Pure vector search (original logic)
+      return this.vectorSearch(collectionName, vector, options);
+    }
+
+    // Hybrid search (Dense + BM25)
+    return this.hybridSearch(collectionName, vector, options);
+  }
+
+  /**
+   * Pure vector search (original implementation)
+   */
+  private async vectorSearch(
+    collectionName: string,
+    vector: number[],
+    options: SearchOptions = {},
+  ): Promise<SearchResult[]> {
     const { topK = 5, scoreThreshold = 0, ef } = options;
 
+    // Build search parameters based on index type
+    const indexType = this.config?.indexType || "HNSW";
+    const searchParams =
+      indexType === "HNSW"
+        ? { ef: ef || Math.max(64, topK * 4) }
+        : indexType.startsWith("IVF")
+          ? { nprobe: this.config?.nprobe || 8 }
+          : {};
+
+    // Perform search using Milvus client
     const searchResults = await this.getClient().search({
       collection_name: collectionName,
       vector,
       limit: topK,
       output_fields: ["id", "content", "metadata"],
-      params: {
-        ef: ef || Math.max(64, topK * 4),
-      },
+      params: searchParams,
     });
 
-    const results: SearchResult[] = [];
-    const metricType = this.config?.metricType || "COSINE";
+    return this.formatSearchResults(searchResults.results);
+  }
 
-    for (const result of searchResults.results as MilvusSearchResult[]) {
-      // Convert score to normalized similarity and distance based on metric type
-      let score: number;
-      let distance: number;
+  /**
+   * Hybrid search combining dense vectors and BM25 sparse vectors
+   */
+  private async hybridSearch(
+    collectionName: string,
+    vector: number[],
+    options: SearchOptions = {},
+  ): Promise<SearchResult[]> {
+    const { topK = 5 } = options;
 
-      switch (metricType) {
-        case "COSINE":
-          // Cosine: Milvus returns similarity in [-1, 1], higher is better
-          // Normalize to [0, 1] where 1 is most similar
-          score = (result.score + 1) / 2;
-          distance = 1 - score;
-          break;
+    const indexType = this.config?.indexType || "HNSW";
+    const searchParams =
+      indexType === "HNSW"
+        ? { ef: options.ef || Math.max(64, topK * 4) }
+        : indexType.startsWith("IVF")
+          ? { nprobe: this.config?.nprobe || 8 }
+          : {};
 
-        case "IP":
-          // Inner Product: higher is better (already similarity)
-          score = result.score;
-          distance = 1 - result.score;
-          break;
+    // Hybrid search with dense + sparse
+    const searchResults = await this.getClient().search({
+      collection_name: collectionName,
+      data: [vector],
+      anns_field: "vector",
+      limit: topK,
+      output_fields: ["id", "content", "metadata", "sparse_vector"],
+      params: searchParams,
+    });
 
-        case "L2":
-          // Euclidean Distance: lower is better (already distance)
-          // Convert to similarity: score = 1 / (1 + distance)
-          distance = result.score;
-          score = 1 / (1 + distance);
-          break;
+    return this.formatSearchResults(searchResults.results);
+  }
 
-        default:
-          // Fallback: assume similarity metric
-          score = result.score;
-          distance = 1 - result.score;
-      }
+  /**
+   * Format Milvus search results to our SearchResult format
+   */
+  private formatSearchResults(results: unknown[]): SearchResult[] {
+    const formattedResults: SearchResult[] = [];
+    const metricType = this.config?.metricType || MetricType.COSINE;
 
-      // Apply threshold (now correctly using normalized score)
-      if (score < scoreThreshold) continue;
+    for (const result of results as MilvusSearchResult[]) {
+      const { score, distance } = normalizeMetricScore(
+        result.score,
+        metricType,
+      );
 
-      results.push({
+      formattedResults.push({
         id: result.id,
         content: result.content,
         score,
@@ -292,24 +408,25 @@ export class MilvusProvider implements IVectorProvider {
       });
     }
 
-    return results;
+    return formattedResults;
   }
 
   async getCollectionStats(
     name: string,
   ): Promise<{ count: number; dimension: number }> {
+    // Get collection statistics
     const stats = await this.getClient().getCollectionStatistics({
       collection_name: name,
     });
-
-    // Milvus returns stats in a specific format
     const count = Number(stats.data.row_count) || 0;
 
-    // Get dimension from collection schema
-    const desc = await this.getClient().describeCollection({
-      collection_name: name,
-    });
+    // Get collection description using typed response
+    const desc: DescribeCollectionResponse =
+      await this.getClient().describeCollection({
+        collection_name: name,
+      });
 
+    // Extract vector field dimension from schema
     const vectorField = desc.schema.fields.find((f) => {
       const dataType = f.data_type as unknown;
       return (

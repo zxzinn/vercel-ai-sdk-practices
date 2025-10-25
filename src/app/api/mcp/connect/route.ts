@@ -11,6 +11,7 @@ import {
   generateState,
 } from "@/lib/mcp/oauth";
 import { storeOAuthState } from "@/lib/mcp/redis";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 const ConnectRequestSchema = z.object({
   endpoint: z.string().url(),
@@ -24,19 +25,10 @@ export async function POST(req: NextRequest) {
     checkRedisConfig();
 
     const body = await req.json();
-    const validation = ConnectRequestSchema.safeParse(body);
+    const validationResult = validateRequestRaw(ConnectRequestSchema, body);
+    if (validationResult instanceof Response) return validationResult;
 
-    if (!validation.success) {
-      return Response.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
-
-    const { endpoint, name, sessionId } = validation.data;
+    const { endpoint, name, sessionId } = validationResult;
 
     const connectionId = crypto.randomUUID();
     const connectionName = name || new URL(endpoint).hostname;

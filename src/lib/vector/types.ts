@@ -1,15 +1,19 @@
+import type { IndexType, MetricType } from "@zilliz/milvus2-sdk-node";
 import type { VectorProvider as PrismaVectorProvider } from "@/generated/prisma";
 
 // Re-export Prisma enum
 export { VectorProvider as VectorProviderType } from "@/generated/prisma";
+
+// Re-export SDK types for convenience
+export type { MetricType, IndexType };
 
 // Provider-specific configuration types
 export interface MilvusConfig {
   url: string;
   token: string;
   database?: string;
-  indexType?: "FLAT" | "HNSW" | "IVF_FLAT" | "IVF_SQ8" | "IVF_PQ";
-  metricType?: "IP" | "L2" | "COSINE" | "HAMMING" | "JACCARD";
+  indexType?: IndexType;
+  metricType?: MetricType;
   // HNSW specific parameters
   M?: number;
   efConstruction?: number;
@@ -21,6 +25,10 @@ export interface MilvusConfig {
   nbits?: number;
   // HNSW search parameter
   ef?: number;
+  // BM25 full-text search
+  enableFullTextSearch?: boolean;
+  bm25K1?: number; // BM25 k1 parameter (default: 1.5)
+  bm25B?: number; // BM25 b parameter (default: 0.75)
 }
 
 export interface PineconeConfig {

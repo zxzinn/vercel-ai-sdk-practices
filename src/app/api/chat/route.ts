@@ -1,6 +1,7 @@
-import type { Tool } from "ai";
+import type { TextUIPart, Tool, UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma";
 import {
   cleanupMCPClient,
   createMCPClient,
@@ -11,20 +12,18 @@ import { getMCPConnection } from "@/lib/mcp/redis";
 import { prisma } from "@/lib/prisma";
 import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
-import { generateImageTool } from "@/lib/tools/image/generate-image";
 import { createRagQueryTool } from "@/lib/tools/rag/query";
-import { exaSearch } from "@/lib/tools/websearch/exa-search";
-import { perplexitySearch } from "@/lib/tools/websearch/perplexity-search";
-import { tavilySearch } from "@/lib/tools/websearch/tavily-search";
+import { generateImageTool, staticTools } from "@/lib/types/chat-tools";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
 // Map of search providers to their tool implementations
 const SEARCH_PROVIDER_MAP = {
-  tavily: tavilySearch,
-  exa: exaSearch,
-  perplexity: perplexitySearch,
+  tavily: staticTools.tavilySearch,
+  exa: staticTools.exaSearch,
+  perplexity: staticTools.perplexitySearch,
 } as const;
 
 // Schema that matches Vercel AI SDK's UIMessage format
@@ -114,22 +113,13 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const validation = RequestBodySchema.safeParse(body);
+    const validationResult = validateRequestRaw(RequestBodySchema, body);
 
     // Early return without cleanup is safe here:
     // If validation fails, no MCP clients have been created yet,
     // so mcpClients array is empty and cleanup is unnecessary
-    if (!validation.success) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid request body",
-          details: validation.error.issues,
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+    if (validationResult instanceof Response) {
+      return validationResult;
     }
 
     const {
@@ -144,7 +134,7 @@ export async function POST(req: Request) {
       mcpConnectionIds,
       sessionId,
       conversationId,
-    } = validation.data;
+    } = validationResult;
 
     // Validate RAG configuration early
     if (rag && !spaceId) {
@@ -311,7 +301,9 @@ export async function POST(req: Request) {
             const userMessage = messages[messages.length - 1];
 
             // Build assistant message with all parts (text, tool calls, tool results)
-            const assistantMessage: any = {
+            // Using SDK's UIMessage type directly
+            const assistantMessage: UIMessage = {
+              id: crypto.randomUUID(),
               role: "assistant",
               parts: [],
             };
@@ -367,19 +359,23 @@ export async function POST(req: Request) {
                   // MCP tools use "dynamic-tool" type
                   assistantMessage.parts.push({
                     type: "dynamic-tool",
+                    toolCallId: toolCall.toolCallId,
                     toolName: toolCall.toolName,
                     input: toolCall.input,
                     output: result?.output,
                     state,
-                  });
+                    // biome-ignore lint/suspicious/noExplicitAny: SDK type mismatch
+                  } as any);
                 } else {
                   // Static tools use "tool-{toolName}" type
                   assistantMessage.parts.push({
                     type: `tool-${toolCall.toolName}`,
+                    toolCallId: toolCall.toolCallId,
                     input: toolCall.input,
                     output: result?.output,
                     state,
-                  });
+                    // biome-ignore lint/suspicious/noExplicitAny: SDK type mismatch
+                  } as any);
                 }
               }
             }
@@ -396,8 +392,8 @@ export async function POST(req: Request) {
             const userContent =
               userMessage.content ||
               userMessage.parts
-                ?.filter((p: { type: string }) => p.type === "text")
-                .map((p: { text: string }) => p.text)
+                ?.filter((p): p is TextUIPart => p.type === "text")
+                .map((p) => p.text)
                 .join("\n") ||
               "";
 
@@ -418,14 +414,16 @@ export async function POST(req: Request) {
                 data: {
                   conversationId,
                   role: "user",
-                  content: userMessage as any, // Store complete UIMessage
+                  // UIMessage is designed to be JSON-serializable by the AI SDK
+                  // Direct storage follows official examples from Vercel AI SDK
+                  content: userMessage as unknown as Prisma.InputJsonValue,
                 },
               }),
               prisma.conversationMessage.create({
                 data: {
                   conversationId,
                   role: "assistant",
-                  content: assistantMessage, // Store complete UIMessage with all parts
+                  content: assistantMessage as unknown as Prisma.InputJsonValue,
                 },
               }),
             ]);

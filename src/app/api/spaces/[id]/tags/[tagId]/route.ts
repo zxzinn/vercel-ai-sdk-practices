@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
@@ -7,27 +8,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; tagId: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId, tagId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: {
-        id: spaceId,
-        userId,
-      },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const tag = await prisma.tag.findFirst({
       where: {
@@ -37,7 +21,7 @@ export async function DELETE(
     });
 
     if (!tag) {
-      return NextResponse.json({ error: "Tag not found" }, { status: 404 });
+      return Errors.notFound("Tag");
     }
 
     await prisma.tag.delete({
@@ -49,13 +33,6 @@ export async function DELETE(
       message: "Tag deleted successfully",
     });
   } catch (error) {
-    console.error("Failed to delete tag:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to delete tag",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to delete tag");
   }
 }

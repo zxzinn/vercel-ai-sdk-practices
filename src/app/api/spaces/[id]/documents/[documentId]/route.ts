@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
@@ -11,24 +12,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId, documentId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: { id: spaceId, userId },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const document = await prisma.document.findFirst({
       where: {
@@ -46,22 +33,12 @@ export async function GET(
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 },
-      );
+      return Errors.notFound("Document");
     }
 
     return NextResponse.json({ document });
   } catch (error) {
-    console.error("Failed to fetch document:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch document",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch document");
   }
 }
 
@@ -70,24 +47,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId, documentId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: { id: spaceId, userId },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const document = await prisma.document.findFirst({
       where: {
@@ -97,10 +60,7 @@ export async function DELETE(
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 },
-      );
+      return Errors.notFound("Document");
     }
 
     const supabase = await createClient();
@@ -146,13 +106,6 @@ export async function DELETE(
       message: "Document deleted successfully",
     });
   } catch (error) {
-    console.error("Failed to delete document:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to delete document",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to delete document");
   }
 }

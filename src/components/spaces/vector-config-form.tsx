@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -77,6 +78,10 @@ export function VectorConfigForm({
   const selectedProvider = providers.find((p) => p.id === provider);
   const metricTypes = getMetricTypes(provider);
   const indexTypes = getIndexTypes(provider);
+  const defaultMetricType =
+    (selectedProvider?.defaultConfig.metricType as string) || "COSINE";
+  const defaultIndexType =
+    (selectedProvider?.defaultConfig.indexType as string) || "HNSW";
 
   // Load embedding models
   useEffect(() => {
@@ -110,7 +115,7 @@ export function VectorConfigForm({
   );
 
   const embeddingProviders = Object.keys(groupedModels);
-  const currentEmbeddingModel = models.find((m) => m.id === embeddingModelId);
+  const _currentEmbeddingModel = models.find((m) => m.id === embeddingModelId);
 
   const providerDisplayNames: Record<string, string> = {
     openai: "OpenAI",
@@ -434,25 +439,23 @@ export function VectorConfigForm({
                     </Tooltip>
                   </div>
                   <Select
-                    value={(config.metricType as string) || "COSINE"}
+                    value={(config.metricType as string) || defaultMetricType}
                     onValueChange={(value) => updateConfig("metricType", value)}
                   >
                     <SelectTrigger id="metric-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {metricTypes
-                        .filter((m) => ["COSINE", "IP", "L2"].includes(m.id))
-                        .map((metric) => (
-                          <SelectItem key={metric.id} value={metric.id}>
-                            <div className="flex flex-col">
-                              <span>{metric.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                Range: {metric.range} - {metric.interpretation}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                      {metricTypes.map((metric) => (
+                        <SelectItem key={metric.id} value={metric.id}>
+                          <div className="flex flex-col">
+                            <span>{metric.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              Range: {metric.range} - {metric.interpretation}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
@@ -474,29 +477,17 @@ export function VectorConfigForm({
                       </TooltipTrigger>
                       <TooltipContent className="max-w-sm">
                         <p className="font-medium mb-1">
-                          Choose based on your needs:
+                          Select an index type based on your requirements
                         </p>
-                        <ul className="text-xs space-y-1">
-                          <li>
-                            <strong>HNSW:</strong> Best for real-time search,
-                            high accuracy
-                          </li>
-                          <li>
-                            <strong>IVF_FLAT:</strong> Balanced speed/accuracy
-                          </li>
-                          <li>
-                            <strong>IVF_SQ8:</strong> Memory-constrained
-                            environments
-                          </li>
-                          <li>
-                            <strong>IVF_PQ:</strong> Very large datasets
-                          </li>
-                        </ul>
+                        <p className="text-xs text-muted-foreground">
+                          Each option shows performance characteristics and use
+                          cases below
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
                   <Select
-                    value={(config.indexType as string) || "HNSW"}
+                    value={(config.indexType as string) || defaultIndexType}
                     onValueChange={(value) => updateConfig("indexType", value)}
                   >
                     <SelectTrigger id="index-type">
@@ -522,6 +513,47 @@ export function VectorConfigForm({
                       )?.description
                     }
                   </p>
+                </div>
+
+                {/* BM25 Full-Text Search */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="enable-fulltext">
+                        Full-Text Search (BM25)
+                      </Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p className="font-medium mb-1">Hybrid Search</p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Combines semantic search with keyword matching
+                          </p>
+                          <ul className="text-xs space-y-1">
+                            <li>• Better for exact keyword matches</li>
+                            <li>• Useful for technical terms</li>
+                            <li>• Requires ~20% more storage</li>
+                          </ul>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Switch
+                      id="enable-fulltext"
+                      checked={
+                        (config.enableFullTextSearch as boolean) || false
+                      }
+                      onCheckedChange={(checked) =>
+                        updateConfig("enableFullTextSearch", checked)
+                      }
+                    />
+                  </div>
+                  {(config.enableFullTextSearch as boolean) && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Default parameters: k1=1.5, b=0.75
+                    </p>
+                  )}
                 </div>
               </div>
             )}

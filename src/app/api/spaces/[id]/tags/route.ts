@@ -1,7 +1,10 @@
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
+import { validateRequest } from "@/lib/validation/api-validation";
 
 const CreateTagSchema = z.object({
   name: z.string().min(1, "Tag name is required").max(50),
@@ -16,27 +19,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: {
-        id: spaceId,
-        userId,
-      },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const tags = await prisma.tag.findMany({
       where: { spaceId },
@@ -52,14 +38,7 @@ export async function GET(
 
     return NextResponse.json({ tags });
   } catch (error) {
-    console.error("Failed to fetch tags:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch tags",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch tags");
   }
 }
 
@@ -68,59 +47,19 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: {
-        id: spaceId,
-        userId,
-      },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const body = await req.json();
-    const validation = CreateTagSchema.safeParse(body);
+    const validationResult = validateRequest(CreateTagSchema, body);
+    if (validationResult instanceof NextResponse) return validationResult;
 
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
+    const { name, color } = validationResult;
 
-    const { name, color } = validation.data;
-
-    const existingTag = await prisma.tag.findUnique({
-      where: {
-        spaceId_name: {
-          spaceId,
-          name,
-        },
-      },
-    });
-
-    if (existingTag) {
-      return NextResponse.json(
-        { error: "Tag with this name already exists in this space" },
-        { status: 409 },
-      );
-    }
-
+    // Rely on unique constraint to prevent duplicates
+    // Removes race condition between check and create
     const tag = await prisma.tag.create({
       data: {
         name,
@@ -138,13 +77,13 @@ export async function POST(
 
     return NextResponse.json({ tag }, { status: 201 });
   } catch (error) {
-    console.error("Failed to create tag:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to create tag",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    // Map Prisma unique constraint violation to 409 Conflict
+    if (
+      error instanceof PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return Errors.conflict("Tag with this name already exists in this space");
+    }
+    return createErrorFromException(error, "Failed to create tag");
   }
 }

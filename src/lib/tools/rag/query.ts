@@ -57,9 +57,10 @@ export function createRagQueryTool(boundSpaceId: string) {
           query,
           totalResults: result.totalResults,
           sources: result.sources.map((source) => ({
+            id: source.id,
             content: source.content,
-            score: source.score.toFixed(3),
-            distance: source.distance.toFixed(3),
+            score: parseFloat(source.score.toFixed(3)),
+            distance: parseFloat(source.distance.toFixed(3)),
             metadata: {
               filename: source.metadata.filename,
               fileType: source.metadata.fileType,

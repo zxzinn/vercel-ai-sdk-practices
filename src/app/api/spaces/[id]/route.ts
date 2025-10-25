@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireSpaceAccess } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
 import { serializeSpace } from "@/lib/utils/sanitize";
+import { validateRequest } from "@/lib/validation/api-validation";
 
 const UpdateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -16,22 +18,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id } = await params;
 
+    const accessResult = await requireSpaceAccess(id);
+    if (accessResult instanceof NextResponse) return accessResult;
+
     const space = await prisma.space.findFirst({
-      where: {
-        id,
-        userId,
-      },
+      where: { id },
       include: {
         embeddingModel: true,
         documents: {
@@ -55,7 +48,7 @@ export async function GET(
     });
 
     if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+      return Errors.notFound("Space");
     }
 
     // Serialize space (convert BigInt and redact secrets)
@@ -63,14 +56,7 @@ export async function GET(
 
     return NextResponse.json({ space: serializedSpace });
   } catch (error) {
-    console.error("Failed to fetch space:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch space");
   }
 }
 
@@ -79,40 +65,18 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id } = await params;
+
+    const accessResult = await requireSpaceAccess(id);
+    if (accessResult instanceof NextResponse) return accessResult;
+
     const body = await req.json();
-    const validation = UpdateSpaceSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
-
-    const space = await prisma.space.findFirst({
-      where: { id, userId },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const validationResult = validateRequest(UpdateSpaceSchema, body);
+    if (validationResult instanceof NextResponse) return validationResult;
 
     const updatedSpace = await prisma.space.update({
       where: { id },
-      data: validation.data,
+      data: validationResult,
       include: {
         embeddingModel: true,
         _count: {
@@ -129,14 +93,7 @@ export async function PATCH(
 
     return NextResponse.json({ space: serializedSpace });
   } catch (error) {
-    console.error("Failed to update space:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to update space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to update space");
   }
 }
 
@@ -147,26 +104,20 @@ export async function DELETE(
   const STORAGE_BUCKET = "documents";
 
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id } = await params;
 
+    const accessResult = await requireSpaceAccess(id);
+    if (accessResult instanceof NextResponse) return accessResult;
+
     const space = await prisma.space.findFirst({
-      where: { id, userId },
+      where: { id },
       include: {
         documents: true,
       },
     });
 
     if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+      return Errors.notFound("Space");
     }
 
     const supabase = await createClient();
@@ -207,13 +158,6 @@ export async function DELETE(
       message: "Space deleted successfully",
     });
   } catch (error) {
-    console.error("Failed to delete space:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to delete space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to delete space");
   }
 }

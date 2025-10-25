@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
     });
 
     if (!model) {
-      return NextResponse.json({ error: "Model not found" }, { status: 404 });
+      return Errors.notFound("Model");
     }
 
     return NextResponse.json({ model });

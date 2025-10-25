@@ -1,66 +1,74 @@
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { z } from "zod";
+import { requireAuth } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 const STORAGE_BUCKET = "documents";
 const MAX_FILES = 20;
 const MAX_TOTAL_MB = 100;
 const MAX_FILE_MB = 10;
 
-interface UploadUrlRequest {
-  files: Array<{
-    name: string;
-    size: number;
-    type: string;
-  }>;
-}
+const UploadUrlRequestSchema = z
+  .object({
+    files: z
+      .array(
+        z.object({
+          name: z.string().min(1),
+          size: z.number().int().nonnegative(),
+          type: z.string().min(1),
+        }),
+      )
+      .min(1),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized - Please refresh the page to sign in",
-          code: "AUTH_REQUIRED",
-        },
-        { status: 401 },
+    const { userId } = authResult;
+
+    const validation = validateRequestRaw(
+      UploadUrlRequestSchema,
+      await req.json(),
+    );
+    if (validation instanceof Response) return validation;
+    const { files } = validation;
+
+    // Fail fast: reject unsupported file types (only text/* allowed)
+    const invalidType = files.find((f) => !/^text\//.test(f.type || ""));
+    if (invalidType) {
+      return Errors.badRequest(
+        `Unsupported file type: ${invalidType.type}. Only text/* files are allowed.`,
       );
-    }
-
-    const body = (await req.json()) as UploadUrlRequest;
-    const { files } = body;
-
-    if (!files || files.length === 0) {
-      return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
     // DoS prevention: check file count
     if (files.length > MAX_FILES) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
         {
-          error: `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
           limit: MAX_FILES,
           provided: files.length,
         },
-        { status: 413 },
       );
     }
 
     // DoS prevention: check individual file sizes
     const tooLargeFile = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
     if (tooLargeFile) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `File "${tooLargeFile.name}" exceeds ${MAX_FILE_MB} MB limit`,
         {
-          error: `File "${tooLargeFile.name}" exceeds ${MAX_FILE_MB} MB limit`,
           limit: `${MAX_FILE_MB} MB`,
           fileName: tooLargeFile.name,
           fileSize: `${(tooLargeFile.size / 1024 / 1024).toFixed(2)} MB`,
         },
-        { status: 413 },
       );
     }
 
@@ -68,14 +76,13 @@ export async function POST(req: Request) {
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     const totalMB = totalSize / 1024 / 1024;
     if (totalMB > MAX_TOTAL_MB) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `Total file size exceeds ${MAX_TOTAL_MB} MB limit`,
         {
-          error: `Total file size exceeds ${MAX_TOTAL_MB} MB limit`,
           limit: `${MAX_TOTAL_MB} MB`,
           totalSize: `${totalMB.toFixed(2)} MB`,
           fileCount: files.length,
         },
-        { status: 413 },
       );
     }
 
@@ -100,13 +107,9 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("Failed to create signed upload URL:", error);
-        return NextResponse.json(
-          {
-            error: "Failed to generate upload URL",
-            message: error.message,
-          },
-          { status: 500 },
-        );
+        return Errors.internalError("Failed to generate upload URL", {
+          message: error.message,
+        });
       }
 
       uploadUrls.push({
@@ -123,13 +126,6 @@ export async function POST(req: Request) {
       expiresIn: 7200, // 2 hours in seconds
     });
   } catch (error) {
-    console.error("Upload URL generation error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to generate upload URLs",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to generate upload URLs");
   }
 }

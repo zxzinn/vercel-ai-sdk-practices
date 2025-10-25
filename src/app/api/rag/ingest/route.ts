@@ -1,56 +1,49 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { z } from "zod";
+import { requireAuth } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import type { RAGDocument } from "@/lib/rag";
 import { getCollectionName, ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 export const maxDuration = 60;
 
 const STORAGE_BUCKET = "documents";
 const MAX_FILES = 20;
 
-interface IngestRequest {
-  files: Array<{
-    documentId: string;
-    fileName: string;
-    filePath: string;
-    size: number;
-    type: string;
-  }>;
-  spaceId?: string;
-  collectionName?: string;
-}
+const IngestRequestSchema = z
+  .object({
+    files: z
+      .array(
+        z.object({
+          documentId: z.string().min(1),
+          fileName: z.string().min(1),
+          filePath: z.string(), // Client-provided but ignored; server reconstructs trusted path
+          size: z.number().int().nonnegative(),
+          type: z.string().min(1),
+        }),
+      )
+      .min(1, "At least one file is required"),
+    spaceId: z.string().min(1),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized - Please refresh the page to sign in",
-          code: "AUTH_REQUIRED",
-        },
-        { status: 401 },
-      );
-    }
+    const { userId } = authResult;
 
-    const body = (await req.json()) as IngestRequest;
-    const { files, spaceId, collectionName } = body;
-
-    if (!files || files.length === 0) {
-      return NextResponse.json({ error: "No files provided" }, { status: 400 });
-    }
-
-    // Validate spaceId is provided (required for new architecture)
-    if (!spaceId) {
-      return NextResponse.json(
-        { error: "spaceId is required" },
-        { status: 400 },
-      );
-    }
+    const validation = validateRequestRaw(
+      IngestRequestSchema,
+      await req.json(),
+    );
+    if (validation instanceof Response) return validation;
+    const { files, spaceId } = validation;
 
     // Verify space exists and belongs to user
     const space = await prisma.space.findFirst({
@@ -61,7 +54,7 @@ export async function POST(req: Request) {
     });
 
     if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
+      return Errors.notFound("Space");
     }
 
     // Use stored collection name or fallback to generated name
@@ -70,13 +63,12 @@ export async function POST(req: Request) {
 
     // DoS prevention: limit number of files to prevent timeout
     if (files.length > MAX_FILES) {
-      return NextResponse.json(
+      return Errors.payloadTooLarge(
+        `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
         {
-          error: `Too many files. Maximum ${MAX_FILES} files allowed per request.`,
           limit: MAX_FILES,
           provided: files.length,
         },
-        { status: 413 },
       );
     }
 
@@ -101,12 +93,9 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error(`Failed to download ${fileMetadata.fileName}:`, error);
-          return NextResponse.json(
-            {
-              error: `Failed to download file: ${fileMetadata.fileName}`,
-              message: error.message,
-            },
-            { status: 500 },
+          return Errors.internalError(
+            `Failed to download file: ${fileMetadata.fileName}`,
+            { message: error.message },
           );
         }
 
@@ -125,12 +114,11 @@ export async function POST(req: Request) {
         });
       } catch (error) {
         console.error(`Error processing file ${fileMetadata.fileName}:`, error);
-        return NextResponse.json(
+        return Errors.internalError(
+          `Failed to process file: ${fileMetadata.fileName}`,
           {
-            error: `Failed to process file: ${fileMetadata.fileName}`,
             message: error instanceof Error ? error.message : "Unknown error",
           },
-          { status: 500 },
         );
       }
     }
@@ -203,13 +191,6 @@ export async function POST(req: Request) {
       ...result,
     });
   } catch (error) {
-    console.error("RAG ingest error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to ingest documents",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to ingest documents");
   }
 }

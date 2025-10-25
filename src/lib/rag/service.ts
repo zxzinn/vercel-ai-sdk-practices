@@ -1,6 +1,7 @@
 import { embed, embedMany, SerialJobExecutor } from "ai";
 import { prisma } from "@/lib/prisma";
 import { createVectorProvider } from "@/lib/vector";
+import { normalizeL2 } from "@/lib/vector/normalize";
 import type { IVectorProvider, VectorDocument } from "@/lib/vector/types";
 import type {
   DocumentMetadata,
@@ -146,11 +147,11 @@ export class RAGService {
     };
   }
 
-  private chunkText(
+  chunkText(
     text: string,
     chunkSize: number,
     overlap: number,
-  ): string[] {
+  ): Array<{ content: string; index: number }> {
     if (!Number.isFinite(chunkSize) || chunkSize <= 0) {
       throw new RangeError(`chunkSize must be > 0 (got ${chunkSize})`);
     }
@@ -160,12 +161,17 @@ export class RAGService {
     if (overlap >= chunkSize) {
       overlap = Math.max(0, Math.floor(chunkSize / 4));
     }
-    const chunks: string[] = [];
+    const chunks: Array<{ content: string; index: number }> = [];
     let start = 0;
+    let index = 0;
 
     while (start < text.length) {
       const end = Math.min(start + chunkSize, text.length);
-      chunks.push(text.slice(start, end));
+      chunks.push({
+        content: text.slice(start, end),
+        index,
+      });
+      index++;
 
       if (end === text.length) break;
       start += chunkSize - overlap;
@@ -217,14 +223,14 @@ export class RAGService {
           chunks: chunks.length,
         });
 
-        chunks.forEach((chunk, index) => {
-          allChunks.push(chunk);
-          allIds.push(`${doc.id}_chunk_${index}`);
+        chunks.forEach((chunk) => {
+          allChunks.push(chunk.content);
+          allIds.push(`${doc.id}_chunk_${chunk.index}`);
           allMetadatas.push({
             filename: doc.metadata.filename,
             fileType: doc.metadata.fileType,
             size: doc.metadata.size,
-            chunkIndex: index,
+            chunkIndex: chunk.index,
             totalChunks: chunks.length,
             originalDocId: doc.id,
             uploadedAt: doc.metadata.uploadedAt.toISOString(),
@@ -244,10 +250,16 @@ export class RAGService {
         },
       });
 
+      // Apply L2 normalization to all embeddings
+      // This ensures IP metric equals cosine similarity and all metrics have consistent behavior
+      const normalizedEmbeddings = embeddings.map((embedding) =>
+        normalizeL2(embedding),
+      );
+
       // Prepare vector documents
       const vectorDocuments: VectorDocument[] = allIds.map((id, index) => ({
         id,
-        vector: embeddings[index],
+        vector: normalizedEmbeddings[index],
         content: allChunks[index],
         metadata: allMetadatas[index],
       }));
@@ -296,11 +308,19 @@ export class RAGService {
       },
     });
 
+    // Apply L2 normalization to query embedding
+    // Must match the normalization applied to indexed embeddings
+    const normalizedQueryEmbedding = normalizeL2(embedding);
+
     // Search
-    const searchResults = await provider.search(collectionName, embedding, {
-      topK,
-      scoreThreshold,
-    });
+    const searchResults = await provider.search(
+      collectionName,
+      normalizedQueryEmbedding,
+      {
+        topK,
+        scoreThreshold,
+      },
+    );
 
     // Parse results
     const sources: RAGSource[] = searchResults.map((result) => ({

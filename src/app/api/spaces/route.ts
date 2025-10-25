@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { type Prisma, VectorProvider } from "@/generated/prisma";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireAuth } from "@/lib/auth/api-helpers";
+import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
 import { serializeSpace } from "@/lib/utils/sanitize";
+import { validateRequest } from "@/lib/validation/api-validation";
 import { validateProviderConfig } from "@/lib/vector";
 
 const CreateSpaceSchema = z.object({
@@ -19,14 +21,10 @@ const CreateSpaceSchema = z.object({
 
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
+    const { userId } = authResult;
 
     const spaces = await prisma.space.findMany({
       where: { userId },
@@ -46,43 +44,20 @@ export async function GET() {
 
     return NextResponse.json({ spaces: serializedSpaces });
   } catch (error) {
-    console.error(
-      "Failed to fetch spaces:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    return NextResponse.json(
-      {
-        error: "Failed to fetch spaces",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to fetch spaces");
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
+    const { userId } = authResult;
 
     const body = await req.json();
-    const validation = CreateSpaceSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
+    const validationResult = validateRequest(CreateSpaceSchema, body);
+    if (validationResult instanceof NextResponse) return validationResult;
 
     const {
       name,
@@ -91,7 +66,7 @@ export async function POST(req: Request) {
       vectorConfig,
       embeddingModelId,
       embeddingDim,
-    } = validation.data;
+    } = validationResult;
 
     // Validate embedding model exists
     const embeddingModel = await prisma.embeddingModel.findUnique({
@@ -99,40 +74,26 @@ export async function POST(req: Request) {
     });
 
     if (!embeddingModel) {
-      return NextResponse.json(
-        {
-          error: "Invalid embedding model",
-          details: [`Embedding model '${embeddingModelId}' not found`],
-        },
-        { status: 400 },
-      );
+      return Errors.badRequest("Invalid embedding model", {
+        message: `Embedding model '${embeddingModelId}' not found`,
+      });
     }
 
     // Validate dimension is supported by the model
     if (!embeddingModel.dimensions.includes(embeddingDim)) {
-      return NextResponse.json(
-        {
-          error: "Invalid embedding dimension",
-          details: [
-            `Dimension ${embeddingDim} not supported by ${embeddingModel.name}. ` +
-              `Supported dimensions: ${embeddingModel.dimensions.join(", ")}`,
-          ],
-        },
-        { status: 400 },
-      );
+      return Errors.badRequest("Invalid embedding dimension", {
+        message:
+          `Dimension ${embeddingDim} not supported by ${embeddingModel.name}. ` +
+          `Supported dimensions: ${embeddingModel.dimensions.join(", ")}`,
+      });
     }
 
     // Validate vector configuration (required for all providers)
     if (!vectorConfig) {
-      return NextResponse.json(
-        {
-          error: "Vector configuration is required",
-          details: [
-            "vectorConfig must be provided with provider connection details",
-          ],
-        },
-        { status: 400 },
-      );
+      return Errors.badRequest("Vector configuration is required", {
+        message:
+          "vectorConfig must be provided with provider connection details",
+      });
     }
 
     const configValidation = validateProviderConfig(
@@ -140,14 +101,17 @@ export async function POST(req: Request) {
       vectorConfig,
     );
     if (!configValidation.valid) {
-      return NextResponse.json(
-        {
-          error: "Invalid vector configuration",
-          details: configValidation.errors,
-        },
-        { status: 400 },
+      return Errors.badRequest(
+        "Invalid vector configuration",
+        configValidation.errors,
       );
     }
+
+    // Safely coerce enableFullTextSearch to boolean
+    const enableFullTextSearch = z
+      .boolean()
+      .catch(false)
+      .parse(vectorConfig.enableFullTextSearch);
 
     const space = await prisma.space.create({
       data: {
@@ -158,6 +122,7 @@ export async function POST(req: Request) {
         vectorConfig: (vectorConfig ?? null) as Prisma.InputJsonValue,
         embeddingModelId,
         embeddingDim,
+        enableFullTextSearch,
         status: "ACTIVE",
       },
       include: {
@@ -192,16 +157,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ space: serializedSpace }, { status: 201 });
   } catch (error) {
-    console.error(
-      "Failed to create space:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    return NextResponse.json(
-      {
-        error: "Failed to create space",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createErrorFromException(error, "Failed to create space");
   }
 }

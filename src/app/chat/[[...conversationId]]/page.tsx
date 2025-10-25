@@ -64,6 +64,8 @@ import {
   ToolOutput,
 } from "@/components/ai-elements/tool";
 import { MCPConnector } from "@/components/mcp/mcp-connector";
+import { SearchResultsContainer } from "@/components/search-results";
+import type { SearchOutput } from "@/components/search-results/types";
 import { SpaceSelector } from "@/components/spaces/space-selector";
 import { Button } from "@/components/ui/button";
 import {
@@ -643,6 +645,36 @@ function ChatContent() {
                                                 }
                                               />
                                             ) : null}
+                                          </ToolContent>
+                                        </Tool>
+                                      </div>
+                                    );
+                                  }
+
+                                  // Special handling for ragQuery tool
+                                  if (
+                                    toolName === "ragQuery" &&
+                                    part.state === "output-available" &&
+                                    typeof part.output === "object" &&
+                                    part.output !== null
+                                  ) {
+                                    return (
+                                      <div
+                                        key={`${message.id}-${i}`}
+                                        className="my-4"
+                                      >
+                                        <Tool defaultOpen={true}>
+                                          <ToolHeader
+                                            title="Search Results"
+                                            type={part.type}
+                                            state={part.state}
+                                          />
+                                          <ToolContent>
+                                            <SearchResultsContainer
+                                              output={
+                                                part.output as SearchOutput
+                                              }
+                                            />
                                           </ToolContent>
                                         </Tool>
                                       </div>

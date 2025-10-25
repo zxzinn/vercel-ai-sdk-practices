@@ -1,4 +1,5 @@
 import { perplexity } from "@ai-sdk/perplexity";
+import type { LanguageModelV2Source } from "@ai-sdk/provider";
 import { generateText } from "ai";
 import { z } from "zod";
 import {
@@ -6,7 +7,6 @@ import {
   createNoResultsResponse,
   createSearchErrorResponse,
 } from "./error-handler";
-import type { WebSearchToolResult } from "./types";
 
 export const perplexitySearch = {
   description:
@@ -18,7 +18,7 @@ export const perplexitySearch = {
     query,
   }: {
     query: string;
-  }): Promise<WebSearchToolResult> => {
+  }): Promise<{ text: string; sources: LanguageModelV2Source[] }> => {
     try {
       if (!process.env.PERPLEXITY_API_KEY) {
         return createMissingApiKeyResponse("Perplexity", query);
