@@ -21,6 +21,9 @@ jobs:
           cache: ${{ github.event_name == 'pull_request' && 'npm' || '' }}
 
       - name: Install dependencies
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: npm ci
 
       - name: Cache Next.js build
@@ -64,6 +67,9 @@ jobs:
           cache: ${{ github.event_name == 'pull_request' && 'npm' || '' }}
 
       - name: Install dependencies
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: npm ci
 
       - name: Cache Next.js build
