@@ -18,15 +18,18 @@ import type { RAGSettings } from "@/types/rag";
 interface RAGSettingsDialogProps {
   settings: RAGSettings;
   onSettingsChange: (settings: RAGSettings) => void;
+  spaceScoreThreshold?: number;
 }
 
 export function RAGSettingsDialog({
   settings,
   onSettingsChange,
+  spaceScoreThreshold,
 }: RAGSettingsDialogProps) {
   // For display purposes, use defaults when undefined
   const displayTopK = settings.topK ?? 5;
-  const displayScoreThreshold = settings.scoreThreshold ?? 0;
+  const displayScoreThreshold =
+    settings.scoreThreshold ?? spaceScoreThreshold ?? 0.3;
 
   const [topK, setTopK] = useState(displayTopK);
   const [scoreThreshold, setScoreThreshold] = useState(displayScoreThreshold);
@@ -38,11 +41,11 @@ export function RAGSettingsDialog({
   useEffect(() => {
     if (!open) {
       setTopK(settings.topK ?? 5);
-      setScoreThreshold(settings.scoreThreshold ?? 0);
+      setScoreThreshold(settings.scoreThreshold ?? spaceScoreThreshold ?? 0.3);
       setTopKChanged(false);
       setScoreThresholdChanged(false);
     }
-  }, [settings, open]);
+  }, [settings, spaceScoreThreshold, open]);
 
   function handleTopKChange(value: number) {
     setTopK(value);
@@ -57,17 +60,30 @@ export function RAGSettingsDialog({
   function handleSave() {
     // Build new settings - only include changed values or already-set values
     const newSettings: RAGSettings = {};
+    const defaultScoreThreshold = spaceScoreThreshold ?? 0.3;
 
     if (topKChanged || settings.topK !== undefined) {
       newSettings.topK = topK;
     }
 
-    if (scoreThresholdChanged || settings.scoreThreshold !== undefined) {
+    // Save if changed OR already set OR differs from space default
+    if (
+      scoreThresholdChanged ||
+      settings.scoreThreshold !== undefined ||
+      scoreThreshold !== defaultScoreThreshold
+    ) {
       newSettings.scoreThreshold = scoreThreshold;
     }
 
     onSettingsChange(newSettings);
     setOpen(false);
+  }
+
+  function handleReset() {
+    setTopK(5);
+    setScoreThreshold(spaceScoreThreshold ?? 0.3);
+    setTopKChanged(false);
+    setScoreThresholdChanged(false);
   }
 
   function handleCancel() {
@@ -89,7 +105,8 @@ export function RAGSettingsDialog({
         <DialogHeader>
           <DialogTitle>RAG Search Settings</DialogTitle>
           <DialogDescription>
-            Override Space defaults for this chat session
+            Override Space defaults for this session. Values shown are Space
+            defaults when not overridden.
           </DialogDescription>
         </DialogHeader>
 
@@ -129,17 +146,23 @@ export function RAGSettingsDialog({
               }
             />
             <p className="text-xs text-muted-foreground">
-              Higher values return fewer but more relevant results (0-1). Set to
-              0 for no filtering. Defaults to Space setting if not changed.
+              Filter by relevance score (0-1). Higher = fewer but more relevant
+              results. 0 = no filtering. Space default:{" "}
+              {spaceScoreThreshold ?? 0.3}
             </p>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
+        <div className="flex justify-between items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handleReset}>
+            Reset to Space Defaults
           </Button>
-          <Button onClick={handleSave}>Save Settings</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>Save Settings</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

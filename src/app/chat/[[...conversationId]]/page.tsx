@@ -109,6 +109,9 @@ function ChatContent() {
   const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
+  const [spaceScoreThreshold, setSpaceScoreThreshold] = useState<
+    number | undefined
+  >();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
   const [ragSettings, setRagSettings] = useState<RAGSettings>({});
 
@@ -139,6 +142,28 @@ function ChatContent() {
       isNewConversationRef.current = true; // New conversation
     }
   }, [urlConversationId]);
+
+  // Fetch space's scoreThreshold when space is selected
+  useEffect(() => {
+    async function fetchSpaceConfig() {
+      if (!selectedSpaceId) {
+        setSpaceScoreThreshold(undefined);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/spaces/${selectedSpaceId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSpaceScoreThreshold(data.space.scoreThreshold);
+        }
+      } catch (err) {
+        console.error("Failed to fetch space config:", err);
+      }
+    }
+
+    fetchSpaceConfig();
+  }, [selectedSpaceId]);
 
   const handleMcpConnectionsChange = useCallback(
     (connections: Array<{ id: string; name: string; status: string }>) => {
@@ -762,6 +787,7 @@ function ChatContent() {
                     <RAGSettingsDialog
                       settings={ragSettings}
                       onSettingsChange={setRagSettings}
+                      spaceScoreThreshold={spaceScoreThreshold}
                     />
                   )}
                   <Button
