@@ -148,6 +148,7 @@ function ChatContent() {
     async function fetchSpaceConfig() {
       if (!selectedSpaceId) {
         setSpaceScoreThreshold(undefined);
+        setRagSettings({}); // Reset overrides when no space selected
         return;
       }
 
@@ -156,6 +157,7 @@ function ChatContent() {
         if (response.ok) {
           const data = await response.json();
           setSpaceScoreThreshold(data.space.scoreThreshold);
+          setRagSettings({}); // Reset overrides when switching spaces
         }
       } catch (err) {
         console.error("Failed to fetch space config:", err);
