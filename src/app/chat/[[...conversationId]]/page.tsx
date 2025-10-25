@@ -299,15 +299,8 @@ function ChatContent() {
       <div className="container mx-auto p-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8 flex items-start gap-4">
-            <SidebarTrigger className="mt-2" />
-            <div>
-              <h1 className="text-3xl font-bold mb-2">AI Elements Chat</h1>
-              <p className="text-muted-foreground">
-                Enhanced chat interface with file attachments, model selection,
-                and web search
-              </p>
-            </div>
+          <div className="mb-8">
+            <SidebarTrigger />
           </div>
 
           <div className="flex flex-col h-[calc(100vh-200px)]">
