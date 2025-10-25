@@ -1,6 +1,5 @@
 "use client";
 
-import { Database, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Space, SpaceStatus } from "@/types/space";
 
@@ -17,13 +16,10 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3 text-sm">
-        <div className="flex items-center gap-2">
-          <Database className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <div className="text-muted-foreground text-xs">Vector DB</div>
-            <div className="font-medium">
-              {getProviderDisplayName(space.vectorProvider)}
-            </div>
+        <div>
+          <div className="text-muted-foreground text-xs">Vector DB</div>
+          <div className="font-medium">
+            {getProviderDisplayName(space.vectorProvider)}
           </div>
         </div>
 
@@ -37,12 +33,9 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <div className="text-muted-foreground text-xs">Embedding</div>
-            <div className="font-medium">{space.embeddingModel.name}</div>
-          </div>
+        <div>
+          <div className="text-muted-foreground text-xs">Embedding</div>
+          <div className="font-medium">{space.embeddingModel.name}</div>
         </div>
 
         <div>
