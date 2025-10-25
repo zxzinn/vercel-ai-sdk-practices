@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSpaceAccess } from "@/lib/auth/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { validateRequest } from "@/lib/validation/api-validation";
 
 const CreateTagSchema = z.object({
   name: z.string().min(1, "Tag name is required").max(50),
@@ -57,19 +58,10 @@ export async function POST(
     if (accessResult instanceof NextResponse) return accessResult;
 
     const body = await req.json();
-    const validation = CreateTagSchema.safeParse(body);
+    const validationResult = validateRequest(CreateTagSchema, body);
+    if (validationResult instanceof NextResponse) return validationResult;
 
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
-
-    const { name, color } = validation.data;
+    const { name, color } = validationResult;
 
     const existingTag = await prisma.tag.findUnique({
       where: {

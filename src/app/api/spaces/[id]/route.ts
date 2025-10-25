@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
 import { serializeSpace } from "@/lib/utils/sanitize";
+import { validateRequest } from "@/lib/validation/api-validation";
 
 const UpdateSpaceSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -76,21 +77,12 @@ export async function PATCH(
     if (accessResult instanceof NextResponse) return accessResult;
 
     const body = await req.json();
-    const validation = UpdateSpaceSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
+    const validationResult = validateRequest(UpdateSpaceSchema, body);
+    if (validationResult instanceof NextResponse) return validationResult;
 
     const updatedSpace = await prisma.space.update({
       where: { id },
-      data: validation.data,
+      data: validationResult,
       include: {
         embeddingModel: true,
         _count: {

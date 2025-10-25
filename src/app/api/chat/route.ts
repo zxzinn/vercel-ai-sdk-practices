@@ -13,6 +13,7 @@ import { getAllModels } from "@/lib/providers/loader";
 import { getReasoningConfig } from "@/lib/reasoning-support";
 import { createRagQueryTool } from "@/lib/tools/rag/query";
 import { generateImageTool, staticTools } from "@/lib/types/chat-tools";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -111,22 +112,13 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const validation = RequestBodySchema.safeParse(body);
+    const validationResult = validateRequestRaw(RequestBodySchema, body);
 
     // Early return without cleanup is safe here:
     // If validation fails, no MCP clients have been created yet,
     // so mcpClients array is empty and cleanup is unnecessary
-    if (!validation.success) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid request body",
-          details: validation.error.issues,
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+    if (validationResult instanceof Response) {
+      return validationResult;
     }
 
     const {
@@ -141,7 +133,7 @@ export async function POST(req: Request) {
       mcpConnectionIds,
       sessionId,
       conversationId,
-    } = validation.data;
+    } = validationResult;
 
     // Validate RAG configuration early
     if (rag && !spaceId) {

@@ -4,6 +4,7 @@ import { type Prisma, VectorProvider } from "@/generated/prisma";
 import { requireAuth } from "@/lib/auth/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { serializeSpace } from "@/lib/utils/sanitize";
+import { validateRequest } from "@/lib/validation/api-validation";
 import { validateProviderConfig } from "@/lib/vector";
 
 const CreateSpaceSchema = z.object({
@@ -64,17 +65,8 @@ export async function POST(req: Request) {
     const { userId } = authResult;
 
     const body = await req.json();
-    const validation = CreateSpaceSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
+    const validationResult = validateRequest(CreateSpaceSchema, body);
+    if (validationResult instanceof NextResponse) return validationResult;
 
     const {
       name,
@@ -83,7 +75,7 @@ export async function POST(req: Request) {
       vectorConfig,
       embeddingModelId,
       embeddingDim,
-    } = validation.data;
+    } = validationResult;
 
     // Validate embedding model exists
     const embeddingModel = await prisma.embeddingModel.findUnique({

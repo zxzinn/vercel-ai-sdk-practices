@@ -6,6 +6,7 @@ import {
   RedisConfigError,
 } from "@/lib/mcp/check-redis-config";
 import { deleteMCPConnection } from "@/lib/mcp/redis";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 const DisconnectRequestSchema = z.object({
   connectionId: z.string().min(1),
@@ -18,19 +19,10 @@ export async function POST(req: NextRequest) {
     checkRedisConfig();
 
     const body = await req.json();
-    const validation = DisconnectRequestSchema.safeParse(body);
+    const validationResult = validateRequestRaw(DisconnectRequestSchema, body);
+    if (validationResult instanceof Response) return validationResult;
 
-    if (!validation.success) {
-      return Response.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
-
-    const { connectionId, sessionId } = validation.data;
+    const { connectionId, sessionId } = validationResult;
 
     await deleteMCPConnection(sessionId, connectionId);
 

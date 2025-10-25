@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { validateRequest } from "@/lib/validation/api-validation";
 
 export async function GET(
   _request: Request,
@@ -50,18 +51,10 @@ export async function PATCH(
     const { conversationId } = await params;
     const body = await request.json();
 
-    const validation = UpdateConversationSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
-      );
-    }
+    const validationResult = validateRequest(UpdateConversationSchema, body);
+    if (validationResult instanceof NextResponse) return validationResult;
 
-    const { title } = validation.data;
+    const { title } = validationResult;
 
     const conversation = await prisma.conversation.update({
       where: { id: conversationId },
