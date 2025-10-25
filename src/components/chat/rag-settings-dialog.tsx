@@ -33,8 +33,6 @@ export function RAGSettingsDialog({
 
   const [topK, setTopK] = useState(displayTopK);
   const [scoreThreshold, setScoreThreshold] = useState(displayScoreThreshold);
-  const [topKChanged, setTopKChanged] = useState(false);
-  const [scoreThresholdChanged, setScoreThresholdChanged] = useState(false);
   const [open, setOpen] = useState(false);
 
   // Sync display values when props change (only when dialog closed)
@@ -42,36 +40,21 @@ export function RAGSettingsDialog({
     if (!open) {
       setTopK(settings.topK ?? 5);
       setScoreThreshold(settings.scoreThreshold ?? spaceScoreThreshold ?? 0.3);
-      setTopKChanged(false);
-      setScoreThresholdChanged(false);
     }
   }, [settings, spaceScoreThreshold, open]);
 
-  function handleTopKChange(value: number) {
-    setTopK(value);
-    setTopKChanged(true);
-  }
-
-  function handleScoreThresholdChange(value: number) {
-    setScoreThreshold(value);
-    setScoreThresholdChanged(true);
-  }
-
   function handleSave() {
-    // Build new settings - only include changed values or already-set values
+    // Build new settings - only save values that differ from defaults
     const newSettings: RAGSettings = {};
     const defaultScoreThreshold = spaceScoreThreshold ?? 0.3;
 
-    if (topKChanged || settings.topK !== undefined) {
+    // Only save topK if it differs from default (5)
+    if (topK !== 5) {
       newSettings.topK = topK;
     }
 
-    // Save if changed OR already set OR differs from space default
-    if (
-      scoreThresholdChanged ||
-      settings.scoreThreshold !== undefined ||
-      scoreThreshold !== defaultScoreThreshold
-    ) {
+    // Only save scoreThreshold if it differs from space default
+    if (scoreThreshold !== defaultScoreThreshold) {
       newSettings.scoreThreshold = scoreThreshold;
     }
 
@@ -88,8 +71,6 @@ export function RAGSettingsDialog({
   function handleCancel() {
     setTopK(displayTopK);
     setScoreThreshold(displayScoreThreshold);
-    setTopKChanged(false);
-    setScoreThresholdChanged(false);
     setOpen(false);
   }
 
@@ -120,7 +101,7 @@ export function RAGSettingsDialog({
               max={20}
               value={topK}
               onChange={(e) =>
-                handleTopKChange(Number.parseInt(e.target.value, 10) || 5)
+                setTopK(Number.parseInt(e.target.value, 10) || 5)
               }
             />
             <p className="text-xs text-muted-foreground">
@@ -139,9 +120,7 @@ export function RAGSettingsDialog({
               step={0.05}
               value={scoreThreshold}
               onChange={(e) =>
-                handleScoreThresholdChange(
-                  Number.parseFloat(e.target.value) || 0,
-                )
+                setScoreThreshold(Number.parseFloat(e.target.value) || 0)
               }
             />
             <p className="text-xs text-muted-foreground">
