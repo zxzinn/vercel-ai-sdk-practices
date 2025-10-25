@@ -34,6 +34,18 @@ export function SearchResultsCarousel({
     checkScroll();
   }, [checkScroll]);
 
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScrollEnd = () => {
+      checkScroll();
+    };
+
+    container.addEventListener("scrollend", handleScrollEnd);
+    return () => container.removeEventListener("scrollend", handleScrollEnd);
+  }, [checkScroll]);
+
   const scroll = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
       const SCROLL_AMOUNT = 400;
@@ -81,7 +93,6 @@ export function SearchResultsCarousel({
           ref={scrollContainerRef}
           className="flex-1 flex gap-3 overflow-x-hidden snap-x snap-mandatory scroll-smooth"
           onScroll={checkScroll}
-          onScrollEnd={checkScroll}
         >
           {sources.map((source, index) => (
             <SearchResultCard
