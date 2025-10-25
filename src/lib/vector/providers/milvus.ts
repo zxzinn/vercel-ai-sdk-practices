@@ -177,8 +177,6 @@ export class MilvusProvider implements IVectorProvider {
           m: this.config?.m || 8,
           nbits: this.config?.nbits || 8,
         };
-
-      case "FLAT":
       default:
         return {};
     }
