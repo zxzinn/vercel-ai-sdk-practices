@@ -1,22 +1,30 @@
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuth } from "@/lib/auth/api-helpers";
 import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 const STORAGE_BUCKET = "documents";
 const MAX_FILES = 20;
 const MAX_TOTAL_MB = 100;
 const MAX_FILE_MB = 10;
 
-interface UploadUrlRequest {
-  files: Array<{
-    name: string;
-    size: number;
-    type: string;
-  }>;
-}
+const UploadUrlRequestSchema = z
+  .object({
+    files: z
+      .array(
+        z.object({
+          name: z.string().min(1),
+          size: z.number().int().nonnegative(),
+          type: z.string().min(1),
+        }),
+      )
+      .min(1),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   try {
@@ -25,11 +33,19 @@ export async function POST(req: Request) {
 
     const { userId } = authResult;
 
-    const body = (await req.json()) as UploadUrlRequest;
-    const { files } = body;
+    const validation = validateRequestRaw(
+      UploadUrlRequestSchema,
+      await req.json(),
+    );
+    if (validation instanceof Response) return validation;
+    const { files } = validation;
 
-    if (!files || files.length === 0) {
-      return Errors.badRequest("No files provided");
+    // Fail fast: reject unsupported file types (only text/* allowed)
+    const invalidType = files.find((f) => !/^text\//.test(f.type || ""));
+    if (invalidType) {
+      return Errors.badRequest(
+        `Unsupported file type: ${invalidType.type}. Only text/* files are allowed.`,
+      );
     }
 
     // DoS prevention: check file count

@@ -1,3 +1,4 @@
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSpaceAccess } from "@/lib/auth/api-helpers";
@@ -57,19 +58,8 @@ export async function POST(
 
     const { name, color } = validationResult;
 
-    const existingTag = await prisma.tag.findUnique({
-      where: {
-        spaceId_name: {
-          spaceId,
-          name,
-        },
-      },
-    });
-
-    if (existingTag) {
-      return Errors.conflict("Tag with this name already exists in this space");
-    }
-
+    // Rely on unique constraint to prevent duplicates
+    // Removes race condition between check and create
     const tag = await prisma.tag.create({
       data: {
         name,
@@ -87,6 +77,13 @@ export async function POST(
 
     return NextResponse.json({ tag }, { status: 201 });
   } catch (error) {
+    // Map Prisma unique constraint violation to 409 Conflict
+    if (
+      error instanceof PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return Errors.conflict("Tag with this name already exists in this space");
+    }
     return createErrorFromException(error, "Failed to create tag");
   }
 }

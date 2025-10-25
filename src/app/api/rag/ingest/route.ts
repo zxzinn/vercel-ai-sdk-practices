@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuth } from "@/lib/auth/api-helpers";
 import { createErrorFromException, Errors } from "@/lib/errors/api-error";
 import { prisma } from "@/lib/prisma";
@@ -6,23 +7,27 @@ import type { RAGDocument } from "@/lib/rag";
 import { getCollectionName, ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
+import { validateRequestRaw } from "@/lib/validation/api-validation";
 
 export const maxDuration = 60;
 
 const STORAGE_BUCKET = "documents";
 const MAX_FILES = 20;
 
-interface IngestRequest {
-  files: Array<{
-    documentId: string;
-    fileName: string;
-    filePath: string;
-    size: number;
-    type: string;
-  }>;
-  spaceId?: string;
-  collectionName?: string;
-}
+const IngestRequestSchema = z
+  .object({
+    files: z.array(
+      z.object({
+        documentId: z.string().min(1),
+        fileName: z.string().min(1),
+        filePath: z.string(), // Client-provided but ignored; server reconstructs trusted path
+        size: z.number().int().nonnegative(),
+        type: z.string().min(1),
+      }),
+    ),
+    spaceId: z.string().min(1),
+  })
+  .strict();
 
 export async function POST(req: Request) {
   try {
@@ -31,8 +36,12 @@ export async function POST(req: Request) {
 
     const { userId } = authResult;
 
-    const body = (await req.json()) as IngestRequest;
-    const { files, spaceId } = body;
+    const validation = validateRequestRaw(
+      IngestRequestSchema,
+      await req.json(),
+    );
+    if (validation instanceof Response) return validation;
+    const { files, spaceId } = validation;
 
     if (!files || files.length === 0) {
       return Errors.badRequest("No files provided");
