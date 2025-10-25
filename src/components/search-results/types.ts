@@ -1,8 +1,8 @@
 export interface SearchSource {
   id: string;
   content: string;
-  score: string;
-  distance: string;
+  score: number;
+  distance: number;
   metadata: {
     filename: string;
     fileType: string;

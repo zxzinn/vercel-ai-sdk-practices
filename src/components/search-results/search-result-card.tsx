@@ -22,7 +22,7 @@ function getRelevanceBadge(score: number) {
 }
 
 export function SearchResultCard({ rank, source }: SearchResultCardProps) {
-  const score = parseFloat(source.score);
+  const score = source.score;
   const relevance = getRelevanceBadge(score);
 
   return (
