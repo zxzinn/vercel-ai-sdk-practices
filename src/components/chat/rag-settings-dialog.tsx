@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RAG_CONSTANTS } from "@/lib/rag/constants";
 import type { RAGSettings } from "@/types/rag";
 
 interface RAGSettingsDialogProps {
@@ -27,9 +28,11 @@ export function RAGSettingsDialog({
   spaceScoreThreshold,
 }: RAGSettingsDialogProps) {
   // For display purposes, use defaults when undefined
-  const displayTopK = settings.topK ?? 5;
+  const displayTopK = settings.topK ?? RAG_CONSTANTS.TOP_K.DEFAULT;
   const displayScoreThreshold =
-    settings.scoreThreshold ?? spaceScoreThreshold ?? 0.3;
+    settings.scoreThreshold ??
+    spaceScoreThreshold ??
+    RAG_CONSTANTS.SCORE_THRESHOLD.DEFAULT;
 
   const [topK, setTopK] = useState(displayTopK);
   const [scoreThreshold, setScoreThreshold] = useState(displayScoreThreshold);
@@ -38,18 +41,23 @@ export function RAGSettingsDialog({
   // Sync display values when props change (only when dialog closed)
   useEffect(() => {
     if (!open) {
-      setTopK(settings.topK ?? 5);
-      setScoreThreshold(settings.scoreThreshold ?? spaceScoreThreshold ?? 0.3);
+      setTopK(settings.topK ?? RAG_CONSTANTS.TOP_K.DEFAULT);
+      setScoreThreshold(
+        settings.scoreThreshold ??
+          spaceScoreThreshold ??
+          RAG_CONSTANTS.SCORE_THRESHOLD.DEFAULT,
+      );
     }
   }, [settings, spaceScoreThreshold, open]);
 
   function handleSave() {
     // Build new settings - only save values that differ from defaults
     const newSettings: RAGSettings = {};
-    const defaultScoreThreshold = spaceScoreThreshold ?? 0.3;
+    const defaultScoreThreshold =
+      spaceScoreThreshold ?? RAG_CONSTANTS.SCORE_THRESHOLD.DEFAULT;
 
-    // Only save topK if it differs from default (5)
-    if (topK !== 5) {
+    // Only save topK if it differs from default
+    if (topK !== RAG_CONSTANTS.TOP_K.DEFAULT) {
       newSettings.topK = topK;
     }
 
@@ -97,15 +105,19 @@ export function RAGSettingsDialog({
             <Input
               id="topK"
               type="number"
-              min={1}
-              max={20}
+              min={RAG_CONSTANTS.TOP_K.MIN}
+              max={RAG_CONSTANTS.TOP_K.MAX}
               value={topK}
               onChange={(e) =>
-                setTopK(Number.parseInt(e.target.value, 10) || 5)
+                setTopK(
+                  Number.parseInt(e.target.value, 10) ||
+                    RAG_CONSTANTS.TOP_K.DEFAULT,
+                )
               }
             />
             <p className="text-xs text-muted-foreground">
-              How many document chunks to retrieve (1-20). Default: 5
+              How many document chunks to retrieve ({RAG_CONSTANTS.TOP_K.MIN}-
+              {RAG_CONSTANTS.TOP_K.MAX}). Default: {RAG_CONSTANTS.TOP_K.DEFAULT}
             </p>
           </div>
 
@@ -115,18 +127,23 @@ export function RAGSettingsDialog({
             <Input
               id="scoreThreshold"
               type="number"
-              min={0}
-              max={1}
-              step={0.05}
+              min={RAG_CONSTANTS.SCORE_THRESHOLD.MIN}
+              max={RAG_CONSTANTS.SCORE_THRESHOLD.MAX}
+              step={RAG_CONSTANTS.SCORE_THRESHOLD.STEP}
               value={scoreThreshold}
               onChange={(e) =>
-                setScoreThreshold(Number.parseFloat(e.target.value) || 0)
+                setScoreThreshold(
+                  Number.parseFloat(e.target.value) ||
+                    RAG_CONSTANTS.SCORE_THRESHOLD.MIN,
+                )
               }
             />
             <p className="text-xs text-muted-foreground">
-              Filter by relevance score (0-1). Higher = fewer but more relevant
-              results. 0 = no filtering. Space default:{" "}
-              {spaceScoreThreshold ?? 0.3}
+              Filter by relevance score ({RAG_CONSTANTS.SCORE_THRESHOLD.MIN}-
+              {RAG_CONSTANTS.SCORE_THRESHOLD.MAX}). Higher = fewer but more
+              relevant results. {RAG_CONSTANTS.SCORE_THRESHOLD.MIN} = no
+              filtering. Space default:{" "}
+              {spaceScoreThreshold ?? RAG_CONSTANTS.SCORE_THRESHOLD.DEFAULT}
             </p>
           </div>
         </div>

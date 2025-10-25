@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ragService } from "@/lib/rag";
+import { RAG_CONSTANTS } from "@/lib/rag/constants";
 import type { RAGSettings } from "@/types/rag";
 
 /**
@@ -19,11 +20,13 @@ export function createRagQueryTool(
       topK: z
         .number()
         .int()
-        .min(1)
-        .max(20)
+        .min(RAG_CONSTANTS.TOP_K.MIN)
+        .max(RAG_CONSTANTS.TOP_K.MAX)
         .optional()
-        .default(5)
-        .describe("Number of results to return (default: 5, max: 20)"),
+        .default(RAG_CONSTANTS.TOP_K.DEFAULT)
+        .describe(
+          `Number of results to return (default: ${RAG_CONSTANTS.TOP_K.DEFAULT}, max: ${RAG_CONSTANTS.TOP_K.MAX})`,
+        ),
     }),
     execute: async ({ query, topK }: { query: string; topK?: number }) => {
       const spaceId = boundSpaceId;

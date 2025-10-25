@@ -11,6 +11,7 @@ import {
 import { getMCPConnection } from "@/lib/mcp/redis";
 import { prisma } from "@/lib/prisma";
 import { getAllModels } from "@/lib/providers/loader";
+import { RAG_CONSTANTS } from "@/lib/rag/constants";
 import { getReasoningConfig } from "@/lib/reasoning-support";
 import { createRagQueryTool } from "@/lib/tools/rag/query";
 import { generateImageTool, staticTools } from "@/lib/types/chat-tools";
@@ -65,8 +66,17 @@ const RequestBodySchema = z
     spaceId: z.string().optional(),
     ragSettings: z
       .object({
-        topK: z.number().int().min(1).max(20).optional(),
-        scoreThreshold: z.number().min(0).max(1).optional(),
+        topK: z
+          .number()
+          .int()
+          .min(RAG_CONSTANTS.TOP_K.MIN)
+          .max(RAG_CONSTANTS.TOP_K.MAX)
+          .optional(),
+        scoreThreshold: z
+          .number()
+          .min(RAG_CONSTANTS.SCORE_THRESHOLD.MIN)
+          .max(RAG_CONSTANTS.SCORE_THRESHOLD.MAX)
+          .optional(),
       })
       .optional(),
     reasoning: z.boolean().optional().default(false),
