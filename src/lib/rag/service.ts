@@ -1,6 +1,7 @@
 import { embed, embedMany, SerialJobExecutor } from "ai";
 import { prisma } from "@/lib/prisma";
 import { createVectorProvider } from "@/lib/vector";
+import { normalizeL2 } from "@/lib/vector/normalize";
 import type { IVectorProvider, VectorDocument } from "@/lib/vector/types";
 import type {
   DocumentMetadata,
@@ -249,10 +250,16 @@ export class RAGService {
         },
       });
 
+      // Apply L2 normalization to all embeddings
+      // This ensures IP metric equals cosine similarity and all metrics have consistent behavior
+      const normalizedEmbeddings = embeddings.map((embedding) =>
+        normalizeL2(embedding),
+      );
+
       // Prepare vector documents
       const vectorDocuments: VectorDocument[] = allIds.map((id, index) => ({
         id,
-        vector: embeddings[index],
+        vector: normalizedEmbeddings[index],
         content: allChunks[index],
         metadata: allMetadatas[index],
       }));
@@ -301,11 +308,19 @@ export class RAGService {
       },
     });
 
+    // Apply L2 normalization to query embedding
+    // Must match the normalization applied to indexed embeddings
+    const normalizedQueryEmbedding = normalizeL2(embedding);
+
     // Search
-    const searchResults = await provider.search(collectionName, embedding, {
-      topK,
-      scoreThreshold,
-    });
+    const searchResults = await provider.search(
+      collectionName,
+      normalizedQueryEmbedding,
+      {
+        topK,
+        scoreThreshold,
+      },
+    );
 
     // Parse results
     const sources: RAGSource[] = searchResults.map((result) => ({

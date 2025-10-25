@@ -30,22 +30,38 @@ describe("normalizeMetricScore", () => {
 
   describe("IP (Inner Product) metric", () => {
     it("should normalize IP similarity from [-1, 1] to [0, 1] like COSINE", () => {
-      // For normalized embeddings, IP equals cosine similarity: [-1, 1]
+      // For L2-normalized embeddings, IP equals cosine similarity: [-1, 1]
+      // This is because: cos(θ) = (A · B) / (‖A‖ × ‖B‖)
+      // When ‖A‖ = ‖B‖ = 1: cos(θ) = A · B = IP
       const { score, distance } = normalizeMetricScore(1, MetricType.IP);
       expect(score).toBe(1); // (1 + 1) / 2 = 1
       expect(distance).toBe(0); // 1 - 1 = 0
     });
 
     it("should handle zero IP (orthogonal vectors)", () => {
+      // IP = 0 means vectors are at 90 degrees (orthogonal)
       const { score, distance } = normalizeMetricScore(0, MetricType.IP);
       expect(score).toBe(0.5); // (0 + 1) / 2 = 0.5
       expect(distance).toBe(0.5); // 1 - 0.5 = 0.5
     });
 
     it("should handle negative IP (opposite vectors)", () => {
+      // IP = -1 means vectors point in opposite directions (180 degrees)
       const { score, distance } = normalizeMetricScore(-1, MetricType.IP);
       expect(score).toBe(0); // (-1 + 1) / 2 = 0
       expect(distance).toBe(1); // 1 - 0 = 1
+    });
+
+    it("should produce same results as COSINE for normalized vectors", () => {
+      // Mathematical equivalence: IP = cosine for L2-normalized vectors
+      const testValues = [1, 0.5, 0, -0.5, -1];
+
+      testValues.forEach((value) => {
+        const ipResult = normalizeMetricScore(value, MetricType.IP);
+        const cosineResult = normalizeMetricScore(value, MetricType.COSINE);
+        expect(ipResult.score).toBe(cosineResult.score);
+        expect(ipResult.distance).toBe(cosineResult.distance);
+      });
     });
   });
 

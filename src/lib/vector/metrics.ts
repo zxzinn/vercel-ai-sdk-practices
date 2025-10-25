@@ -39,8 +39,14 @@ export function normalizeMetricScore(
       break;
 
     case MetricType.IP:
-      // Inner Product: [-1, 1] for L2-normalized vectors, equals cosine similarity
-      // Normalize to [0, 1] to preserve full similarity range
+      // Inner Product for L2-normalized vectors equals cosine similarity
+      // REQUIREMENT: All embeddings MUST be L2-normalized before storage and search
+      // This is enforced in src/lib/rag/service.ts via normalizeL2()
+      //
+      // Mathematical proof: cos(θ) = (A · B) / (‖A‖ × ‖B‖)
+      // When ‖A‖ = ‖B‖ = 1 (L2-normalized): cos(θ) = A · B = IP
+      // Range: [-1, 1] (same as cosine)
+      // Normalize to [0, 1] using same formula as COSINE
       score = (rawScore + 1) / 2;
       distance = 1 - score;
       break;
