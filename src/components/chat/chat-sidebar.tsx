@@ -36,7 +36,7 @@ export function ChatSidebar() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const response = await fetch("/api/chat/conversations?limit=20");
+      const response = await fetch("/api/chat/conversations?limit=100");
       if (response.ok) {
         const data = await response.json();
         setConversations(data.conversations);
@@ -147,9 +147,12 @@ export function ChatSidebar() {
                 No conversations yet
               </div>
             ) : (
-              <SidebarMenu>
+              <SidebarMenu className="will-change-transform">
                 {conversations.map((conversation) => (
-                  <SidebarMenuItem key={conversation.id}>
+                  <SidebarMenuItem
+                    key={conversation.id}
+                    className="contain-layout"
+                  >
                     <div className="group/item relative flex items-center">
                       <SidebarMenuButton
                         onClick={() =>

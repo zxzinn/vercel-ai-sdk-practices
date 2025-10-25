@@ -1,7 +1,7 @@
 "use client";
 
-import { Database, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ProviderIcon } from "@/components/ui/provider-icon";
 import type { Space, SpaceStatus } from "@/types/space";
 
 interface SpaceConfigCardProps {
@@ -17,13 +17,11 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3 text-sm">
-        <div className="flex items-center gap-2">
-          <Database className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <div className="text-muted-foreground text-xs">Vector DB</div>
-            <div className="font-medium">
-              {getProviderDisplayName(space.vectorProvider)}
-            </div>
+        <div>
+          <div className="text-muted-foreground text-xs">Vector DB</div>
+          <div className="font-medium flex items-center gap-2">
+            <ProviderIcon provider={space.vectorProvider} size={16} />
+            <span>{getProviderDisplayName(space.vectorProvider)}</span>
           </div>
         </div>
 
@@ -37,11 +35,13 @@ export function SpaceConfigCard({ space }: SpaceConfigCardProps) {
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <div className="text-muted-foreground text-xs">Embedding</div>
-            <div className="font-medium">{space.embeddingModel.name}</div>
+        <div>
+          <div className="text-muted-foreground text-xs">Embedding</div>
+          <div className="font-medium flex items-center gap-2">
+            <ProviderIcon provider={space.embeddingModel.provider} size={16} />
+            <span>
+              {space.embeddingModel.provider} / {space.embeddingModel.name}
+            </span>
           </div>
         </div>
 

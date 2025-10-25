@@ -84,6 +84,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ProviderIcon } from "@/components/ui/provider-icon";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
@@ -298,18 +299,11 @@ function ChatContent() {
       <div className="container mx-auto p-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8 flex items-start gap-4">
-            <SidebarTrigger className="mt-2" />
-            <div>
-              <h1 className="text-3xl font-bold mb-2">AI Elements Chat</h1>
-              <p className="text-muted-foreground">
-                Enhanced chat interface with file attachments, model selection,
-                and web search
-              </p>
-            </div>
+          <div className="pt-4 mb-6">
+            <SidebarTrigger />
           </div>
 
-          <div className="flex flex-col h-[calc(100vh-200px)]">
+          <div className="flex flex-col h-[calc(100vh-140px)]">
             {/* Error Banner */}
             {error && (
               <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
@@ -834,11 +828,17 @@ function ChatContent() {
                         size="sm"
                         className="h-8 justify-between"
                       >
-                        <span className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">
-                            {currentModel.providerName}
+                        <span className="flex items-center gap-2">
+                          <ProviderIcon
+                            provider={currentModel.providerName}
+                            size={16}
+                          />
+                          <span className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">
+                              {currentModel.providerName}
+                            </span>
+                            <span>{currentModel.name}</span>
                           </span>
-                          <span>{currentModel.name}</span>
                         </span>
                       </Button>
                     </DropdownMenuTrigger>
@@ -848,6 +848,10 @@ function ChatContent() {
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>
                               <span className="flex items-center gap-2">
+                                <ProviderIcon
+                                  provider={provider.name}
+                                  size={16}
+                                />
                                 <span className="font-medium">
                                   {provider.name}
                                 </span>
