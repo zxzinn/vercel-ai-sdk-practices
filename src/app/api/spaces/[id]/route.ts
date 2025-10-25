@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireSpaceAccess } from "@/lib/auth/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
@@ -16,22 +16,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id } = await params;
 
+    const accessResult = await requireSpaceAccess(id);
+    if (accessResult instanceof NextResponse) return accessResult;
+
     const space = await prisma.space.findFirst({
-      where: {
-        id,
-        userId,
-      },
+      where: { id },
       include: {
         embeddingModel: true,
         documents: {
@@ -79,16 +70,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id } = await params;
+
+    const accessResult = await requireSpaceAccess(id);
+    if (accessResult instanceof NextResponse) return accessResult;
+
     const body = await req.json();
     const validation = UpdateSpaceSchema.safeParse(body);
 
@@ -100,14 +86,6 @@ export async function PATCH(
         },
         { status: 400 },
       );
-    }
-
-    const space = await prisma.space.findFirst({
-      where: { id, userId },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
     }
 
     const updatedSpace = await prisma.space.update({
@@ -147,19 +125,13 @@ export async function DELETE(
   const STORAGE_BUCKET = "documents";
 
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id } = await params;
 
+    const accessResult = await requireSpaceAccess(id);
+    if (accessResult instanceof NextResponse) return accessResult;
+
     const space = await prisma.space.findFirst({
-      where: { id, userId },
+      where: { id },
       include: {
         documents: true,
       },

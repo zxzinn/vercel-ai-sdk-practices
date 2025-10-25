@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { type Prisma, VectorProvider } from "@/generated/prisma";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireAuth } from "@/lib/auth/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { serializeSpace } from "@/lib/utils/sanitize";
 import { validateProviderConfig } from "@/lib/vector";
@@ -19,14 +19,10 @@ const CreateSpaceSchema = z.object({
 
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
+    const { userId } = authResult;
 
     const spaces = await prisma.space.findMany({
       where: { userId },
@@ -62,14 +58,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
+    const { userId } = authResult;
 
     const body = await req.json();
     const validation = CreateSpaceSchema.safeParse(body);

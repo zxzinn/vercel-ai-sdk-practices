@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireAuth } from "@/lib/auth/api-helpers";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeFileName } from "@/lib/utils/file";
 
@@ -19,17 +19,10 @@ interface UploadUrlRequest {
 
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized - Please refresh the page to sign in",
-          code: "AUTH_REQUIRED",
-        },
-        { status: 401 },
-      );
-    }
+    const { userId } = authResult;
 
     const body = (await req.json()) as UploadUrlRequest;
     const { files } = body;

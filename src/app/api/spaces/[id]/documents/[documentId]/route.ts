@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireSpaceAccess } from "@/lib/auth/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { ragService } from "@/lib/rag";
 import { createClient } from "@/lib/supabase/server";
@@ -11,24 +11,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId, documentId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: { id: spaceId, userId },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const document = await prisma.document.findFirst({
       where: {
@@ -70,24 +56,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; documentId: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId, documentId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: { id: spaceId, userId },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const document = await prisma.document.findFirst({
       where: {

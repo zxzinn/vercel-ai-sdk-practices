@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireSpaceAccess } from "@/lib/auth/api-helpers";
 import { prisma } from "@/lib/prisma";
 
 const CreateTagSchema = z.object({
@@ -16,27 +16,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: {
-        id: spaceId,
-        userId,
-      },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const tags = await prisma.tag.findMany({
       where: { spaceId },
@@ -68,27 +51,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getCurrentUserId();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "AUTH_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
     const { id: spaceId } = await params;
 
-    const space = await prisma.space.findFirst({
-      where: {
-        id: spaceId,
-        userId,
-      },
-    });
-
-    if (!space) {
-      return NextResponse.json({ error: "Space not found" }, { status: 404 });
-    }
+    const accessResult = await requireSpaceAccess(spaceId);
+    if (accessResult instanceof NextResponse) return accessResult;
 
     const body = await req.json();
     const validation = CreateTagSchema.safeParse(body);

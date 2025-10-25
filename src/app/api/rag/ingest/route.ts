@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/server";
+import { requireAuth } from "@/lib/auth/api-helpers";
 import { prisma } from "@/lib/prisma";
 import type { RAGDocument } from "@/lib/rag";
 import { getCollectionName, ragService } from "@/lib/rag";
@@ -25,17 +25,10 @@ interface IngestRequest {
 
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
+    const authResult = await requireAuth();
+    if (authResult instanceof NextResponse) return authResult;
 
-    if (!userId) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized - Please refresh the page to sign in",
-          code: "AUTH_REQUIRED",
-        },
-        { status: 401 },
-      );
-    }
+    const { userId } = authResult;
 
     const body = (await req.json()) as IngestRequest;
     const { files, spaceId } = body;
