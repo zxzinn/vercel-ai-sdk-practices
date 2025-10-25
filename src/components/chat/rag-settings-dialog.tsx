@@ -80,10 +80,9 @@ export function RAGSettingsDialog({
   }
 
   function handleReset() {
-    setTopK(5);
-    setScoreThreshold(spaceScoreThreshold ?? 0.3);
-    setTopKChanged(false);
-    setScoreThresholdChanged(false);
+    // Reset to space defaults by clearing all overrides
+    onSettingsChange({});
+    setOpen(false);
   }
 
   function handleCancel() {
