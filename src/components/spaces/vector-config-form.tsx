@@ -77,6 +77,10 @@ export function VectorConfigForm({
   const selectedProvider = providers.find((p) => p.id === provider);
   const metricTypes = getMetricTypes(provider);
   const indexTypes = getIndexTypes(provider);
+  const defaultMetricType =
+    (selectedProvider?.defaultConfig.metricType as string) || "COSINE";
+  const defaultIndexType =
+    (selectedProvider?.defaultConfig.indexType as string) || "HNSW";
 
   // Load embedding models
   useEffect(() => {
@@ -434,25 +438,23 @@ export function VectorConfigForm({
                     </Tooltip>
                   </div>
                   <Select
-                    value={(config.metricType as string) || "COSINE"}
+                    value={(config.metricType as string) || defaultMetricType}
                     onValueChange={(value) => updateConfig("metricType", value)}
                   >
                     <SelectTrigger id="metric-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {metricTypes
-                        .filter((m) => ["COSINE", "IP", "L2"].includes(m.id))
-                        .map((metric) => (
-                          <SelectItem key={metric.id} value={metric.id}>
-                            <div className="flex flex-col">
-                              <span>{metric.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                Range: {metric.range} - {metric.interpretation}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                      {metricTypes.map((metric) => (
+                        <SelectItem key={metric.id} value={metric.id}>
+                          <div className="flex flex-col">
+                            <span>{metric.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              Range: {metric.range} - {metric.interpretation}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
@@ -484,7 +486,7 @@ export function VectorConfigForm({
                     </Tooltip>
                   </div>
                   <Select
-                    value={(config.indexType as string) || "HNSW"}
+                    value={(config.indexType as string) || defaultIndexType}
                     onValueChange={(value) => updateConfig("indexType", value)}
                   >
                     <SelectTrigger id="index-type">
