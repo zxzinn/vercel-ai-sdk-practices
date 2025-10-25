@@ -146,8 +146,8 @@ describe("L2 Normalization", () => {
       // Create a vector with norm approximately 1.001
       // Vector [0.7071, 0.7071] has norm ≈ 1
       // Vector [0.707107, 0.707114] has norm ≈ 1.00001
-      const vector = [0.707107, 0.707114];
-      const norm = getL2Norm(vector);
+      const vector = [Math.SQRT1_2, 0.707114];
+      const _norm = getL2Norm(vector);
       // norm ≈ 1.000009...
 
       // Should be normalized with relaxed tolerance
