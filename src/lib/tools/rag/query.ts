@@ -20,10 +20,10 @@ export function createRagQueryTool(
         .number()
         .int()
         .min(1)
-        .max(50)
+        .max(20)
         .optional()
         .default(5)
-        .describe("Number of results to return (default: 5, max: 50)"),
+        .describe("Number of results to return (default: 5, max: 20)"),
     }),
     execute: async ({ query, topK }: { query: string; topK?: number }) => {
       const spaceId = boundSpaceId;
