@@ -10,6 +10,7 @@ export type { StreamableHTTPClientTransport };
 export interface MCPClientConfig {
   endpoint: string;
   accessToken?: string;
+  apiKey?: string;
   sessionId: string;
 }
 
@@ -22,18 +23,22 @@ export interface MCPClientWithTransport {
 export async function createMCPClient(
   config: MCPClientConfig,
 ): Promise<MCPClientWithTransport> {
+  const headers: Record<string, string> = {};
+
+  if (config.accessToken) {
+    headers.Authorization = `Bearer ${config.accessToken}`;
+  }
+
+  if (config.apiKey) {
+    headers["X-API-Key"] = config.apiKey;
+  }
+
   const transport = new StreamableHTTPClientTransport(
     new URL(config.endpoint),
     {
       // Don't provide sessionId on initialization - let server generate it
       // Server will assign a sessionId during the initialize handshake
-      requestInit: config.accessToken
-        ? {
-            headers: {
-              Authorization: `Bearer ${config.accessToken}`,
-            },
-          }
-        : undefined,
+      requestInit: Object.keys(headers).length > 0 ? { headers } : undefined,
     },
   );
 
