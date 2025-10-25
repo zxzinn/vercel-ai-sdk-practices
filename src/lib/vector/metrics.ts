@@ -17,7 +17,7 @@ import { MetricType } from "@zilliz/milvus2-sdk-node";
  *
  * Similarity-based metrics (higher is better):
  * - COSINE: [-1, 1] similarity -> normalized to [0, 1]
- * - IP: [0, +∞] inner product -> used as-is (or normalized if vectors are unit vectors)
+ * - IP: [-1, 1] inner product (for normalized vectors) -> normalized to [0, 1]
  *
  * Text/Ranking metrics:
  * - BM25: [0, +∞] relevance score -> used as-is, typically normalized context-dependent
@@ -39,9 +39,9 @@ export function normalizeMetricScore(
       break;
 
     case MetricType.IP:
-      // Inner Product: higher is better (similarity)
-      // Range depends on vector normalization; typically [0, 1] for normalized vectors
-      score = Math.max(0, Math.min(1, rawScore)); // Clamp to [0, 1] for normalized vectors
+      // Inner Product: [-1, 1] for L2-normalized vectors, equals cosine similarity
+      // Normalize to [0, 1] to preserve full similarity range
+      score = (rawScore + 1) / 2;
       distance = 1 - score;
       break;
 

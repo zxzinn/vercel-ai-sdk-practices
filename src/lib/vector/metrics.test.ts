@@ -29,22 +29,23 @@ describe("normalizeMetricScore", () => {
   });
 
   describe("IP (Inner Product) metric", () => {
-    it("should treat score as similarity", () => {
-      const { score, distance } = normalizeMetricScore(0.8, MetricType.IP);
-      expect(score).toBe(0.8);
-      expect(distance).toBeCloseTo(0.2, 10); // 1 - 0.8 = 0.2
-    });
-
-    it("should handle normalized vectors [0, 1]", () => {
+    it("should normalize IP similarity from [-1, 1] to [0, 1] like COSINE", () => {
+      // For normalized embeddings, IP equals cosine similarity: [-1, 1]
       const { score, distance } = normalizeMetricScore(1, MetricType.IP);
-      expect(score).toBe(1);
-      expect(distance).toBe(0);
+      expect(score).toBe(1); // (1 + 1) / 2 = 1
+      expect(distance).toBe(0); // 1 - 1 = 0
     });
 
-    it("should handle zero inner product", () => {
+    it("should handle zero IP (orthogonal vectors)", () => {
       const { score, distance } = normalizeMetricScore(0, MetricType.IP);
-      expect(score).toBe(0);
-      expect(distance).toBe(1);
+      expect(score).toBe(0.5); // (0 + 1) / 2 = 0.5
+      expect(distance).toBe(0.5); // 1 - 0.5 = 0.5
+    });
+
+    it("should handle negative IP (opposite vectors)", () => {
+      const { score, distance } = normalizeMetricScore(-1, MetricType.IP);
+      expect(score).toBe(0); // (-1 + 1) / 2 = 0
+      expect(distance).toBe(1); // 1 - 0 = 1
     });
   });
 
