@@ -31,10 +31,11 @@ export function SearchResultCard({ rank, source }: SearchResultCardProps) {
         <button
           type="button"
           className={cn(
-            "min-w-80 flex-shrink-0 rounded-lg border p-4 transition-all",
-            "hover:shadow-md hover:border-foreground/50 cursor-pointer",
+            "min-w-80 flex-shrink-0 rounded-lg p-4 transition-all",
+            "backdrop-blur-md bg-background/30 border border-border/50",
+            "hover:bg-background/50 hover:border-border hover:shadow-lg",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-            "bg-card",
+            "cursor-pointer",
           )}
         >
           <div className="space-y-3">

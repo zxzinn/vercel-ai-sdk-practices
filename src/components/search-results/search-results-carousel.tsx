@@ -65,9 +65,9 @@ export function SearchResultsCarousel({
   }
 
   return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="space-y-1">
+    <div className="space-y-4">
+      {/* Header - Glassmorphism */}
+      <div className="backdrop-blur-sm bg-background/50 border border-border/50 rounded-lg p-4 space-y-2">
         <h3 className="text-sm font-semibold">
           Search Results ({sources.length})
         </h3>
