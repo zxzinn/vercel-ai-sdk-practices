@@ -65,6 +65,7 @@ import {
 } from "@/components/ai-elements/tool";
 import { MCPConnector } from "@/components/mcp/mcp-connector";
 import { SearchResultsContainer } from "@/components/search-results";
+import type { SearchOutput } from "@/components/search-results/types";
 import { SpaceSelector } from "@/components/spaces/space-selector";
 import { Button } from "@/components/ui/button";
 import {
@@ -671,22 +672,7 @@ function ChatContent() {
                                           <ToolContent>
                                             <SearchResultsContainer
                                               output={
-                                                part.output as {
-                                                  query: string;
-                                                  totalResults: number;
-                                                  sources: Array<{
-                                                    id: string;
-                                                    content: string;
-                                                    score: string;
-                                                    distance: string;
-                                                    metadata: {
-                                                      filename: string;
-                                                      fileType: string;
-                                                      chunkIndex?: number;
-                                                      totalChunks?: number;
-                                                    };
-                                                  }>;
-                                                }
+                                                part.output as SearchOutput
                                               }
                                             />
                                           </ToolContent>

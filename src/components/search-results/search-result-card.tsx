@@ -8,22 +8,11 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-interface SearchResultSource {
-  id: string;
-  content: string;
-  score: string;
-  distance: string;
-  metadata: {
-    filename: string;
-    fileType: string;
-    chunkIndex?: number;
-    totalChunks?: number;
-  };
-}
+import type { SearchSource } from "./types";
 
 interface SearchResultCardProps {
   rank: number;
-  source: SearchResultSource;
+  source: SearchSource;
 }
 
 function getRelevanceBadge(score: number) {

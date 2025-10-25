@@ -6,19 +6,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 import { SearchResultCard } from "./search-result-card";
-
-interface SearchSource {
-  id: string;
-  content: string;
-  score: string;
-  distance: string;
-  metadata: {
-    filename: string;
-    fileType: string;
-    chunkIndex?: number;
-    totalChunks?: number;
-  };
-}
+import type { SearchSource } from "./types";
 
 interface SearchResultsCarouselProps {
   sources: SearchSource[];
