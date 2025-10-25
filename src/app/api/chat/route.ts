@@ -1,6 +1,7 @@
 import type { TextUIPart, Tool, UIMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma";
 import {
   cleanupMCPClient,
   createMCPClient,
@@ -413,18 +414,16 @@ export async function POST(req: Request) {
                 data: {
                   conversationId,
                   role: "user",
-                  // UIMessage is runtime JSON-serializable but complex type for Prisma JSON field
-                  // This is a database serialization context where type safety is validated at runtime
-                  // biome-ignore lint/suspicious/noExplicitAny: Prisma JSON serialization
-                  content: userMessage as any,
+                  // UIMessage is designed to be JSON-serializable by the AI SDK
+                  // Direct storage follows official examples from Vercel AI SDK
+                  content: userMessage as unknown as Prisma.InputJsonValue,
                 },
               }),
               prisma.conversationMessage.create({
                 data: {
                   conversationId,
                   role: "assistant",
-                  // biome-ignore lint/suspicious/noExplicitAny: Prisma JSON serialization
-                  content: assistantMessage as any,
+                  content: assistantMessage as unknown as Prisma.InputJsonValue,
                 },
               }),
             ]);
