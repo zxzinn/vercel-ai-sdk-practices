@@ -132,9 +132,11 @@ export function RAGSettingsDialog({
               step={RAG_CONSTANTS.SCORE_THRESHOLD.STEP}
               value={scoreThreshold}
               onChange={(e) => {
-                const value = Number.parseFloat(e.target.value);
-                if (!Number.isNaN(value)) {
-                  setScoreThreshold(value);
+                const value = e.target.value;
+                if (value === "") return;
+                const parsed = Number.parseFloat(value);
+                if (!Number.isNaN(parsed)) {
+                  setScoreThreshold(parsed);
                 }
               }}
             />
