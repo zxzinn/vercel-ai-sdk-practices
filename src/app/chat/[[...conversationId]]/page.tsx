@@ -299,11 +299,11 @@ function ChatContent() {
       <div className="container mx-auto p-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
+          <div className="pt-4 mb-6">
             <SidebarTrigger />
           </div>
 
-          <div className="flex flex-col h-[calc(100vh-200px)]">
+          <div className="flex flex-col h-[calc(100vh-140px)]">
             {/* Error Banner */}
             {error && (
               <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
