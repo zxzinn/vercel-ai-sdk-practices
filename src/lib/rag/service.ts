@@ -240,9 +240,6 @@ export class RAGService {
       }
 
       // Generate embeddings
-      console.log(
-        `Generating embeddings for ${allChunks.length} chunks using ${embeddingModel}...`,
-      );
       const { embeddings } = await embedMany({
         model: embeddingModel,
         values: allChunks,
@@ -267,10 +264,6 @@ export class RAGService {
 
       // Insert into vector store
       await provider.insert(collectionName, vectorDocuments);
-
-      console.log(
-        `✅ Indexed ${allChunks.length} chunks into ${collectionName} using ${provider.name}`,
-      );
 
       result = {
         documentIds: documents.map((d) => d.id),
@@ -344,10 +337,6 @@ export class RAGService {
     const collectionName = getCollectionName(spaceId);
 
     await provider.delete(collectionName, { originalDocId: documentId });
-
-    console.log(
-      `✅ Deleted chunks for document ${documentId} from space ${spaceId}`,
-    );
   }
 
   async clearCollection(spaceId: string): Promise<void> {
@@ -358,8 +347,6 @@ export class RAGService {
 
     // Clear from cache
     this.providerCache.delete(spaceId);
-
-    console.log(`✅ Cleared collection: ${collectionName}`);
   }
 
   async listCollections(spaceId: string): Promise<string[]> {

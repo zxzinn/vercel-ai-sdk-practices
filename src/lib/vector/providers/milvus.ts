@@ -91,7 +91,6 @@ export class MilvusProvider implements IVectorProvider {
   async createCollection(schema: CollectionSchema): Promise<void> {
     const exists = await this.hasCollection(schema.name);
     if (exists) {
-      console.log(`Collection ${schema.name} already exists`);
       return;
     }
 
@@ -198,10 +197,6 @@ export class MilvusProvider implements IVectorProvider {
     await this.getClient().loadCollection({
       collection_name: schema.name,
     });
-
-    console.log(
-      `✅ Created Milvus collection: ${schema.name} (BM25: ${enableFullText})`,
-    );
   }
 
   /**
@@ -242,8 +237,6 @@ export class MilvusProvider implements IVectorProvider {
     await this.getClient().dropCollection({
       collection_name: name,
     });
-
-    console.log(`✅ Deleted Milvus collection: ${name}`);
   }
 
   async listCollections(): Promise<string[]> {
