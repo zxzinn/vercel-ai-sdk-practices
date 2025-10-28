@@ -523,16 +523,29 @@ function ChatContent() {
                                 );
                               }
 
-                              case "step-start":
-                                // Step boundary - render a separator
+                              case "step-start": {
+                                // Step boundary - render a separator with step counter
+                                // Count how many step-start parts appear before this one
+                                const stepNumber =
+                                  message.parts
+                                    .slice(0, i)
+                                    .filter((p) => p.type === "step-start")
+                                    .length + 1;
+                                const maxSteps = 5; // Matches stepCountIs(5) in API
+
                                 return i > 0 ? (
                                   <div
                                     key={`${message.id}-${i}`}
-                                    className="text-gray-500"
+                                    className="flex items-center gap-2 my-4"
                                   >
-                                    <hr className="my-2 border-gray-300" />
+                                    <hr className="flex-1 border-gray-300" />
+                                    <span className="text-xs text-muted-foreground font-medium px-2">
+                                      Step {stepNumber} of {maxSteps}
+                                    </span>
+                                    <hr className="flex-1 border-gray-300" />
                                   </div>
                                 ) : null;
+                              }
 
                               default: {
                                 // Handle static tools (tavily, exa, rag, generateImage...)
