@@ -1,9 +1,10 @@
+const STORAGE_KEY = "mcp_session_id";
+
 export function getSessionId(): string {
   if (typeof window === "undefined") {
     return "";
   }
 
-  const STORAGE_KEY = "mcp_session_id";
   let sessionId = sessionStorage.getItem(STORAGE_KEY);
 
   if (!sessionId) {
@@ -12,4 +13,11 @@ export function getSessionId(): string {
   }
 
   return sessionId;
+}
+
+export function clearSessionId(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  sessionStorage.removeItem(STORAGE_KEY);
 }
