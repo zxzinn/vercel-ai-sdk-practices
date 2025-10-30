@@ -17,20 +17,16 @@ const EXAMPLE_PROMPTS = [
 
 export default function ArtifactsDemo() {
   const [prompt, setPrompt] = useState("");
-  const [currentArtifact, setCurrentArtifact] = useState<
-    ArtifactSchema | undefined
-  >();
 
-  const { artifact, generate, isGenerating, stop } = useArtifact({
-    model: "openai/gpt-4o",
-    onFinish: (artifact) => {
-      setCurrentArtifact(artifact);
+  const { artifact, generate, isGenerating, stop, clearArtifact } = useArtifact(
+    {
+      model: "openai/gpt-4o",
+      onError: (error) => {
+        console.error("Artifact error:", error);
+        alert(`Error: ${error.message}`);
+      },
     },
-    onError: (error) => {
-      console.error("Artifact error:", error);
-      alert(`Error: ${error.message}`);
-    },
-  });
+  );
 
   const handleGenerate = () => {
     if (!prompt.trim()) return;
@@ -125,18 +121,12 @@ export default function ArtifactsDemo() {
 
           {/* Right side - Preview */}
           <div className="border rounded-lg overflow-hidden">
-            {(artifact || currentArtifact) &&
-            (artifact || currentArtifact)?.type &&
-            (artifact || currentArtifact)?.title &&
-            (artifact || currentArtifact)?.code ? (
+            {artifact?.type && artifact?.title && artifact?.code ? (
               <ArtifactPanel
                 artifact={
-                  (artifact ||
-                    currentArtifact) as import("@/lib/artifacts/schema").ArtifactSchema
+                  artifact as import("@/lib/artifacts/schema").ArtifactSchema
                 }
-                onClose={() => {
-                  setCurrentArtifact(undefined);
-                }}
+                onClose={clearArtifact}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">

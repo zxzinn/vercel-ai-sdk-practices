@@ -2,6 +2,7 @@ import type { CoreMessage } from "ai";
 import { streamObject } from "ai";
 import type { NextRequest } from "next/server";
 import { artifactSchema } from "@/lib/artifacts/schema";
+import { ARTIFACT_SYSTEM_PROMPT } from "@/lib/artifacts/system-prompt";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getAllModels } from "@/lib/providers/loader";
 
@@ -37,17 +38,7 @@ export async function POST(request: NextRequest) {
     const result = streamObject({
       model,
       schema: artifactSchema,
-      system: `You are an expert at creating interactive code artifacts. Generate complete, self-contained code that can be executed or rendered directly in a browser.
-
-Guidelines:
-- For HTML: Include all necessary CSS and JavaScript inline
-- For React: Export a single default component, use functional components with hooks
-- For SVG: Create valid, complete SVG markup
-- Always write complete, runnable code - no placeholders or TODO comments
-- Code must be production-ready and follow best practices
-- Include error handling where appropriate
-
-When asked to create visual content, interactive demos, data visualizations, or executable code, respond with an artifact.`,
+      system: ARTIFACT_SYSTEM_PROMPT,
       messages,
       maxRetries: 0,
     });
