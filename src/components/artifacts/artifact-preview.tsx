@@ -1,5 +1,6 @@
 "use client";
 
+import { SandpackPreview, SandpackProvider } from "@codesandbox/sandpack-react";
 import { useEffect, useRef, useState } from "react";
 import type { ArtifactSchema } from "@/lib/artifacts/schema";
 
@@ -11,7 +12,11 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Always call hooks at the top level - handle iframe rendering
   useEffect(() => {
+    // Skip if using Sandpack for React
+    if (artifact.type === "code/react") return;
+
     if (!iframeRef.current) return;
 
     try {
@@ -30,34 +35,6 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
         case "code/html":
           content = artifact.code;
           break;
-
-        case "code/react": {
-          content = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; }
-    * { box-sizing: border-box; }
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="text/babel">
-    ${artifact.code}
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<Component />);
-  </script>
-</body>
-</html>`;
-          break;
-        }
 
         case "code/svg":
           content = `<!DOCTYPE html>
@@ -155,6 +132,29 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
       setError(err instanceof Error ? err.message : "Rendering error");
     }
   }, [artifact]);
+
+  // Use Sandpack for React artifacts
+  if (artifact.type === "code/react") {
+    return (
+      <div className="h-full w-full">
+        <SandpackProvider
+          template="react"
+          files={{
+            "/App.js": artifact.code,
+          }}
+          theme="auto"
+        >
+          <SandpackPreview
+            showNavigator={false}
+            showOpenInCodeSandbox={false}
+            showRefreshButton={true}
+            showOpenNewtab={false}
+            style={{ height: "100%", width: "100%" }}
+          />
+        </SandpackProvider>
+      </div>
+    );
+  }
 
   if (error) {
     return (
