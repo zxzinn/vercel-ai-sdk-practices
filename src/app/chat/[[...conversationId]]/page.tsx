@@ -38,10 +38,10 @@ import {
   PromptInputAttachment,
   PromptInputAttachments,
   PromptInputBody,
+  PromptInputFooter,
   type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
-  PromptInputToolbar,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import {
@@ -746,7 +746,7 @@ function ChatContent() {
                 </PromptInputAttachments>
                 <PromptInputTextarea placeholder="Type your message..." />
               </PromptInputBody>
-              <PromptInputToolbar>
+              <PromptInputFooter>
                 <PromptInputTools>
                   <PromptInputActionMenu>
                     <PromptInputActionMenuTrigger />
@@ -902,7 +902,7 @@ function ChatContent() {
                   disabled={status !== "ready"}
                   status={status}
                 />
-              </PromptInputToolbar>
+              </PromptInputFooter>
             </PromptInput>
           </div>
         </div>

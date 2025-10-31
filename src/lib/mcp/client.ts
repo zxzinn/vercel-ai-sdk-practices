@@ -1,8 +1,8 @@
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import {
   experimental_createMCPClient as createMCPClient_AI,
   type experimental_MCPClient as MCPClient,
-} from "ai";
+} from "@ai-sdk/mcp";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 export type { MCPClient };
 export type { StreamableHTTPClientTransport };
