@@ -22,7 +22,7 @@ export const ResponseWithCode = memo(
           return language ? (
             <CodeBlock
               code={String(children).replace(/\n$/, "")}
-              language={language}
+              language={language as any}
               showLineNumbers={true}
             />
           ) : (

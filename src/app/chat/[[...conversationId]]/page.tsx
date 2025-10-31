@@ -38,10 +38,10 @@ import {
   PromptInputAttachment,
   PromptInputAttachments,
   PromptInputBody,
+  PromptInputFooter,
   type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
-  PromptInputToolbar,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import {
@@ -583,7 +583,7 @@ function ChatContent() {
                                           <ToolContent>
                                             {part.input &&
                                             typeof part.input === "object" &&
-                                            part.input !== null &&
+                                            true &&
                                             "prompt" in part.input ? (
                                               <div className="space-y-2 p-4">
                                                 <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
@@ -746,7 +746,7 @@ function ChatContent() {
                 </PromptInputAttachments>
                 <PromptInputTextarea placeholder="Type your message..." />
               </PromptInputBody>
-              <PromptInputToolbar>
+              <PromptInputFooter>
                 <PromptInputTools>
                   <PromptInputActionMenu>
                     <PromptInputActionMenuTrigger />
@@ -902,7 +902,7 @@ function ChatContent() {
                   disabled={status !== "ready"}
                   status={status}
                 />
-              </PromptInputToolbar>
+              </PromptInputFooter>
             </PromptInput>
           </div>
         </div>

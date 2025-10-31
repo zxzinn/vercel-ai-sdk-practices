@@ -17,6 +17,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
+import { isValidElement } from "react";
 import { CodeBlock } from "./code-block";
 
 export type ToolProps = ComponentProps<typeof Collapsible>;
@@ -36,19 +37,20 @@ export type ToolHeaderProps = {
 };
 
 const getStatusBadge = (status: ToolUIPart["state"]) => {
-  const labels = {
+  // TODO: Add approval states when AI SDK adds them
+  const labels: Record<ToolUIPart["state"], string> = {
     "input-streaming": "Pending",
     "input-available": "Running",
     "output-available": "Completed",
     "output-error": "Error",
-  } as const;
+  };
 
-  const icons = {
+  const icons: Record<ToolUIPart["state"], ReactNode> = {
     "input-streaming": <CircleIcon className="size-4" />,
     "input-available": <ClockIcon className="size-4 animate-pulse" />,
     "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
     "output-error": <XCircleIcon className="size-4 text-red-600" />,
-  } as const;
+  };
 
   return (
     <Badge className="gap-1.5 rounded-full text-xs" variant="secondary">
@@ -127,7 +129,7 @@ export const ToolOutput = ({
 
   let Output = <div>{output as ReactNode}</div>;
 
-  if (typeof output === "object") {
+  if (typeof output === "object" && !isValidElement(output)) {
     Output = (
       <CodeBlock code={JSON.stringify(output, null, 2)} language="json" />
     );
