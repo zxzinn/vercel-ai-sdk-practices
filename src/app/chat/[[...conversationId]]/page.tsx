@@ -583,7 +583,7 @@ function ChatContent() {
                                           <ToolContent>
                                             {part.input &&
                                             typeof part.input === "object" &&
-                                            part.input !== null &&
+                                            true &&
                                             "prompt" in part.input ? (
                                               <div className="space-y-2 p-4">
                                                 <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
