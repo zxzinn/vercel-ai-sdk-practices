@@ -18,6 +18,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -112,29 +113,38 @@ function ChatContent() {
 
   // Auto-enable RAG when a space is selected
   const ragEnabled = Boolean(selectedSpaceId);
+
+  // Compute conversationId synchronously to prevent useChat recreation
+  const conversationId = useMemo(() => {
+    if (urlConversationId) {
+      return urlConversationId;
+    }
+    // Generate stable ID for new conversations
+    return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }, [urlConversationId]);
+
   const [sessionId, setSessionId] = useState<string>("");
-  const [conversationId, setConversationId] = useState<string>("");
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [mcpConnections, setMcpConnections] = useState<
     Array<{ id: string; name: string }>
   >([]);
-  const [hasUpdatedUrl, setHasUpdatedUrl] = useState(false);
+  const [hasUpdatedUrl, setHasUpdatedUrl] = useState(
+    Boolean(urlConversationId),
+  );
   // Use ref instead of state to avoid triggering useEffect when value changes
-  const isNewConversationRef = useRef(false);
+  const isNewConversationRef = useRef(!urlConversationId);
 
+  // Initialize sessionId after client-side mount
   useEffect(() => {
     setSessionId(getSessionId());
-    // Use URL conversationId or generate new one
-    if (urlConversationId) {
-      setConversationId(urlConversationId);
-      setHasUpdatedUrl(true); // URL already has conversationId
-      // Don't set isNewConversationRef here - let loadConversation handle it
-    } else {
-      setConversationId(
-        `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-      );
-      setHasUpdatedUrl(false); // New conversation, need to update URL later
-      isNewConversationRef.current = true; // New conversation
+  }, []);
+
+  // Sync hasUpdatedUrl and isNewConversationRef when URL changes
+  useEffect(() => {
+    setHasUpdatedUrl(Boolean(urlConversationId));
+    // Reset flag when navigating to a new conversation
+    if (!urlConversationId) {
+      isNewConversationRef.current = true;
     }
   }, [urlConversationId]);
 
