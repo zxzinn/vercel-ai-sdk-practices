@@ -129,9 +129,16 @@ function ChatContent() {
   const [mcpConnections, setMcpConnections] = useState<
     Array<{ id: string; name: string }>
   >([]);
-  const [hasUpdatedUrl, setHasUpdatedUrl] = useState(false);
+  const [hasUpdatedUrl, setHasUpdatedUrl] = useState(
+    Boolean(urlConversationId),
+  );
   // Use ref instead of state to avoid triggering useEffect when value changes
   const isNewConversationRef = useRef(!urlConversationId);
+
+  // Sync hasUpdatedUrl when URL changes (e.g., clicking "New Chat")
+  useEffect(() => {
+    setHasUpdatedUrl(Boolean(urlConversationId));
+  }, [urlConversationId]);
 
   const handleMcpConnectionsChange = useCallback(
     (connections: Array<{ id: string; name: string; status: string }>) => {
