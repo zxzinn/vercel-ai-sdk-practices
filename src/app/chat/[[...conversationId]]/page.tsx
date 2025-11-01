@@ -18,6 +18,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -112,31 +113,25 @@ function ChatContent() {
 
   // Auto-enable RAG when a space is selected
   const ragEnabled = Boolean(selectedSpaceId);
-  const [sessionId, setSessionId] = useState<string>("");
-  const [conversationId, setConversationId] = useState<string>("");
+
+  // Compute conversationId synchronously to prevent useChat recreation
+  const conversationId = useMemo(() => {
+    if (urlConversationId) {
+      return urlConversationId;
+    }
+    // Generate stable ID for new conversations
+    return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }, [urlConversationId]);
+
+  const sessionId = useMemo(() => getSessionId(), []);
+
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [mcpConnections, setMcpConnections] = useState<
     Array<{ id: string; name: string }>
   >([]);
   const [hasUpdatedUrl, setHasUpdatedUrl] = useState(false);
   // Use ref instead of state to avoid triggering useEffect when value changes
-  const isNewConversationRef = useRef(false);
-
-  useEffect(() => {
-    setSessionId(getSessionId());
-    // Use URL conversationId or generate new one
-    if (urlConversationId) {
-      setConversationId(urlConversationId);
-      setHasUpdatedUrl(true); // URL already has conversationId
-      // Don't set isNewConversationRef here - let loadConversation handle it
-    } else {
-      setConversationId(
-        `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-      );
-      setHasUpdatedUrl(false); // New conversation, need to update URL later
-      isNewConversationRef.current = true; // New conversation
-    }
-  }, [urlConversationId]);
+  const isNewConversationRef = useRef(!urlConversationId);
 
   const handleMcpConnectionsChange = useCallback(
     (connections: Array<{ id: string; name: string; status: string }>) => {
