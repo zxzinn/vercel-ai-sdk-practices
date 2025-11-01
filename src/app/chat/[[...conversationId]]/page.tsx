@@ -123,8 +123,7 @@ function ChatContent() {
     return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   }, [urlConversationId]);
 
-  const sessionId = useMemo(() => getSessionId(), []);
-
+  const [sessionId, setSessionId] = useState<string>("");
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [mcpConnections, setMcpConnections] = useState<
     Array<{ id: string; name: string }>
@@ -135,9 +134,18 @@ function ChatContent() {
   // Use ref instead of state to avoid triggering useEffect when value changes
   const isNewConversationRef = useRef(!urlConversationId);
 
-  // Sync hasUpdatedUrl when URL changes (e.g., clicking "New Chat")
+  // Initialize sessionId after client-side mount
+  useEffect(() => {
+    setSessionId(getSessionId());
+  }, []);
+
+  // Sync hasUpdatedUrl and isNewConversationRef when URL changes
   useEffect(() => {
     setHasUpdatedUrl(Boolean(urlConversationId));
+    // Reset flag when navigating to a new conversation
+    if (!urlConversationId) {
+      isNewConversationRef.current = true;
+    }
   }, [urlConversationId]);
 
   const handleMcpConnectionsChange = useCallback(
