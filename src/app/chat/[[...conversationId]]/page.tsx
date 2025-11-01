@@ -162,6 +162,7 @@ function ChatContent() {
     regenerate: originalRegenerate,
     setMessages,
   } = useChat({
+    id: conversationId,
     onError: (err) => {
       console.error("Chat error:", err);
     },
