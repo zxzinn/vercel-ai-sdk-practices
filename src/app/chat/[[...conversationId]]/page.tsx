@@ -771,6 +771,7 @@ function ChatContent() {
                     onSpaceChange={setSelectedSpaceId}
                   />
                   <Button
+                    type="button"
                     variant={reasoningEnabled ? "default" : "ghost"}
                     size="sm"
                     className="h-8"
