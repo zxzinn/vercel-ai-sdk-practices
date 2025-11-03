@@ -8,9 +8,6 @@ export interface BuiltInMCPConnector {
   apiKeyLabel?: string;
   apiKeyPlaceholder?: string;
   docsUrl?: string;
-  skipClientRegistration?: boolean;
-  authorizationEndpoint?: string;
-  tokenEndpoint?: string;
 }
 
 export const BUILT_IN_MCP_CONNECTORS: BuiltInMCPConnector[] = [
@@ -23,6 +20,5 @@ export const BUILT_IN_MCP_CONNECTORS: BuiltInMCPConnector[] = [
     icon: "🔍",
     requiresApiKey: false,
     docsUrl: "https://docs.sentry.io/product/sentry-mcp/",
-    skipClientRegistration: false,
   },
 ];

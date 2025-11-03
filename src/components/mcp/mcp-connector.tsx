@@ -69,7 +69,7 @@ export function MCPConnector({
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [endpoint, setEndpoint] = useState("");
   const [name, setName] = useState("");
-  const [apiKey, setApiKey] = useState("");
+  const [registrationApiKey, setRegistrationApiKey] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBuiltIn, setSelectedBuiltIn] =
@@ -137,9 +137,6 @@ export function MCPConnector({
           endpoint: connector.endpoint,
           name: connector.name,
           sessionId,
-          skipClientRegistration: connector.skipClientRegistration,
-          authorizationEndpoint: connector.authorizationEndpoint,
-          tokenEndpoint: connector.tokenEndpoint,
         }),
       });
 
@@ -288,7 +285,7 @@ export function MCPConnector({
         body: JSON.stringify({
           endpoint: endpoint.trim(),
           name: name.trim() || undefined,
-          apiKey: apiKey.trim() || undefined,
+          registrationApiKey: registrationApiKey.trim() || undefined,
           sessionId,
         }),
       });
@@ -358,7 +355,7 @@ export function MCPConnector({
             setShowDialog(false);
             setEndpoint("");
             setName("");
-            setApiKey("");
+            setRegistrationApiKey("");
             setConnecting(false);
           } else if (data.type === "mcp-oauth-error") {
             // Clean up interval and event listener
@@ -605,14 +602,20 @@ export function MCPConnector({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="mcp-api-key">API Key (optional)</Label>
+                  <Label htmlFor="mcp-api-key">
+                    Registration API Key (optional)
+                  </Label>
                   <Input
                     id="mcp-api-key"
                     type="password"
-                    placeholder="Enter API key if required"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Required only if the server needs one for registration"
+                    value={registrationApiKey}
+                    onChange={(e) => setRegistrationApiKey(e.target.value)}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    This is only used during OAuth client registration, not for
+                    connecting to the MCP server.
+                  </p>
                 </div>
                 {error && (
                   <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
@@ -627,7 +630,7 @@ export function MCPConnector({
                     setShowCustomDialog(false);
                     setEndpoint("");
                     setName("");
-                    setApiKey("");
+                    setRegistrationApiKey("");
                     setError(null);
                   }}
                 >
