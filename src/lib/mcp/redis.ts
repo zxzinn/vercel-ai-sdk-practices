@@ -154,6 +154,7 @@ const OAuthStateDataSchema = z.object({
   codeVerifier: z.string(),
   clientId: z.string().optional(),
   apiKey: z.string().optional(),
+  tokenEndpoint: z.string().optional(),
 });
 
 export interface OAuthStateData {
@@ -164,6 +165,7 @@ export interface OAuthStateData {
   codeVerifier: string;
   clientId?: string;
   apiKey?: string;
+  tokenEndpoint?: string;
 }
 
 export async function storeOAuthState(

@@ -111,6 +111,7 @@ export async function GET(req: NextRequest) {
       codeVerifier,
       clientId,
       apiKey,
+      tokenEndpoint: storedTokenEndpoint,
     } = stateData;
 
     // Validate required OAuth state data
@@ -124,8 +125,9 @@ export async function GET(req: NextRequest) {
       throw new Error("Missing code or state parameter in OAuth callback");
     }
 
-    // Preserve endpoint path for MCP servers deployed on subpaths (SPA-58)
-    const tokenEndpoint = new URL("/token", endpoint).toString();
+    // Use stored tokenEndpoint or default to /token on endpoint origin
+    const tokenEndpoint =
+      storedTokenEndpoint || new URL("/token", endpoint).toString();
     const redirectUri = new URL(
       "/api/mcp/oauth/callback",
       req.nextUrl.origin,
