@@ -248,30 +248,8 @@ export function MCPConnector({
 
         cleanupFunctionsRef.current.push(cleanup);
 
-        const successKey = `mcp-oauth-success-${data.connectionId}`;
-
+        // Monitor popup window state
         checkIntervalId = setInterval(() => {
-          // Check for success flag in sessionStorage (works even if window.opener is null)
-          try {
-            const successData = sessionStorage.getItem(successKey);
-            if (successData) {
-              sessionStorage.removeItem(successKey);
-              cleanup();
-              try {
-                if (authWindow && !authWindow.closed) {
-                  authWindow.close();
-                }
-              } catch {}
-              loadConnections();
-              setShowDialog(false);
-              setSelectedBuiltIn(null);
-              setConnecting(false);
-              return;
-            }
-          } catch (e) {
-            console.warn("[MCP OAuth] Failed to check sessionStorage:", e);
-          }
-
           if (Date.now() - startTime > TIMEOUT_MS) {
             cleanup();
             setConnecting(false);
@@ -291,7 +269,7 @@ export function MCPConnector({
             setConnecting(false);
             setSelectedBuiltIn(null);
           }
-        }, 500);
+        }, 1000);
       } else {
         setError(data.error || "Failed to connect to MCP server");
         setConnecting(false);
@@ -388,6 +366,7 @@ export function MCPConnector({
               // Ignore COOP errors when closing window
             }
             loadConnections();
+            setShowCustomDialog(false);
             setShowDialog(false);
             setEndpoint("");
             setName("");
@@ -433,32 +412,8 @@ export function MCPConnector({
         // Register cleanup function for component unmount
         cleanupFunctionsRef.current.push(cleanup);
 
-        const successKey = `mcp-oauth-success-${data.connectionId}`;
-
+        // Monitor popup window state
         checkIntervalId = setInterval(() => {
-          // Check for success flag in sessionStorage (works even if window.opener is null)
-          try {
-            const successData = sessionStorage.getItem(successKey);
-            if (successData) {
-              sessionStorage.removeItem(successKey);
-              cleanup();
-              try {
-                if (authWindow && !authWindow.closed) {
-                  authWindow.close();
-                }
-              } catch {}
-              loadConnections();
-              setShowCustomDialog(false);
-              setEndpoint("");
-              setName("");
-              setRegistrationApiKey("");
-              setConnecting(false);
-              return;
-            }
-          } catch (e) {
-            console.warn("[MCP OAuth] Failed to check sessionStorage:", e);
-          }
-
           // Use timestamp-based timeout for reliability across browser throttling
           if (Date.now() - startTime > TIMEOUT_MS) {
             cleanup();
@@ -477,7 +432,7 @@ export function MCPConnector({
             cleanup();
             setConnecting(false);
           }
-        }, 500);
+        }, 1000);
         // Note: connecting state will be reset by handleMessage or cleanup
         // Don't reset here as OAuth flow is asynchronous
       } else {

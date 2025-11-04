@@ -186,20 +186,15 @@ export async function GET(req: NextRequest) {
 
     await storeMCPConnection(sessionId, connection);
 
-    // Store success state in sessionStorage for parent to poll
-    const successKey = `mcp-oauth-success-${connectionId}`;
-
     return new Response(
       `
       <!DOCTYPE html>
       <html>
         <head>
           <title>OAuth Success</title>
-          <meta http-equiv="refresh" content="2;url=about:blank">
           <script type="application/json" id="oauth-data">
             ${JSON.stringify({
               type: "mcp-oauth-success",
-              successKey,
               connectionId,
               sessionId,
               parentOrigin,
@@ -207,31 +202,9 @@ export async function GET(req: NextRequest) {
           </script>
           <script>
             const data = JSON.parse(document.getElementById('oauth-data').textContent);
-            const { successKey, connectionId, sessionId, parentOrigin } = data;
+            const { connectionId, sessionId, parentOrigin } = data;
 
-            // Store success flag in sessionStorage
-            try {
-              if (window.opener) {
-                window.opener.sessionStorage.setItem(successKey, JSON.stringify({
-                  type: 'mcp-oauth-success',
-                  connectionId,
-                  sessionId,
-                  timestamp: Date.now()
-                }));
-              } else {
-                // Try to store in current window's sessionStorage as fallback
-                sessionStorage.setItem(successKey, JSON.stringify({
-                  type: 'mcp-oauth-success',
-                  connectionId,
-                  sessionId,
-                  timestamp: Date.now()
-                }));
-              }
-            } catch (err) {
-              console.error('[MCP OAuth Callback] Failed to store success flag:', err);
-            }
-
-            // Try to send postMessage if opener exists
+            // Send postMessage to parent window
             if (window.opener) {
               try {
                 window.opener.postMessage({
@@ -244,16 +217,14 @@ export async function GET(req: NextRequest) {
               }
             }
 
-            // Auto-close after 2 seconds
-            setTimeout(() => {
-              window.close();
-            }, 2000);
+            // Close window immediately
+            window.close();
           </script>
         </head>
         <body style="text-align: center; padding: 40px; font-family: system-ui;">
           <h1 style="color: #0070f3;">✅ Success!</h1>
           <p style="font-size: 18px; margin: 20px 0;">Authentication completed successfully.</p>
-          <p style="color: #666;">This window will close automatically in 2 seconds.</p>
+          <p style="color: #666;">This window will close automatically.</p>
           <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer; background: #0070f3; color: white; border: none; border-radius: 5px;">Close Now</button>
         </body>
       </html>
