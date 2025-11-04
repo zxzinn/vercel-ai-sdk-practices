@@ -42,11 +42,29 @@ export async function POST(req: NextRequest) {
     );
 
     if (!authorizeResponse.ok) {
-      const errorData = await authorizeResponse.json();
-      return Response.json(errorData, { status: authorizeResponse.status });
+      let errorPayload: unknown;
+      try {
+        errorPayload = await authorizeResponse.clone().json();
+      } catch {
+        const fallbackText = await authorizeResponse.text().catch(() => "");
+        errorPayload = fallbackText
+          ? { error: fallbackText }
+          : { error: "Failed to initiate OAuth authorization" };
+      }
+
+      return Response.json(errorPayload, { status: authorizeResponse.status });
     }
 
-    const { authUrl } = await authorizeResponse.json();
+    const authorizeData = await authorizeResponse.json();
+    if (
+      !authorizeData ||
+      typeof authorizeData !== "object" ||
+      typeof authorizeData.authUrl !== "string"
+    ) {
+      throw new Error("Authorize endpoint did not return an authUrl");
+    }
+
+    const { authUrl } = authorizeData;
 
     return Response.json({
       requiresAuth: true,

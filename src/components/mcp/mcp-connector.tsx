@@ -157,6 +157,22 @@ export function MCPConnector({
           return;
         }
 
+        let checkIntervalId: NodeJS.Timeout | null = null;
+        const startTime = Date.now();
+        const TIMEOUT_MS = 5 * 60 * 1000;
+
+        const cleanup = () => {
+          if (checkIntervalId) {
+            clearInterval(checkIntervalId);
+            checkIntervalId = null;
+          }
+          window.removeEventListener("message", handleMessage);
+          const index = cleanupFunctionsRef.current.indexOf(cleanup);
+          if (index > -1) {
+            cleanupFunctionsRef.current.splice(index, 1);
+          }
+        };
+
         const handleMessage = (event: MessageEvent) => {
           if (event.source !== authWindow) {
             return;
@@ -208,6 +224,7 @@ export function MCPConnector({
               console.error("[MCP OAuth] Failed to close popup:", e);
             }
             loadConnections();
+            setShowDialog(false);
             setSelectedBuiltIn(null);
             setConnecting(false);
           } else if (data.type === "mcp-oauth-error") {
@@ -229,22 +246,6 @@ export function MCPConnector({
 
         window.addEventListener("message", handleMessage);
 
-        let checkIntervalId: NodeJS.Timeout | null = null;
-        const startTime = Date.now();
-        const TIMEOUT_MS = 5 * 60 * 1000;
-
-        const cleanup = () => {
-          if (checkIntervalId) {
-            clearInterval(checkIntervalId);
-            checkIntervalId = null;
-          }
-          window.removeEventListener("message", handleMessage);
-          const index = cleanupFunctionsRef.current.indexOf(cleanup);
-          if (index > -1) {
-            cleanupFunctionsRef.current.splice(index, 1);
-          }
-        };
-
         cleanupFunctionsRef.current.push(cleanup);
 
         const successKey = `mcp-oauth-success-${data.connectionId}`;
@@ -262,6 +263,7 @@ export function MCPConnector({
                 }
               } catch {}
               loadConnections();
+              setShowDialog(false);
               setSelectedBuiltIn(null);
               setConnecting(false);
               return;
