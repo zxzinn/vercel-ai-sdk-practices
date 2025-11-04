@@ -165,7 +165,7 @@ export function MCPConnector({
           const callbackOrigin = window.location.origin;
           if (event.origin !== callbackOrigin) {
             console.warn(
-              "Ignored message from unexpected origin:",
+              "[MCP OAuth] Ignored message from unexpected origin:",
               event.origin,
               "Expected:",
               callbackOrigin,
@@ -173,10 +173,22 @@ export function MCPConnector({
             return;
           }
 
+          // Handle close popup request (doesn't need schema validation)
+          if (event.data?.type === "mcp-close-popup") {
+            try {
+              if (authWindow && !authWindow.closed) {
+                authWindow.close();
+              }
+            } catch (e) {
+              console.error("[MCP OAuth] Failed to close popup:", e);
+            }
+            return;
+          }
+
           const validation = OAuthMessageSchema.safeParse(event.data);
           if (!validation.success) {
             console.warn(
-              "Ignored message with invalid format:",
+              "[MCP OAuth] Ignored message with invalid format:",
               event.data,
               "Errors:",
               validation.error.issues,
@@ -189,11 +201,11 @@ export function MCPConnector({
           if (data.type === "mcp-oauth-success") {
             cleanup();
             try {
-              if (authWindow) {
+              if (authWindow && !authWindow.closed) {
                 authWindow.close();
               }
-            } catch {
-              // Ignore COOP errors when closing window
+            } catch (e) {
+              console.error("[MCP OAuth] Failed to close popup:", e);
             }
             loadConnections();
             setSelectedBuiltIn(null);
@@ -235,7 +247,29 @@ export function MCPConnector({
 
         cleanupFunctionsRef.current.push(cleanup);
 
+        const successKey = `mcp-oauth-success-${data.connectionId}`;
+
         checkIntervalId = setInterval(() => {
+          // Check for success flag in sessionStorage (works even if window.opener is null)
+          try {
+            const successData = sessionStorage.getItem(successKey);
+            if (successData) {
+              sessionStorage.removeItem(successKey);
+              cleanup();
+              try {
+                if (authWindow && !authWindow.closed) {
+                  authWindow.close();
+                }
+              } catch {}
+              loadConnections();
+              setSelectedBuiltIn(null);
+              setConnecting(false);
+              return;
+            }
+          } catch (e) {
+            console.warn("[MCP OAuth] Failed to check sessionStorage:", e);
+          }
+
           if (Date.now() - startTime > TIMEOUT_MS) {
             cleanup();
             setConnecting(false);
@@ -397,7 +431,32 @@ export function MCPConnector({
         // Register cleanup function for component unmount
         cleanupFunctionsRef.current.push(cleanup);
 
+        const successKey = `mcp-oauth-success-${data.connectionId}`;
+
         checkIntervalId = setInterval(() => {
+          // Check for success flag in sessionStorage (works even if window.opener is null)
+          try {
+            const successData = sessionStorage.getItem(successKey);
+            if (successData) {
+              sessionStorage.removeItem(successKey);
+              cleanup();
+              try {
+                if (authWindow && !authWindow.closed) {
+                  authWindow.close();
+                }
+              } catch {}
+              loadConnections();
+              setShowCustomDialog(false);
+              setEndpoint("");
+              setName("");
+              setRegistrationApiKey("");
+              setConnecting(false);
+              return;
+            }
+          } catch (e) {
+            console.warn("[MCP OAuth] Failed to check sessionStorage:", e);
+          }
+
           // Use timestamp-based timeout for reliability across browser throttling
           if (Date.now() - startTime > TIMEOUT_MS) {
             cleanup();
