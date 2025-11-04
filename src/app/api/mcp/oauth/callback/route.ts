@@ -98,9 +98,37 @@ export async function GET(req: NextRequest) {
     const stateData = await getOAuthState(params.state);
 
     if (!stateData) {
-      return new Response("Invalid or expired state parameter", {
-        status: 400,
-      });
+      // State was already used or expired - this can happen if callback is called twice
+      // Return a friendly HTML page instead of plain text error
+      return new Response(
+        `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>OAuth Already Processed</title>
+            <script>
+              // Try to close the window anyway
+              setTimeout(() => {
+                window.close();
+              }, 2000);
+            </script>
+          </head>
+          <body>
+            <h1>Authentication Already Processed</h1>
+            <p>This authentication request has already been completed.</p>
+            <p>You can close this window now.</p>
+          </body>
+        </html>
+      `,
+        {
+          status: 200, // Changed to 200 to avoid browser error messages
+          headers: {
+            "Content-Type": "text/html",
+            "Content-Security-Policy":
+              "default-src 'none'; script-src 'unsafe-inline'",
+          },
+        },
+      );
     }
 
     const {
@@ -111,6 +139,7 @@ export async function GET(req: NextRequest) {
       codeVerifier,
       clientId,
       apiKey,
+      tokenEndpoint: storedTokenEndpoint,
     } = stateData;
 
     // Validate required OAuth state data
@@ -124,8 +153,9 @@ export async function GET(req: NextRequest) {
       throw new Error("Missing code or state parameter in OAuth callback");
     }
 
-    // Preserve endpoint path for MCP servers deployed on subpaths (SPA-58)
-    const tokenEndpoint = new URL("/token", endpoint).toString();
+    // Use stored tokenEndpoint or default to /token on endpoint origin
+    const tokenEndpoint =
+      storedTokenEndpoint || new URL("/token", endpoint).toString();
     const redirectUri = new URL(
       "/api/mcp/oauth/callback",
       req.nextUrl.origin,
@@ -167,21 +197,35 @@ export async function GET(req: NextRequest) {
               type: "mcp-oauth-success",
               connectionId,
               sessionId,
+              parentOrigin,
             })}
-          </script>
-          <script type="application/json" id="oauth-config">
-            ${JSON.stringify({ parentOrigin })}
           </script>
           <script>
             const data = JSON.parse(document.getElementById('oauth-data').textContent);
-            const config = JSON.parse(document.getElementById('oauth-config').textContent);
-            window.opener?.postMessage(data, config.parentOrigin);
+            const { connectionId, sessionId, parentOrigin } = data;
+
+            // Send postMessage to parent window
+            if (window.opener) {
+              try {
+                window.opener.postMessage({
+                  type: 'mcp-oauth-success',
+                  connectionId,
+                  sessionId
+                }, parentOrigin);
+              } catch (err) {
+                console.error('[MCP OAuth Callback] postMessage failed:', err);
+              }
+            }
+
+            // Close window immediately
             window.close();
           </script>
         </head>
-        <body>
-          <h1>Authentication Successful</h1>
-          <p>You can now close this window.</p>
+        <body style="text-align: center; padding: 40px; font-family: system-ui;">
+          <h1 style="color: #0070f3;">✅ Success!</h1>
+          <p style="font-size: 18px; margin: 20px 0;">Authentication completed successfully.</p>
+          <p style="color: #666;">This window will close automatically.</p>
+          <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer; background: #0070f3; color: white; border: none; border-radius: 5px;">Close Now</button>
         </body>
       </html>
     `,
@@ -190,7 +234,7 @@ export async function GET(req: NextRequest) {
         headers: {
           "Content-Type": "text/html",
           "Content-Security-Policy":
-            "default-src 'none'; script-src 'unsafe-inline'",
+            "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
         },
       },
     );
