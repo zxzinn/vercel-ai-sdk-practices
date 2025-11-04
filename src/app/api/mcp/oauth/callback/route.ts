@@ -196,23 +196,34 @@ export async function GET(req: NextRequest) {
         <head>
           <title>OAuth Success</title>
           <meta http-equiv="refresh" content="2;url=about:blank">
+          <script type="application/json" id="oauth-data">
+            ${JSON.stringify({
+              type: "mcp-oauth-success",
+              successKey,
+              connectionId,
+              sessionId,
+              parentOrigin,
+            })}
+          </script>
           <script>
+            const data = JSON.parse(document.getElementById('oauth-data').textContent);
+            const { successKey, connectionId, sessionId, parentOrigin } = data;
+
             // Store success flag in sessionStorage
-            const successKey = '${successKey}';
             try {
               if (window.opener) {
                 window.opener.sessionStorage.setItem(successKey, JSON.stringify({
                   type: 'mcp-oauth-success',
-                  connectionId: '${connectionId}',
-                  sessionId: '${sessionId}',
+                  connectionId,
+                  sessionId,
                   timestamp: Date.now()
                 }));
               } else {
                 // Try to store in current window's sessionStorage as fallback
                 sessionStorage.setItem(successKey, JSON.stringify({
                   type: 'mcp-oauth-success',
-                  connectionId: '${connectionId}',
-                  sessionId: '${sessionId}',
+                  connectionId,
+                  sessionId,
                   timestamp: Date.now()
                 }));
               }
@@ -225,9 +236,9 @@ export async function GET(req: NextRequest) {
               try {
                 window.opener.postMessage({
                   type: 'mcp-oauth-success',
-                  connectionId: '${connectionId}',
-                  sessionId: '${sessionId}'
-                }, '${parentOrigin}');
+                  connectionId,
+                  sessionId
+                }, parentOrigin);
               } catch (err) {
                 console.error('[MCP OAuth Callback] postMessage failed:', err);
               }
