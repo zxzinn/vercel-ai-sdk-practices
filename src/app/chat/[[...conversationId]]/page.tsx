@@ -107,7 +107,7 @@ function ChatContent() {
   const router = useRouter();
   const urlConversationId = searchParams.get("id");
 
-  const [model, setModel] = useState<string>(() => getStoredModelId());
+  const [model, setModel] = useState<string>("openai/gpt-5-nano");
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
@@ -134,15 +134,25 @@ function ChatContent() {
   );
   // Use ref instead of state to avoid triggering useEffect when value changes
   const isNewConversationRef = useRef(!urlConversationId);
+  const isModelInitializedRef = useRef(false);
 
   // Initialize sessionId after client-side mount
   useEffect(() => {
     setSessionId(getSessionId());
   }, []);
 
-  // Persist model selection to localStorage
+  // Restore model preference from localStorage on mount
   useEffect(() => {
-    setStoredModelId(model);
+    const storedModelId = getStoredModelId();
+    setModel(storedModelId);
+    isModelInitializedRef.current = true;
+  }, []);
+
+  // Persist model selection to localStorage when changed by user
+  useEffect(() => {
+    if (isModelInitializedRef.current) {
+      setStoredModelId(model);
+    }
   }, [model]);
 
   // Sync hasUpdatedUrl and isNewConversationRef when URL changes
