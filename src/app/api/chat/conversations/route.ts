@@ -20,11 +20,6 @@ export async function GET(request: Request) {
       where: userId ? { userId } : {},
       orderBy: { updatedAt: "desc" },
       take: limit,
-      include: {
-        _count: {
-          select: { messages: true },
-        },
-      },
     });
 
     return NextResponse.json({ conversations });
