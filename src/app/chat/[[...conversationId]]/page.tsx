@@ -87,6 +87,7 @@ import {
 } from "@/components/ui/popover";
 import { ProviderIcon } from "@/components/ui/provider-icon";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getStoredModelId, setStoredModelId } from "@/lib/model-preference";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
 import { TOOL_CONFIG } from "@/lib/tools/config";
@@ -133,11 +134,26 @@ function ChatContent() {
   );
   // Use ref instead of state to avoid triggering useEffect when value changes
   const isNewConversationRef = useRef(!urlConversationId);
+  const isModelInitializedRef = useRef(false);
 
   // Initialize sessionId after client-side mount
   useEffect(() => {
     setSessionId(getSessionId());
   }, []);
+
+  // Restore model preference from localStorage on mount
+  useEffect(() => {
+    const storedModelId = getStoredModelId();
+    setModel(storedModelId);
+    isModelInitializedRef.current = true;
+  }, []);
+
+  // Persist model selection to localStorage when changed by user
+  useEffect(() => {
+    if (isModelInitializedRef.current) {
+      setStoredModelId(model);
+    }
+  }, [model]);
 
   // Sync hasUpdatedUrl and isNewConversationRef when URL changes
   useEffect(() => {
