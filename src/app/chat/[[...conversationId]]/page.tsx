@@ -87,6 +87,7 @@ import {
 } from "@/components/ui/popover";
 import { ProviderIcon } from "@/components/ui/provider-icon";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getStoredModelId, setStoredModelId } from "@/lib/model-preference";
 import { loadAllProviders } from "@/lib/providers/loader";
 import { getSessionId } from "@/lib/session";
 import { TOOL_CONFIG } from "@/lib/tools/config";
@@ -106,7 +107,7 @@ function ChatContent() {
   const router = useRouter();
   const urlConversationId = searchParams.get("id");
 
-  const [model, setModel] = useState<string>("openai/gpt-5-nano");
+  const [model, setModel] = useState<string>(() => getStoredModelId());
   const [searchProviders, setSearchProviders] = useState<string[]>([]);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>();
   const [reasoningEnabled, setReasoningEnabled] = useState<boolean>(false);
@@ -138,6 +139,11 @@ function ChatContent() {
   useEffect(() => {
     setSessionId(getSessionId());
   }, []);
+
+  // Persist model selection to localStorage
+  useEffect(() => {
+    setStoredModelId(model);
+  }, [model]);
 
   // Sync hasUpdatedUrl and isNewConversationRef when URL changes
   useEffect(() => {
